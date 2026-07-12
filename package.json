@@ -24,7 +24,7 @@
     "@salesforce/dev-scripts": "^10",
     "@types/pluralize": "^0.0.33",
     "c8": "^11.0.0",
-    "eslint-plugin-sf-plugin": "^1.18.6",
+    "eslint-plugin-sf-plugin": "^1.20.33",
     "husky": "^9.1.7",
     "lint-staged": "15",
     "markdownlint-cli2": "^0.22.1",
