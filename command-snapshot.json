@@ -1,0 +1,167 @@
+[
+    {
+        "alias": [],
+        "command": "warden:access",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "flags-dir",
+            "json",
+            "output",
+            "target",
+            "target-org",
+            "type"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:diff",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "against",
+            "api-version",
+            "external-id",
+            "flags-dir",
+            "json",
+            "output",
+            "personas-def",
+            "target-org",
+            "user",
+            "users-def",
+            "verbose"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:freeze",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "json",
+            "no-prompt",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:provision",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "json",
+            "no-prompt",
+            "personas-def",
+            "target-org",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:restore",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "flags-dir",
+            "json",
+            "no-prompt",
+            "snapshot",
+            "target-org"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:snapshot",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "external-id",
+            "flags-dir",
+            "json",
+            "out",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:strip",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "json",
+            "keep-licenses",
+            "keep-permset-groups",
+            "keep-permsets",
+            "keep-public-groups",
+            "keep-queues",
+            "no-deactivate",
+            "no-freeze",
+            "no-prompt",
+            "snapshot",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:unfreeze",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "json",
+            "no-prompt",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    }
+]

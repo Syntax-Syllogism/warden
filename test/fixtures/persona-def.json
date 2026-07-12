@@ -1,0 +1,40 @@
+{
+  "personas": {
+    "default": {
+      "name": "Default Persona",
+      "description": "This is the default persona used for general interactions.",
+      "permissionSetGroups": ["default"],
+      "permissionSets": ["default"],
+      "publicGroups": ["default"],
+      "queues": ["default"],
+      "profile": "default",
+      "role": "default",
+      "userAttributes": {
+        "Title": "Salesforce User",
+        "Department": "Sales",
+        "LocaleSidKey": "en_US",
+        "EmailEncodingKey": "UTF-8",
+        "LanguageLocaleKey": "en_US",
+        "TimeZoneSidKey": "America/Los_Angeles"
+      }
+    },
+    "admin": {
+      "name": "Admin Persona",
+      "description": "This is the admin persona used for administrative interactions.",
+      "permissionSetGroups": ["admin"],
+      "permissionSets": ["admin"],
+      "publicGroups": ["admin"],
+      "queues": ["admin"],
+      "profile": "Admin",
+      "role": "CEO",
+      "userAttributes": {
+        "Title": "Salesforce Administrator",
+        "Department": "Sales",
+        "LocaleSidKey": "en_US",
+        "EmailEncodingKey": "UTF-8",
+        "LanguageLocaleKey": "en_US",
+        "TimeZoneSidKey": "America/Los_Angeles"
+      }
+    }
+  }
+}
