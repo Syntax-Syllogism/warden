@@ -28,7 +28,7 @@
     "husky": "^9.1.7",
     "lint-staged": "15",
     "markdownlint-cli2": "^0.22.1",
-    "oclif": "^4.14.0",
+    "oclif": "^4.23.27",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   },
