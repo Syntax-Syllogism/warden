@@ -34,6 +34,13 @@ sf warden provision --target-org myOrg --users-def ./users.json --personas-def .
 sf warden strip --target-org myOrg --user 'Username:user@example.com' --snapshot ./pre-strip.json
 ```
 
+## Documentation
+
+* [Getting started](docs/getting-started.md)
+* [Command details](docs/command-details.md) — provisioning merge logic, field
+  precedence tables, match resolution, assignment modes, and access-audit notes.
+* [Example definition files](docs/examples/) — sample `users.json` and `personas.json`
+
 ## Issues
 
 Please report any issues at <https://github.com/Syntax-Syllogism/warden/issues>.
@@ -155,7 +162,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -206,7 +213,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -251,7 +258,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -300,7 +307,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -343,7 +350,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -388,7 +395,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -453,7 +460,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -498,5 +505,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.1.1/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->
