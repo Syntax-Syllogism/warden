@@ -51,14 +51,5 @@ jobs:
       # Publish the verified tarball as-is. Passing the .tgz means npm does NOT
       # re-run prepack, so the published bytes are exactly what we inspected.
       #
-      # Auth: NODE_AUTH_TOKEN bootstraps the FIRST publish, because npm cannot
-      # attach a trusted-publisher (OIDC) config to a package that does not exist
-      # yet. Once the package exists and trusted publishing is configured on
-      # npmjs.com, delete this `env:` block and the NPM_TOKEN secret — the
-      # `id-token: write` permission above lets OIDC take over with no token.
-      # `--provenance` works either way: it signs via the OIDC id-token, which is
-      # independent of how the publish itself authenticates.
       - name: Publish to npm
         run: npm publish *.tgz --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
