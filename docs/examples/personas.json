@@ -1,0 +1,45 @@
+{
+  "personas": {
+    "operations": {
+      "profile": "Operations User",
+      "role": "Operations_Manager",
+      "permissionSetMode": "sync",
+      "permissionSets": ["Operations_Core", "Reports_Standard"],
+      "publicGroupMode": "additive",
+      "publicGroups": ["Operations_Team"],
+      "userAttributes": {
+        "Department": "Operations",
+        "Title": "Operations Specialist"
+      }
+    },
+    "service": {
+      "profile": "Service User",
+      "permissionSetMode": "additive",
+      "permissionSets": ["Service_Console"],
+      "permissionSetGroupMode": "additive",
+      "permissionSetGroups": ["Service_Casework"],
+      "userAttributes": {
+        "Department": "Customer Service",
+        "Title": "Service Representative"
+      }
+    },
+    "case-manager": {
+      "queueMode": "sync",
+      "queues": ["Priority_Cases"],
+      "userAttributes": {
+        "Title": "Case Manager"
+      }
+    },
+    "auditor": {
+      "profile": "Read Only",
+      "permissionSetMode": "additive",
+      "permissionSets": ["Audit_Reports"],
+      "publicGroupMode": "additive",
+      "publicGroups": ["Compliance_Reviewers"],
+      "userAttributes": {
+        "Department": "Compliance",
+        "Title": "Access Auditor"
+      }
+    }
+  }
+}

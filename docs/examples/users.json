@@ -1,0 +1,39 @@
+{
+  "users": [
+    {
+      "personas": ["operations"],
+      "match": "FederationIdentifier",
+      "FederationIdentifier": "OPS-1001",
+      "FirstName": "Jordan",
+      "LastName": "Lee",
+      "Email": "jordan.lee@example.com",
+      "LocaleSidKey": "en_US",
+      "EmailEncodingKey": "UTF-8",
+      "LanguageLocaleKey": "en_US",
+      "TimeZoneSidKey": "America/Los_Angeles"
+    },
+    {
+      "personas": ["service", "case-manager"],
+      "match": "Username",
+      "Username": "casey.hernandez@example.com",
+      "FirstName": "Casey",
+      "LastName": "Hernandez",
+      "Email": "casey.hernandez@example.com",
+      "LocaleSidKey": "en_US",
+      "EmailEncodingKey": "UTF-8",
+      "LanguageLocaleKey": "en_US",
+      "TimeZoneSidKey": "America/New_York"
+    },
+    {
+      "personas": ["auditor"],
+      "FederationIdentifier": "AUD-2042",
+      "FirstName": "Morgan",
+      "LastName": "Patel",
+      "Email": "morgan.patel@example.com",
+      "LocaleSidKey": "en_US",
+      "EmailEncodingKey": "UTF-8",
+      "LanguageLocaleKey": "en_US",
+      "TimeZoneSidKey": "America/Chicago"
+    }
+  ]
+}

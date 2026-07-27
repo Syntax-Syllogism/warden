@@ -1,0 +1,64 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [release]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
+
+      # Build the tarball once. `npm pack` runs prepack (sf-prepack: yarn build
+      # + oclif manifest), so this is the real artifact npm would publish.
+      - name: Pack
+        run: npm pack
+
+      # Guard against shipping an empty package (the failure mode behind the
+      # command-less 0.1.0). Inspects the actual tarball: it must contain
+      # compiled command files and a manifest listing at least one command.
+      - name: Verify tarball contents
+        run: node scripts/verify-pack.mjs
+
+      # Publish the verified tarball as-is. Passing the .tgz means npm does NOT
+      # re-run prepack, so the published bytes are exactly what we inspected.
+      #
+      # Auth: NODE_AUTH_TOKEN bootstraps the FIRST publish, because npm cannot
+      # attach a trusted-publisher (OIDC) config to a package that does not exist
+      # yet. Once the package exists and trusted publishing is configured on
+      # npmjs.com, delete this `env:` block and the NPM_TOKEN secret — the
+      # `id-token: write` permission above lets OIDC take over with no token.
+      # `--provenance` works either way: it signs via the OIDC id-token, which is
+      # independent of how the publish itself authenticates.
+      - name: Publish to npm
+        run: npm publish *.tgz --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,4 @@
+personas,match,FederationIdentifier,Username,FirstName,LastName,Email,LocaleSidKey,EmailEncodingKey,LanguageLocaleKey,TimeZoneSidKey
+operations,FederationIdentifier,OPS-1001,,Jordan,Lee,jordan.lee@example.com,en_US,UTF-8,en_US,America/Los_Angeles
+service;case-manager,Username,,casey.hernandez@example.com,Casey,Hernandez,casey.hernandez@example.com,en_US,UTF-8,en_US,America/New_York
+auditor,,AUD-2042,,Morgan,Patel,morgan.patel@example.com,en_US,UTF-8,en_US,America/Chicago

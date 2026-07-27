@@ -1,0 +1,3 @@
+personas,match,fuzzyUsername,FederationIdentifier,Employee_ID__c,FirstName,LastName,Email
+ops;support,FederationIdentifier,yes,ABC123,,Ana,Park,apark@acme.com
+finance,Employee_ID__c,,,00123,Ravi,Suresh,rsuresh@acme.com

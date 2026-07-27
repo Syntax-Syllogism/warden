@@ -1,0 +1,210 @@
+[
+    {
+        "alias": [],
+        "command": "warden:access",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "flags-dir",
+            "json",
+            "output",
+            "output-file",
+            "target",
+            "target-org",
+            "type"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:base",
+        "flagAliases": [],
+        "flagChars": [],
+        "flags": [
+            "flags-dir",
+            "json"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:diff",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "against",
+            "api-version",
+            "csv-list-delimiter",
+            "external-id",
+            "fail-on-drift",
+            "flags-dir",
+            "input-format",
+            "json",
+            "output",
+            "output-file",
+            "personas-def",
+            "target-org",
+            "user",
+            "users-def",
+            "verbose",
+            "verify"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:freeze",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "csv-list-delimiter",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "input-format",
+            "json",
+            "no-prompt",
+            "output",
+            "output-file",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:provision",
+        "flagAliases": [
+            "match-field"
+        ],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "csv-list-delimiter",
+            "dry-run",
+            "external-id",
+            "fail-on-insufficient-license",
+            "flags-dir",
+            "fuzzy-username",
+            "input-format",
+            "json",
+            "no-prompt",
+            "output",
+            "output-file",
+            "personas-def",
+            "target-org",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:restore",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "dry-run",
+            "flags-dir",
+            "json",
+            "no-prompt",
+            "output",
+            "output-file",
+            "snapshot",
+            "target-org"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:snapshot",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "csv-list-delimiter",
+            "external-id",
+            "flags-dir",
+            "input-format",
+            "json",
+            "out",
+            "output",
+            "output-file",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:strip",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "csv-list-delimiter",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "input-format",
+            "json",
+            "keep-licenses",
+            "keep-permset-groups",
+            "keep-permsets",
+            "keep-public-groups",
+            "keep-queues",
+            "no-deactivate",
+            "no-freeze",
+            "no-prompt",
+            "output",
+            "output-file",
+            "snapshot",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    },
+    {
+        "alias": [],
+        "command": "warden:unfreeze",
+        "flagAliases": [],
+        "flagChars": [
+            "o"
+        ],
+        "flags": [
+            "api-version",
+            "csv-list-delimiter",
+            "dry-run",
+            "external-id",
+            "flags-dir",
+            "input-format",
+            "json",
+            "no-prompt",
+            "output",
+            "output-file",
+            "target-org",
+            "user",
+            "users-def"
+        ],
+        "plugin": "@syntax-syllogism/warden"
+    }
+]

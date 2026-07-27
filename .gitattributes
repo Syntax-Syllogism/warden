@@ -1,0 +1,23 @@
+# Force LF in the working tree for Markdown files regardless of core.autocrlf.
+#
+# `oclif readme` regenerates the command block between the <!-- commands -->
+# and <!-- commandsstop --> tags using the regex `<!-- commands -->(.|\n)*<!--
+# commandsstop -->`. In JS regex, `.` excludes ALL line terminators including
+# `\r`, so `(.|\n)*` cannot cross a CRLF line ending. On a CRLF README the
+# collapse match fails, the old block is never removed, and oclif prepends a
+# fresh block above the stale one -> duplicated commands every run. Keeping
+# Markdown as LF in the working tree avoids this.
+*.md text eol=lf
+
+# Force LF in the working tree for the AEP golden fixtures regardless of
+# core.autocrlf.
+#
+# The plan-builder tests (test/aep/*.test.ts) compare generated artifact content
+# byte-for-byte against these fixtures. Generator output is always LF because
+# TypeScript normalizes template-literal line endings to LF when it compiles the
+# templates in src/aep/templates, independent of those files' on-disk endings.
+# With core.autocrlf=true and no eol pinning, checkout rewrites the fixtures to
+# CRLF on Windows, so the comparison fails even though the committed bytes match.
+# Pinning the fixtures to LF keeps generator output and fixtures in lockstep on
+# every platform.
+test/fixtures/aep/golden/** text eol=lf
