@@ -48,8 +48,5 @@ jobs:
       - name: Verify tarball contents
         run: node scripts/verify-pack.mjs
 
-      # Publish the verified tarball as-is. Passing the .tgz means npm does NOT
-      # re-run prepack, so the published bytes are exactly what we inspected.
-      #
       - name: Publish to npm
         run: npm publish *.tgz --access public --provenance

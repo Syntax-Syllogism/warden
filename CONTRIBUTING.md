@@ -1,21 +1,25 @@
 # Contributing to warden
 
-Thank you for your interest in contributing to warden! This is an open-source Salesforce CLI plugin, and we welcome all kinds of contributions.
+Thank you for your interest in contributing to warden! This is an open-source
+Salesforce CLI plugin, and we welcome all kinds of contributions.
 
 ## How to Contribute
 
-1. **Report Bugs:** If you find a bug, please open an issue with a clear description and steps to reproduce.
-1. **Suggest Features:** Have an idea? Open an issue to discuss it.
-1. **Submit Pull Requests:**
+1. **Report bugs:** If you find a bug, please open an issue with a clear
+   description and steps to reproduce.
+2. **Suggest features:** Open an issue to discuss the proposal before starting
+   implementation.
+3. **Submit pull requests:**
    - Fork the repository.
-   - Create a new branch for your feature or fix.
-   - Write clear, documented code.
-   - Ensure tests pass (`npm test`).
-   - Open a Pull Request with a description of your changes.
+   - Create a topic branch for your change.
+   - Write clear, documented code and tests.
+   - Run `yarn build`, `yarn test`, and `yarn lint:md`.
+   - Open a pull request with a description of the change and verification.
 
 ## Development Setup
 
-See the [README](README.md) for instructions on how to set up the project locally.
+See the [Getting started](docs/getting-started.md) guide for project setup and
+the [README](README.md) for the generated CLI reference.
 
 ## Code of Conduct
 

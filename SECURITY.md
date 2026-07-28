@@ -2,8 +2,8 @@
 
 ## Supported Versions
 
-MavMeta is in pre-1.0 development. Only the current release receives
-security fixes.
+Warden is in pre-1.0 development. Only the current release receives security
+fixes.
 
 | Version                   | Supported |
 | ------------------------- | --------- |
@@ -46,19 +46,20 @@ Reporters are credited in the release notes unless they request otherwise.
 
 In scope:
 
-- The MavMeta local server (`src/server/`) and its HTTP surface.
-- The MavMeta frontend bundle served from that local server.
-- The packaged release artifacts on GitHub.
+- The Warden source code and Salesforce API interactions.
+- The packaged plugin artifacts published to npm and GitHub.
+- Documentation or examples that could cause unsafe command behavior.
 
 Out of scope:
 
 - Vulnerabilities in Salesforce itself or in the `sf` CLI — please report
   those upstream.
 - Issues that require an attacker to already have local code-execution
-  privileges on the user's machine equivalent to the MavMeta process
-  (MavMeta is a local-machine tool; we assume the local user is
-  trusted).
+  privileges equivalent to the local user running Warden. Warden is a local
+  Salesforce CLI plugin and relies on the permissions of the authenticated
+  Salesforce user.
+- Vulnerabilities that depend only on an intentionally over-privileged
+  Salesforce user or org configuration, unless Warden makes the impact worse.
 
-## See Also
-
-- [Security model and threat model](docs/security.md)
+Please do not include production credentials or unredacted Salesforce data in
+a report. Attach a minimal reproduction or sanitized sample instead.

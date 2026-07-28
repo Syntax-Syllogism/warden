@@ -1,6 +1,6 @@
 # warden
 
-[![NPM](https://img.shields.io/npm/v/@syntax-syllogism/warden.svg?label=%40syntax-syllogism%2Fwarden)](https://www.npmjs.com/package/@syntax-syllogism/warden) [![Downloads/week](https://img.shields.io/npm/dw/@syntax-syllogism/warden.svg)](https://npmjs.org/package/@syntax-syllogism/warden) [![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://raw.githubusercontent.com/Syntax-Syllogism/warden/blob/release/LICENSE)
+[![NPM](https://img.shields.io/npm/v/@syntax-syllogism/warden.svg?label=%40syntax-syllogism%2Fwarden)](https://www.npmjs.com/package/@syntax-syllogism/warden) [![Downloads/week](https://img.shields.io/npm/dw/@syntax-syllogism/warden.svg)](https://npmjs.org/package/@syntax-syllogism/warden) [![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://raw.githubusercontent.com/Syntax-Syllogism/warden/release/LICENSE)
 
 a Salesforce CLI plugin for user lifecycle administration — access auditing, drift diffing, provisioning, freeze/unfreeze, and snapshot/restore.
 
@@ -45,7 +45,8 @@ sf warden strip --target-org myOrg --user 'Username:user@example.com' --snapshot
   destinations, CSV shape, and global `--json` behavior.
 * [User matching](docs/user-matching.md) — filterable fields, fuzzy Username
   resolution, and lifecycle targeting behavior.
-* [Example definition files](docs/examples/) — sample `users.json` and `personas.json`
+* [Example definitions](docs/command-details.md#example-usersjson) — sample
+  `users.json`, `users.csv`, and `personas.json` files.
 
 ## Issues
 
@@ -71,14 +72,15 @@ To build the plugin locally, make sure to have yarn installed and run the follow
 git clone git@github.com:Syntax-Syllogism/warden
 
 # Install the dependencies and compile
-yarn && yarn build
+yarn install
+yarn build
 ```
 
-To use your plugin, run using the local `./bin/dev.js` file.
+To use your plugin locally, invoke the development launcher through Node:
 
 ```bash
 # Run using local run file.
-./bin/dev.js warden freeze --help
+node ./bin/dev.js warden freeze --help
 ```
 
 There should be no differences when running via the Salesforce CLI or using the local run file. However, it can be useful to link the plugin to do some additional testing or run your commands from anywhere on your machine.
@@ -196,7 +198,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/access.ts)_
 
 ## `sf warden base`
 
@@ -209,7 +211,7 @@ GLOBAL FLAGS
   --json               Format output as json.
 ```
 
-_See code: [src/commands/warden/base.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/base.ts)_
+_See code: [src/commands/warden/base.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/base.ts)_
 
 ## `sf warden diff`
 
@@ -266,7 +268,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -318,7 +320,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -395,7 +397,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -441,7 +443,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -493,7 +495,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -565,7 +567,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -617,5 +619,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.1/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

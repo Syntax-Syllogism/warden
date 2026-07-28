@@ -50,15 +50,15 @@ not request fuzzy matching.
 
 ## Examples
 
-Provision with a filterable custom field and fuzzy Username matching:
+Provision with fuzzy Username matching (the fuzzy option applies only to
+Username matching):
 
 ```json
 {
   "users": [
     {
       "personas": ["standard"],
-      "match": "EmployeeNumber__c",
-      "EmployeeNumber__c": "E-123",
+      "match": "Username",
       "fuzzyUsername": true,
       "Username": "alex@example.com"
     }

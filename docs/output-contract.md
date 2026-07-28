@@ -1,6 +1,6 @@
 # Output contract
 
-All eight `warden` commands accept `--output human|csv|json` and
+All eight operational `warden` commands accept `--output human|csv|json` and
 `--output-file <path>`. Human output is the default. The generated flag
 reference is in the [README](../README.md#commands).
 
@@ -65,8 +65,9 @@ serialization rule.
   `userKey,userId,userName,username,status,action,category,name,error`.
 * `strip` emits one row per action or removed item with
   `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
-* `snapshot` retains its separate round-trip CSV schema until the snapshot
-  schema work item is implemented.
+* `snapshot` emits `key,id,status,actions,skipped,warnings,errors`, one row per
+  selected user. This report CSV is separate from the JSON snapshot file
+  written with `--out`.
 
 For lifecycle commands, users with no actions still produce one row and each
 error produces its own row. Formula-like cells are prefixed with an apostrophe

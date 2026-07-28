@@ -13,10 +13,11 @@ sf plugins install @syntax-syllogism/warden@x.y.z
 Or build from source (see [Contributing](../README.md#contributing)):
 
 ```bash
-git clone git@github.com:jprichter/warden
+git clone https://github.com/Syntax-Syllogism/warden.git
 cd warden
-yarn && yarn build
-./bin/dev.js warden --help
+yarn install
+yarn build
+node ./bin/dev.js warden --help
 ```
 
 ## Concepts
@@ -33,7 +34,8 @@ warden's commands fall into three groups:
   prompt once you trust the plan (e.g. in CI).
 * **Portable state** — `snapshot` captures a user's active/frozen state and
   assignments to a JSON file; `restore` re-applies it later. Snapshots use
-  developer/API names, not Ids, so they're portable across orgs.
+  developer/API names when available, with Ids as a fallback, so they're
+  portable across orgs where the referenced names exist.
 
 ## Your first provisioning run
 
@@ -78,7 +80,7 @@ sf warden diff --target-org myOrg \
   --users-def ./users.json --personas-def ./personas.json
 ```
 
-Both commands are read-only — safe to run against production at any time.
+Both commands are read-only and perform no writes to the org.
 
 ## Snapshot before a destructive change
 

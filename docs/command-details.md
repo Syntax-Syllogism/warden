@@ -21,7 +21,7 @@ records. Columns are stable and new columns are appended to existing schemas.
 | `restore` | one user action or action item | `userKey,userId,userName,username,status,action,category,name,error` |
 | `strip` | one user action or removed item | `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error` |
 | `freeze` / `unfreeze` | one user | `userKey,userId,userName,username,wasFrozen,status,action,error` |
-| `snapshot` | separate snapshot schema | maintained by the snapshot identity and round-trip work item |
+| `snapshot` | one lifecycle report row per user | `key,id,status,actions,skipped,warnings,errors` |
 
 `diff` keeps `value` in its original position and continues to hold the
 record Id. Profile and role rows also expose `valueBefore` and `valueAfter`;
@@ -116,7 +116,7 @@ and should receive no permission-set, group, or queue assignments. For
 example:
 
 ```bash
-sf warden provision --users-def docs/examples/users-profile-only.json \
+sf warden provision --users-def ./users-profile-only.json \
   --dry-run --target-org acme-uat
 ```
 
@@ -268,7 +268,8 @@ case-insensitively to `User` API fields; `personas`, `match`, and
 `fuzzyUsername` are metadata columns. Empty cells are omitted, and persona
 lists use semicolons by default. Use `--input-format json|csv` when the file
 extension does not identify the format, and `--csv-list-delimiter` for a
-different list separator. See [`examples/users.csv`](examples/users.csv).
+different list separator. The repository does not ship a separate example
+directory; the CSV shape is shown here.
 
 CSV headers are validated strictly and all cells remain strings except for
 `fuzzyUsername` and describe-backed boolean User fields. Accepted boolean
@@ -323,11 +324,8 @@ Users CSV follows these rules:
 }
 ```
 
-See [`examples/users.json`](examples/users.json) and
-[`examples/personas.json`](examples/personas.json) for larger,
-multi-persona samples.
-See [`examples/users-profile-only.json`](examples/users-profile-only.json) for
-a profile-only bulk load.
+The examples above also show the supported multi-persona and profile-only
+shapes; no separate example directory is required.
 
 ## `warden diff`
 
@@ -361,7 +359,7 @@ the normal successful envelope status. It is rejected with `--user` or
 For example, verify a profile-only definition without assignment expectations:
 
 ```bash
-sf warden diff --users-def docs/examples/users-profile-only.json \
+sf warden diff --users-def ./users-profile-only.json \
   --verify --target-org acme-uat
 ```
 
