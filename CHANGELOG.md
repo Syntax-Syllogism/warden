@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2] - 2026-08-03
+
+### Changed
+
+- Internal maintenance and tooling updates
+
 ## [0.2.1] - 2026-07-28
 
 ### Changed

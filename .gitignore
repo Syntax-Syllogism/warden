@@ -14,6 +14,12 @@ yarn-error.log
 # compile source
 lib
 
+# generated docs assets
+docs/*
+!docs/*.md
+!docs/examples/
+!docs/examples/**
+
 # test artifacts
 *xunit.xml
 *checkstyle.xml
@@ -65,3 +71,4 @@ CLAUDE.md
 bin/publish.sh
 bin/smoke-test.sh
 bin/changelog-prompt.txt
+release.config.mjs
