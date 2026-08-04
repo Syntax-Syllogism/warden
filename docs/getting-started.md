@@ -15,7 +15,7 @@ This guide gets you from zero to your first provisioning run.
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.2.3/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.2.4/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -111,5 +111,5 @@ snapshot before deciding whether to run the real strip.
   identity, assignment labels, snapshots, and action reporting.
 * [Example definitions](command-details.md#example-usersjson) — full
   `users.json` and `personas.json` samples are included in command details.
-* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.2.3/README.md#commands) section of
+* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.2.4/README.md#commands) section of
   the README, or run any command with `--help`.

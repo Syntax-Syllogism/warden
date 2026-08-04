@@ -7,7 +7,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 All eight operational `warden` commands accept `--output human|csv|json` and
 `--output-file <path>`. Human output is the default. The generated flag
-reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.3/README.md#commands).
+reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.4/README.md#commands).
 
 ## Formats and destinations
 
