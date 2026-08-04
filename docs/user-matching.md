@@ -1,3 +1,8 @@
+---
+title: User matching
+description: Resolve Salesforce users with exact fields, fuzzy Usernames, and lifecycle targeting rules.
+---
+
 # User matching
 
 Warden uses one matching layer for provisioning and for lifecycle commands
@@ -73,5 +78,5 @@ sf warden freeze --users-def ./users.json --target-org mySandbox
 ```
 
 See [command details](command-details.md#warden-provision) for provisioning
-merge and precedence rules, and the [README command reference](../README.md)
+merge and precedence rules, and the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.2.3/README.md)
 for the complete flag surface.

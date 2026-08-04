@@ -1,3 +1,8 @@
+---
+title: Access audits
+description: Audit effective Salesforce user access and trace each grant to its source.
+---
+
 # Access audits
 
 `sf warden access` is a read-only audit command. It supports two directions:

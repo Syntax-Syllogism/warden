@@ -1,8 +1,13 @@
+---
+title: Lifecycle output and snapshots
+description: Understand Warden lifecycle reports, assignment labels, action notices, and snapshots.
+---
+
 # Lifecycle output and snapshots
 
 This page documents the human-readable output and snapshot data produced by
 the user lifecycle commands. Flag and command reference remains in the
-[README](../README.md#commands).
+[README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.3/README.md#commands).
 
 ## Resolved user identity
 

@@ -59,6 +59,11 @@ config/
 sfdx-project.json
 sfdx-reference/
 
+# docs site uses npm and generates its own build artifacts
+docs-site/dist/
+docs-site/.astro/
+!docs-site/package-lock.json
+
 .gitignore.public
 .history/
 notes/
