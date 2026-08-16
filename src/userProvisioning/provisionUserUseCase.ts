@@ -8,7 +8,7 @@ import {
   soqlIn,
   type SaveResult,
 } from '../userShared/sfUtils.js';
-import { resolveExistingUsers, type ExistingUser } from '../userMatching/index.js';
+import { matchKey, resolveExistingUsers, type ExistingUser } from '../userMatching/index.js';
 export type { ExistingUser } from '../userMatching/index.js';
 import { loadAssignmentState } from '../userLifecycle/assignmentState.js';
 import type { LabelBundle, LabelMap } from '../userLifecycle/types.js';
@@ -19,7 +19,6 @@ import {
   buildDefaultUsername,
   CanonicalizedUser,
   deriveMyDomain,
-  findFirstUserWithPersonas,
   isSalesforceId,
   missingRequiredFieldsForInsert,
   PersonaDefinition,
@@ -35,10 +34,20 @@ import {
   type AssignmentDmlPlan,
   type ResolvedRefs,
 } from './assignmentPlan.js';
-import { readProvisionDefinitions, type ProvisionDefinitionDocuments } from './definitionReader.js';
+import {
+  loadValidatedDefinitions,
+  type DefinitionMessages,
+  type ProvisionDefinitionDocuments,
+} from './definitionReader.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');
+
+const provisionDefinitionMessages: DefinitionMessages = {
+  invalidPersonaDefinition: () => messages.getMessage('errorInvalidPersonaDefinition'),
+  personasWithoutDefinition: (userKey) => messages.getMessage('errorPersonasWithoutDefinition', [userKey]),
+  invalidJson: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
+};
 
 type JsonRecord = Record<string, unknown>;
 
@@ -195,8 +204,6 @@ const appendCrossReferenceCandidates = (errors: string[], target: JsonRecord): s
   if (candidateFields.length === 0) return errors;
   return errors.concat(messages.getMessage('errorCrossReferenceCandidates', [candidateFields.join(', ')]));
 };
-
-const matchKey = (field: string, value: string): string => `${field}:${value}`;
 
 const collectPersonaRefs = (personas: Record<string, PersonaDefinition>): Record<string, Set<string>> => {
   const refs = {
@@ -646,57 +653,22 @@ export type ProvisionUserRequest = {
   acknowledgeWarnings?: (warnings: string[]) => Promise<void>;
 };
 
-const validateDefinitionDocuments = (
-  usersDoc: JsonRecord,
-  personasDoc: JsonRecord,
-  personasSupplied: boolean
-): void => {
-  if (!personasDoc.personas || typeof personasDoc.personas !== 'object' || Array.isArray(personasDoc.personas)) {
-    throw new SfError(messages.getMessage('errorInvalidPersonaDefinition'));
-  }
-  const firstUserWithPersonas = personasSupplied === false ? findFirstUserWithPersonas(usersDoc.users) : undefined;
-  if (firstUserWithPersonas) {
-    throw new SfError(messages.getMessage('errorPersonasWithoutDefinition', [firstUserWithPersonas]));
-  }
-};
-
-const loadDefinitions = async (
-  request: ProvisionUserRequest,
-  fieldMap: Map<string, UserFieldMeta>
-): Promise<ProvisionDefinitionDocuments> => {
-  if (request.usersDoc) {
-    return {
-      usersDoc: request.usersDoc,
-      personasDoc: request.personasDoc ?? { personas: {} },
-      personasSupplied: request.personasSupplied ?? (request.personasDoc ? true : Boolean(request.personasPath)),
-    };
-  }
-  if (!request.usersPath) throw new SfError(messages.getMessage('errorInvalidJson', ['users-def', 'missing path']));
-  return readProvisionDefinitions(
-    request.usersPath,
-    request.personasPath,
-    { inputFormat: request.inputFormat, csvListDelimiter: request.csvListDelimiter, fieldMap },
-    (path, error) => messages.getMessage('errorInvalidJson', [path, error])
-  );
-};
-
 export class ProvisionUserUseCase {
   private readonly userProcessConcurrency = USER_PROCESS_CONCURRENCY;
 
   public async execute(request: ProvisionUserRequest): Promise<ProvisionResult> {
     const conn = request.connection;
+    let fieldMap: Map<string, UserFieldMeta>;
+    let definitions: ProvisionDefinitionDocuments;
     if (request.usersDoc) {
-      validateDefinitionDocuments(
-        request.usersDoc,
-        request.personasDoc ?? { personas: {} },
-        request.personasSupplied ?? Boolean(request.personasDoc)
-      );
+      definitions = await loadValidatedDefinitions(request, new Map(), provisionDefinitionMessages);
+      fieldMap = await describeUserFields(conn);
+    } else {
+      fieldMap = await describeUserFields(conn);
+      definitions = await loadValidatedDefinitions(request, fieldMap, provisionDefinitionMessages);
     }
-    const fieldMap = await describeUserFields(conn);
-    const definitions = await loadDefinitions(request, fieldMap);
     const { usersDoc, personasDoc } = definitions;
     const personasSupplied = request.personasSupplied ?? definitions.personasSupplied;
-    validateDefinitionDocuments(usersDoc, personasDoc, personasSupplied);
     const personas = personasDoc.personas as Record<string, PersonaDefinition>;
     validatePersonaModes(personas);
     validateExternalIdFieldForFlag(request.externalId, fieldMap);

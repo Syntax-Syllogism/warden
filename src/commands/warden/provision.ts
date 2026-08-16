@@ -6,7 +6,7 @@ import { detectInputFormat, type InputFormat } from '../../userShared/csv.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import { ProvisionUserUseCase, type ProvisionResult } from '../../userProvisioning/provisionUserUseCase.js';
 import { readProvisionDefinitions } from '../../userProvisioning/definitionReader.js';
-import { WardenCommand } from './base.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');

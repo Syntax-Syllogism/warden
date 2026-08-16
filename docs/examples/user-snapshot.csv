@@ -1,0 +1,5 @@
+snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name
+1,2026-07-25T14:02:11.000Z,acme-uat,FederationIdentifier,E-9981,0055g00000ABCDeAAF,Ana Park,apark@acme.com.dev,apark@acme.com,System Administrator,Support_Manager,true,false,permissionSet,Case_Agent
+1,2026-07-25T14:02:11.000Z,acme-uat,FederationIdentifier,E-9981,0055g00000ABCDeAAF,Ana Park,apark@acme.com.dev,apark@acme.com,System Administrator,Support_Manager,true,false,permissionSet,Knowledge_Reader
+1,2026-07-25T14:02:11.000Z,acme-uat,FederationIdentifier,E-9981,0055g00000ABCDeAAF,Ana Park,apark@acme.com.dev,apark@acme.com,System Administrator,Support_Manager,true,false,publicGroup,EMEA_Support
+1,2026-07-25T14:02:11.000Z,acme-uat,FederationIdentifier,E-1042,0055g00000QRSDeAAF,Ravi Suresh,rsuresh@acme.com.dev,rsuresh@acme.com,Standard User,,false,true,none,

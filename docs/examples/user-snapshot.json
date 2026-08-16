@@ -1,0 +1,45 @@
+{
+  "snapshotVersion": 1,
+  "capturedAt": "2026-07-25T14:02:11.000Z",
+  "org": "acme-uat",
+  "users": [
+    {
+      "match": "FederationIdentifier",
+      "matchValue": "E-9981",
+      "userId": "0055g00000ABCDeAAF",
+      "name": "Ana Park",
+      "username": "apark@acme.com.dev",
+      "email": "apark@acme.com",
+      "profile": "System Administrator",
+      "role": "Support_Manager",
+      "IsActive": true,
+      "IsFrozen": false,
+      "permissionSets": [
+        "Case_Agent",
+        "Knowledge_Reader"
+      ],
+      "permissionSetGroups": [],
+      "publicGroups": [
+        "EMEA_Support"
+      ],
+      "queues": [],
+      "permissionSetLicenses": []
+    },
+    {
+      "match": "FederationIdentifier",
+      "matchValue": "E-1042",
+      "userId": "0055g00000QRSDeAAF",
+      "name": "Ravi Suresh",
+      "username": "rsuresh@acme.com.dev",
+      "email": "rsuresh@acme.com",
+      "profile": "Standard User",
+      "IsActive": false,
+      "IsFrozen": true,
+      "permissionSets": [],
+      "permissionSetGroups": [],
+      "publicGroups": [],
+      "queues": [],
+      "permissionSetLicenses": []
+    }
+  ]
+}

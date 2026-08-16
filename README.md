@@ -110,7 +110,6 @@ inspect the per-user errors or verdicts.
 
 <!-- commands -->
 * [`sf warden access`](#sf-warden-access)
-* [`sf warden base`](#sf-warden-base)
 * [`sf warden diff`](#sf-warden-diff)
 * [`sf warden freeze`](#sf-warden-freeze)
 * [`sf warden provision`](#sf-warden-provision)
@@ -200,20 +199,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/access.ts)_
-
-## `sf warden base`
-
-```
-USAGE
-  $ sf warden base [--json] [--flags-dir <value>]
-
-GLOBAL FLAGS
-  --flags-dir=<value>  Import flag values from a directory.
-  --json               Format output as json.
-```
-
-_See code: [src/commands/warden/base.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/base.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -270,7 +256,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -322,7 +308,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -399,7 +385,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -418,7 +404,7 @@ FLAGS
       --output=<option>      [default: human] Output format: human, csv, or json. Defaults to human.
                              <options: human|csv|json>
       --output-file=<value>  Write the machine-readable output payload to this path.
-      --snapshot=<value>     (required) Path to a user snapshot JSON file.
+      --snapshot=<value>     (required) Path to a user snapshot JSON or CSV file.
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
@@ -445,7 +431,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -464,7 +450,7 @@ FLAGS
       --external-id=<value>         Default User field used to match entries in `--users-def`.
       --input-format=<option>       Override users-def format detection: json or csv.
                                     <options: json|csv>
-      --out=<value>                 Path to write the snapshot JSON file.
+      --out=<value>                 Path to write the snapshot JSON or CSV file. The extension selects the format.
       --output=<option>             [default: human] Output format: human, csv, or json. Defaults to human.
                                     <options: human|csv|json>
       --output-file=<value>         Write the machine-readable output payload to this path.
@@ -497,7 +483,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -529,8 +515,8 @@ FLAGS
       --output=<option>             [default: human] Output format: human, csv, or json. Defaults to human.
                                     <options: human|csv|json>
       --output-file=<value>         Write the machine-readable output payload to this path.
-      --snapshot=<value>            Write a portable user snapshot JSON file before stripping access, including during
-                                    dry-run.
+      --snapshot=<value>            Write a portable user snapshot JSON or CSV file before stripping access, including
+                                    during dry-run. The extension selects the format.
       --user=<value>                Target a single user using `field:value`.
       --users-def=<value>           Path to a user definition JSON or CSV file.
 
@@ -569,7 +555,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -621,5 +607,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

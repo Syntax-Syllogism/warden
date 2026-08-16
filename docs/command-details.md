@@ -6,7 +6,7 @@ description: Detailed provisioning, assignment, matching, and output behavior fo
 # Command details
 
 Deeper logic notes for warden's more involved commands. Flag-by-flag
-reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/README.md#commands) and in each command's
+reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands) and in each command's
 `--help` output; this doc covers the *why* and the *merge/precedence rules*
 that don't fit in a flag summary.
 
@@ -36,9 +36,10 @@ rows, so failed or unchanged users cannot disappear from a CSV attachment.
 
 The shared CSV writer prefixes cells beginning with `=`, `+`, `-`, `@`, tab,
 or carriage return with `'` before quoting. This prevents spreadsheet formula
-execution, including for user-supplied labels and attributes. The escape is
-write-only. CSV user-definition input rules are documented below; snapshot CSV
-round-trip behavior remains a separate snapshot concern.
+execution, including for user-supplied labels and attributes. Snapshot CSV
+input removes that protective prefix when it is present so snapshot names
+survive a write/read round-trip. CSV user-definition input rules are
+documented below.
 
 ## `warden provision`
 
@@ -379,11 +380,31 @@ command remains read-only and its shared output behavior is covered by the
 
 Snapshots capture active/frozen state and assignments by developer/API name
 (never by Id), so a snapshot taken in one org can be restored into another.
+Each entry also optionally records the resolved `name`, `username`, `email`,
+`profile`, and `role` as advisory review fields. Profile and role are reported
+by name when available, with their Id as a fallback; restore never applies
+either field.
 `restore` re-resolves users by the snapshot's match key, reactivates and
 unfreezes them, and only *adds* missing assignments — it never removes
 access the user already has. If you need a rollback point before a
 destructive change, pair `--snapshot` on `strip` with a later `restore`
 rather than taking a separate `snapshot` step.
+
+The snapshot writer selects JSON or CSV from the output extension. CSV is a
+long, self-describing format with one row per assignment:
+
+```text
+snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name
+```
+
+The category is `permissionSet`, `permissionSetGroup`, `publicGroup`,
+`queue`, `permissionSetLicense`, or `none`. A user with no assignments gets a
+`none` row so active/frozen state and identity are not lost. `restore` accepts
+either JSON or CSV by extension, validates shared metadata, groups rows by
+`match`, `matchValue`, and `userId`, and sorts/deduplicates assignment names.
+During `--dry-run`, it shows the recorded snapshot identity beside the
+re-resolved org identity and warns about mismatches. Profile and role lines
+are annotated `(reported, not applied)`.
 
 See [Lifecycle output and snapshots](lifecycle-output.md) for the resolved
 identity line, assignment label formatting, itemized action reporting, and

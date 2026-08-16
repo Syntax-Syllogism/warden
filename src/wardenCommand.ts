@@ -5,7 +5,7 @@ import {
   emitOutput,
   resolveOutputFormat,
   type OutputFormat,
-} from '../../userShared/outputFlags.js';
+} from './userShared/outputFlags.js';
 
 export type OutputContext = {
   format: OutputFormat;

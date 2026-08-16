@@ -74,18 +74,6 @@ No UserLogin row was found for this user.
 
 Continue with this operation?
 
-# alreadyFrozen
-
-Already frozen.
-
-# wouldFreeze
-
-Would freeze.
-
-# frozen
-
-Froze.
-
 # alreadyUnfrozen
 
 Already unfrozen.

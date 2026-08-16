@@ -8,20 +8,22 @@ import { stdin as input, stdout as output } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
-const smokeProjectDir = resolve(repoRoot, 'smoke');
+const launchDir = resolve(process.cwd());
 const sfExecutable = process.platform === 'win32' ? 'sf.cmd' : 'sf';
 const args = process.argv.slice(2);
 const assumeYes = args.includes('--yes');
 const runId = timestamp();
 const commandsPath = getOption('--commands');
 if (!commandsPath) {
-  console.error('Usage: node scripts/run-smoke-tests.mjs --commands <commands.md> [--project-dir <sfdx-project>] [--yes]');
+  console.error(
+    'Usage: node scripts/run-smoke-tests.mjs --commands <commands.md> [--project-dir <sfdx-project>] [--yes]'
+  );
   process.exit(1);
 }
 const commandsFile = resolve(commandsPath);
-const projectDir = resolve(getOption('--project-dir', smokeProjectDir));
-const reportFile = resolve(getOption('--report', resolve(repoRoot, `smoke-test-report-${runId}.md`)));
-const failuresFile = resolve(getOption('--failures', resolve(repoRoot, `smoke-test-failures-${runId}.md`)));
+const projectDir = resolve(getOption('--project-dir', launchDir));
+const reportFile = resolve(getOption('--report', resolve(projectDir, `smoke-test-report-${runId}.md`)));
+const failuresFile = resolve(getOption('--failures', resolve(projectDir, `smoke-test-failures-${runId}.md`)));
 
 function getOption(name, fallback) {
   const index = args.indexOf(name);

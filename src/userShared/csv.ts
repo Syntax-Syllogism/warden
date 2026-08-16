@@ -15,18 +15,18 @@ const csvRowInfo = Symbol('csvRowInfo');
 export const getCsvRowInfo = (value: unknown): CsvRowInfo | undefined =>
   value && typeof value === 'object' ? (value as { [csvRowInfo]?: CsvRowInfo })[csvRowInfo] : undefined;
 
-class CsvReadError extends Error {
+export class CsvReadError extends Error {
   public constructor(path: string, line: number, detail: string) {
     super(`${path}:${line} — ${detail}`);
     this.name = 'CsvReadError';
   }
 }
 
-type ParsedCsvRow = { cells: string[]; line: number };
+export type ParsedCsvRow = { cells: string[]; line: number };
 
 // CSV quoting has several mutually exclusive parser states; keeping them together makes line tracking auditable.
 // eslint-disable-next-line complexity
-const readCsvRows = (source: string, path: string, delimiter: string): ParsedCsvRow[] => {
+export const readCsvRows = (source: string, path: string, delimiter: string): ParsedCsvRow[] => {
   const text = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
   const rows: ParsedCsvRow[] = [];
   let cells: string[] = [];
@@ -233,6 +233,9 @@ export const neutralizeCsvFormula = (value: string): string => {
   if (value.startsWith("'") && FORMULA_PREFIX.test(value.slice(1))) return value;
   return FORMULA_PREFIX.test(value) ? `'${value}` : value;
 };
+
+export const restoreCsvFormula = (value: string): string =>
+  value.startsWith("'") && FORMULA_PREFIX.test(value.slice(1)) ? value.slice(1) : value;
 
 export const csvEscape = (value: unknown): string => {
   const text = value === null || value === undefined ? '' : String(value);

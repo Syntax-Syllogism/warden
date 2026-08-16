@@ -86,18 +86,6 @@ Would freeze.
 
 Froze.
 
-# alreadyUnfrozen
-
-Already unfrozen.
-
-# wouldUnfreeze
-
-Would unfreeze.
-
-# unfrozen
-
-Unfroze.
-
 # info.summary
 
 Processed %s user%s: %s changed, %s unchanged, %s failed.

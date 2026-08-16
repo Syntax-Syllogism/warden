@@ -68,7 +68,7 @@ Keep queue memberships.
 
 # flags.snapshot.summary
 
-Write a portable user snapshot JSON file before stripping access, including during dry-run.
+Write a portable user snapshot JSON or CSV file before stripping access, including during dry-run. The extension selects the format.
 
 # flags.api-version.summary
 

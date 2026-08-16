@@ -21,7 +21,7 @@ import type {
   ValidatedAccessTarget,
 } from '../../userAccess/types.js';
 import { UserAccessError } from '../../userAccess/types.js';
-import { WardenCommand } from './base.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.access');

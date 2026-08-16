@@ -32,7 +32,7 @@ Default User field used to match entries in `--users-def`.
 
 # flags.out.summary
 
-Path to write the snapshot JSON file.
+Path to write the snapshot JSON or CSV file. The extension selects the format.
 
 # flags.api-version.summary
 

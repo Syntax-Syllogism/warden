@@ -12,7 +12,7 @@ Target org username or alias.
 
 # flags.snapshot.summary
 
-Path to a user snapshot JSON file.
+Path to a user snapshot JSON or CSV file.
 
 # flags.no-prompt.summary
 

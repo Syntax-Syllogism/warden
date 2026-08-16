@@ -6,6 +6,29 @@ import { pathToFileURL } from 'node:url';
 import { expect } from 'chai';
 
 describe('warden process-level output', () => {
+  it('does not expose its shared command base class as warden base', () => {
+    const repoRoot = process.cwd();
+    const child = spawnSync(
+      process.execPath,
+      ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', join(repoRoot, 'bin/dev.js'), 'warden', '--help'],
+      {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        timeout: 30_000,
+        env: {
+          ...process.env,
+          FORCE_COLOR: '0',
+          NODE_V8_COVERAGE: undefined,
+          SF_DISABLE_LOG_FILE: 'true',
+        },
+      }
+    );
+
+    expect(child.error, child.error?.stack).to.equal(undefined);
+    expect(child.status).to.equal(0);
+    expect(child.stdout).to.not.include('warden base');
+  });
+
   it('keeps the global json envelope successful while returning exit code 1 for partial failure', () => {
     const repoRoot = process.cwd();
     const dir = mkdtempSync(join(tmpdir(), 'warden-process-test-'));

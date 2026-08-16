@@ -132,6 +132,18 @@ const renderMatchProvenance = (user: LifecycleResult['users'][number]): string =
   return `  matched ${match} · was ${state}`;
 };
 
+const renderReviewIdentity = (
+  identity:
+    | NonNullable<LifecycleUserResult['identityReview']>['snapshot']
+    | NonNullable<LifecycleUserResult['identityReview']>['org'],
+  includeId = false
+): string => {
+  const name = identity.name ?? identity.username ?? identity.email ?? '(unknown)';
+  const address = identity.username ?? identity.email;
+  const person = address && identity.name ? `${name} <${address}>` : name;
+  return `${person}${includeId && 'userId' in identity ? `  ${identity.userId}` : ''}`;
+};
+
 export const renderLifecycleResult = (
   result: LifecycleResult,
   lookup: (key: string, args?: string[]) => string
@@ -154,6 +166,23 @@ export const renderLifecycleResult = (
       lines.push(renderMatchProvenance(user));
     } else {
       lines.push(`${user.key}${user.id ? ` (${user.id})` : ''}: ${user.status}`);
+    }
+    if (user.identityReview) {
+      lines.push(
+        `  snapshot: ${renderReviewIdentity(user.identityReview.snapshot)}  (${user.identityReview.match.field} = ${
+          user.identityReview.match.value
+        })`
+      );
+      lines.push(`  org:      ${renderReviewIdentity(user.identityReview.org, true)}`);
+      for (const field of ['profile', 'role'] as const) {
+        const snapshotValue = user.identityReview.snapshot[field];
+        const orgValue = user.identityReview.org[field];
+        if (snapshotValue !== undefined || orgValue !== undefined) {
+          lines.push(
+            `  ${field}: ${snapshotValue ?? '(missing)'} → ${orgValue ?? '(missing)'}  (reported, not applied)`
+          );
+        }
+      }
     }
     for (const warning of user.warnings) lines.push(`  warning: ${warning}`);
     for (const skipped of user.skipped) {

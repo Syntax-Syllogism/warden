@@ -7,7 +7,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 This page documents the human-readable output and snapshot data produced by
 the user lifecycle commands. Flag and command reference remains in the
-[README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/README.md#commands).
+[README](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands).
 
 ## Resolved user identity
 
@@ -69,6 +69,8 @@ completed.
 per resolved user. Each entry includes:
 
 * `match`, `matchValue`, and `userId` for locating the user later;
+* optional advisory `name`, `username`, `email`, `profile`, and `role` fields
+  for review;
 * `IsActive` and `IsFrozen` for restoring lifecycle state; and
 * sorted, deduplicated developer/API-name arrays for `permissionSets`,
   `permissionSetGroups`, `publicGroups`, `queues`, and
@@ -80,3 +82,20 @@ Id as a fallback so an assignment is not silently dropped. `restore` resolves
 those names in the destination org, warns about missing optional references,
 and only adds assignments that are not already present; it does not remove
 existing access.
+
+The same snapshot can be written as CSV using an `.csv` output path and read
+back by `restore --snapshot`. CSV repeats file metadata on every long-format
+assignment row with the columns
+`snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name`.
+Users with no assignments receive a `none` row. CSV input groups by match,
+match value, and user Id, rejects conflicting file metadata, and sorts and
+deduplicates reconstructed assignments. The `snapshotVersion` remains `1`.
+An empty snapshot writes one `emptySnapshot` row carrying the file metadata,
+so an empty JSON snapshot can make the same CSV round-trip as a populated one.
+Worked examples are available as [JSON](examples/user-snapshot.json) and
+[CSV](examples/user-snapshot.csv).
+
+In `restore --dry-run`, the snapshot identity is shown beside the identity
+resolved in the target org. Differences produce warnings rather than failure.
+Profile and role comparisons are observations only and are labeled
+`(reported, not applied)`.

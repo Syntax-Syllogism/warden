@@ -7,7 +7,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 All eight operational `warden` commands accept `--output human|csv|json` and
 `--output-file <path>`. Human output is the default. The generated flag
-reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/README.md#commands).
+reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands).
 
 ## Formats and destinations
 
@@ -71,8 +71,8 @@ serialization rule.
 * `strip` emits one row per action or removed item with
   `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
 * `snapshot` emits `key,id,status,actions,skipped,warnings,errors`, one row per
-  selected user. This report CSV is separate from the JSON snapshot file
-  written with `--out`.
+  selected user. This report CSV is separate from the JSON or CSV snapshot
+  artifact written with `--out`.
 
 For lifecycle commands, users with no actions still produce one row and each
 error produces its own row. Formula-like cells are prefixed with an apostrophe

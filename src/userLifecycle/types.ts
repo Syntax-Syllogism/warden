@@ -36,6 +36,7 @@ export type LifecycleUserResult = {
   skipped: LifecycleNotice[];
   warnings: string[];
   errors: string[];
+  identityReview?: IdentityReview;
 };
 
 export type LifecycleSummary = {
@@ -65,9 +66,18 @@ export type ResolvedTargetUser = {
   IsActive: boolean;
   name?: string;
   username?: string;
+  email?: string;
+  profile?: string;
+  role?: string;
   field: string;
   value: string;
   order: number;
+};
+
+export type IdentityReview = {
+  snapshot: { name?: string; username?: string; email?: string; profile?: string; role?: string };
+  org: { name?: string; username?: string; email?: string; profile?: string; role?: string; userId: string };
+  match: { field: string; value: string };
 };
 
 export type TargetError = {

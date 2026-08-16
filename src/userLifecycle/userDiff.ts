@@ -1,7 +1,6 @@
 import { SfError, type Connection, Messages } from '@salesforce/core';
 import {
   type CanonicalizedUser,
-  findFirstUserWithPersonas,
   type PersonaDefinition,
   type UserFieldMeta,
   validateAndCanonicalizeUsers,
@@ -24,13 +23,24 @@ import {
 import { batch, soqlIn } from '../userShared/sfUtils.js';
 import { serializeCsv, type InputFormat } from '../userShared/csv.js';
 import { describeUserFields } from '../userShared/userFields.js';
-import { readProvisionDefinitions, type ProvisionDefinitionDocuments } from '../userProvisioning/definitionReader.js';
+import {
+  loadValidatedDefinitions,
+  type DefinitionMessages,
+  type ProvisionDefinitionDocuments,
+} from '../userProvisioning/definitionReader.js';
+import { matchKey } from '../userMatching/index.js';
 import { loadAssignmentState, type GroupMemberRow, type PermissionSetAssignmentRow } from './assignmentState.js';
 import { parseUserFlag, resolveTargetField, resolveTargets } from './targeting.js';
 import type { LabelBundle, LabelMap } from './types.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.diff');
+
+const diffDefinitionMessages: DefinitionMessages = {
+  invalidPersonaDefinition: () => messages.getMessage('errorInvalidPersonaDefinition'),
+  personasWithoutDefinition: (userKey) => messages.getMessage('errorPersonasWithoutDefinition', [userKey]),
+  invalidJson: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
+};
 
 type JsonRecord = Record<string, unknown>;
 type ExistingUserWithFields = ExistingUser & { ProfileId?: string | null; UserRoleId?: string | null };
@@ -97,40 +107,6 @@ type UserDiffRequest = {
   connection: Connection;
   user: string;
   against: string;
-};
-
-const validatePersonaDiffDefinitions = (
-  usersDoc: JsonRecord,
-  personasDoc: JsonRecord,
-  personasSupplied: boolean
-): void => {
-  if (!personasDoc.personas || typeof personasDoc.personas !== 'object' || Array.isArray(personasDoc.personas)) {
-    throw new SfError(messages.getMessage('errorInvalidPersonaDefinition'));
-  }
-  const firstUserWithPersonas = personasSupplied === false ? findFirstUserWithPersonas(usersDoc.users) : undefined;
-  if (firstUserWithPersonas) {
-    throw new SfError(messages.getMessage('errorPersonasWithoutDefinition', [firstUserWithPersonas]));
-  }
-};
-
-const loadPersonaDiffDefinitions = async (
-  request: PersonaDiffRequest,
-  fieldMap: Map<string, UserFieldMeta>
-): Promise<ProvisionDefinitionDocuments> => {
-  if (request.usersDoc) {
-    return {
-      usersDoc: request.usersDoc,
-      personasDoc: request.personasDoc ?? { personas: {} },
-      personasSupplied: request.personasSupplied ?? (request.personasDoc ? true : Boolean(request.personasPath)),
-    };
-  }
-  if (!request.usersPath) throw new SfError(messages.getMessage('errorInvalidJson', ['users-def', 'missing path']));
-  return readProvisionDefinitions(
-    request.usersPath,
-    request.personasPath,
-    { inputFormat: request.inputFormat, csvListDelimiter: request.csvListDelimiter, fieldMap },
-    (path, error) => messages.getMessage('errorInvalidJson', [path, error])
-  );
 };
 
 const QUERY_BATCH_SIZE = 100;
@@ -246,8 +222,6 @@ const validationErrorsFor = (user: CanonicalizedUser): string[] =>
     user,
     (user.validationErrors ?? []).map((error) => messages.getMessage(error.messageKey, error.messageArgs))
   );
-
-const matchKey = (field: string, value: string): string => `${field}:${value}`;
 
 const findExisting = (
   user: CanonicalizedUser,
@@ -383,18 +357,17 @@ const diffForMissingUser = (
 
 export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<UserDiffResult> => {
   const { connection: conn } = request;
+  let fieldMap: Map<string, UserFieldMeta>;
+  let definitions: ProvisionDefinitionDocuments;
   if (request.usersDoc) {
-    validatePersonaDiffDefinitions(
-      request.usersDoc,
-      request.personasDoc ?? { personas: {} },
-      request.personasSupplied ?? Boolean(request.personasDoc)
-    );
+    definitions = await loadValidatedDefinitions(request, new Map(), diffDefinitionMessages);
+    fieldMap = await describeUserFields(conn);
+  } else {
+    fieldMap = await describeUserFields(conn);
+    definitions = await loadValidatedDefinitions(request, fieldMap, diffDefinitionMessages);
   }
-  const fieldMap = await describeUserFields(conn);
-  const definitions = await loadPersonaDiffDefinitions(request, fieldMap);
   const { usersDoc, personasDoc } = definitions;
   const personasSupplied = request.personasSupplied ?? definitions.personasSupplied;
-  validatePersonaDiffDefinitions(usersDoc, personasDoc, personasSupplied);
 
   const personas = personasDoc.personas as Record<string, PersonaDefinition>;
   validatePersonaModes(personas);

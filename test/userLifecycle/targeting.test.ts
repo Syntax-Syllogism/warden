@@ -34,9 +34,7 @@ describe('userLifecycle targeting', () => {
   it('builds a target request from --user', async () => {
     const result = await buildTargetRequests({ user: 'username:alice@example.com' }, fieldMap, messages);
     expect(result).to.deep.equal({
-      requests: [
-        { key: 'Username:alice@example.com', field: 'Username', value: 'alice@example.com', order: 0 },
-      ],
+      requests: [{ key: 'Username:alice@example.com', field: 'Username', value: 'alice@example.com', order: 0 }],
       errors: [],
     });
   });
@@ -58,9 +56,7 @@ describe('userLifecycle targeting', () => {
     );
     const result = await buildTargetRequests({ 'users-def': path }, fieldMap, messages);
     expect(result).to.deep.equal({
-      requests: [
-        { key: 'Username:alice@example.com', field: 'Username', value: 'alice@example.com', order: 0 },
-      ],
+      requests: [{ key: 'Username:alice@example.com', field: 'Username', value: 'alice@example.com', order: 0 }],
       errors: [],
     });
   });
@@ -132,7 +128,19 @@ describe('userLifecycle targeting', () => {
     const query = sinon.stub().callsFake(async (soql: string) => {
       if (soql.includes("FROM User WHERE Username IN ('alice@example.com')")) {
         return {
-          records: [{ Id: '005000000000001AAA', IsActive: true, Name: 'Alice Park', Username: 'alice@example.com' }],
+          records: [
+            {
+              Id: '005000000000001AAA',
+              IsActive: true,
+              Name: 'Alice Park',
+              Username: 'alice@example.com',
+              Email: 'alice@example.com',
+              ProfileId: '00eProfile',
+              Profile: { Name: 'Standard User' },
+              UserRoleId: '00eRole',
+              UserRole: { Name: 'Support' },
+            },
+          ],
         };
       }
       if (soql.includes("FROM User WHERE FederationIdentifier IN ('dup')")) {
@@ -166,6 +174,9 @@ describe('userLifecycle targeting', () => {
       IsActive: true,
       name: 'Alice Park',
       username: 'alice@example.com',
+      email: 'alice@example.com',
+      profile: 'Standard User',
+      role: 'Support',
     });
     expect(result.errors).to.have.length(2);
     expect(result.errors.map((error) => error.message).join(' ')).to.include('matched multiple users');
@@ -182,9 +193,31 @@ describe('userLifecycle targeting', () => {
     );
 
     expect(query.firstCall.args[0]).to.equal(
-      "SELECT Id, IsActive, Name, Username FROM User WHERE Id IN ('005000000000001AAA')"
+      "SELECT Id, IsActive, Name, Username, Email, ProfileId, Profile.Name, UserRoleId, UserRole.Name FROM User WHERE Id IN ('005000000000001AAA')"
     );
     expect(result.targets).to.have.length(1);
     expect(result.targets[0].Id).to.equal('005000000000001AAA');
+  });
+
+  it('uses relationship Ids when profile and role names are unavailable', async () => {
+    const query = sinon.stub().resolves({
+      records: [
+        {
+          Id: '005000000000001AAA',
+          IsActive: true,
+          ProfileId: '00eProfile',
+          Profile: null,
+          UserRoleId: '00eRole',
+          UserRole: null,
+        },
+      ],
+    });
+    const result = await resolveTargets(
+      { query } as never,
+      [{ key: 'Id:005000000000001AAA', field: 'Id', value: '005000000000001AAA', order: 0 }],
+      fieldMap
+    );
+
+    expect(result.targets[0]).to.include({ profile: '00eProfile', role: '00eRole' });
   });
 });

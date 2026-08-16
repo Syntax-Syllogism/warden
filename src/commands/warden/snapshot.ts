@@ -14,7 +14,7 @@ import type { LifecycleResult, LifecycleUserResult } from '../../userLifecycle/t
 import { renderSnapshotCsv } from '../../userShared/output.js';
 import { describeUserFields } from '../../userShared/userFields.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
-import { WardenCommand } from './base.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.snapshot');

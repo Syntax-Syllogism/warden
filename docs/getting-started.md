@@ -15,7 +15,7 @@ This guide gets you from zero to your first provisioning run.
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -38,9 +38,10 @@ warden's commands fall into three groups:
   to preview planned changes first, and `--no-prompt` to skip the confirmation
   prompt once you trust the plan (e.g. in CI).
 * **Portable state** — `snapshot` captures a user's active/frozen state and
-  assignments to a JSON file; `restore` re-applies it later. Snapshots use
-  developer/API names when available, with Ids as a fallback, so they're
-  portable across orgs where the referenced names exist.
+  assignments to a JSON or CSV file; the output extension selects the format
+  and `restore` accepts either one. Snapshots use developer/API names when
+  available, with Ids as a fallback, so they're portable across orgs where the
+  referenced names exist.
 
 ## Your first provisioning run
 
@@ -111,5 +112,5 @@ snapshot before deciding whether to run the real strip.
   identity, assignment labels, snapshots, and action reporting.
 * [Example definitions](command-details.md#example-usersjson) — full
   `users.json` and `personas.json` samples are included in command details.
-* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.2.5/README.md#commands) section of
+* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands) section of
   the README, or run any command with `--help`.

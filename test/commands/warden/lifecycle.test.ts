@@ -606,6 +606,11 @@ describe('warden user lifecycle commands', () => {
             match: 'Username',
             matchValue: 'restore@example.com',
             userId: '005old',
+            name: 'Snapshot User',
+            username: 'restore@example.com',
+            email: 'restore@example.com',
+            profile: 'Old Profile',
+            role: 'Support',
             IsActive: true,
             IsFrozen: false,
             permissionSets: ['Existing_Perms', 'Missing_Perms'],
@@ -620,7 +625,21 @@ describe('warden user lifecycle commands', () => {
     const conn = createConnection();
     conn.query.callsFake(async (soql: string) => {
       if (soql.includes("FROM User WHERE Username IN ('restore@example.com')")) {
-        return { records: [{ Id: '005xx0000000200AAA', IsActive: false, Username: 'restore@example.com' }] };
+        return {
+          records: [
+            {
+              Id: '005xx0000000200AAA',
+              IsActive: false,
+              Name: 'Resolved User',
+              Username: 'restore@example.com',
+              Email: 'restore@example.com',
+              ProfileId: '00eProfile',
+              Profile: { Name: 'New Profile' },
+              UserRoleId: '00eRole',
+              UserRole: { Name: 'Support' },
+            },
+          ],
+        };
       }
       if (soql.includes('FROM UserLogin')) {
         return { records: [{ Id: '0LL200', UserId: '005xx0000000200AAA', IsFrozen: true }] };
@@ -702,6 +721,10 @@ describe('warden user lifecycle commands', () => {
       'wouldAddQueueMember:1',
       'wouldAssignPermissionSetLicense:1',
     ]);
+    expect(result.users[0].identityReview?.snapshot.profile).to.equal('Old Profile');
+    expect(result.users[0].identityReview?.org.profile).to.equal('New Profile');
+    expect(result.users[0].warnings).to.include('Snapshot name "Snapshot User" differs from org "Resolved User".');
+    expect(result.users[0].warnings).to.include('Snapshot profile "Old Profile" differs from org "New Profile".');
     expect(conn.sobjectMap.User.update.called).to.equal(false);
     expect(conn.sobjectMap.UserLogin.update.called).to.equal(false);
     expect(conn.sobjectMap.PermissionSetAssignment.create.called).to.equal(false);
@@ -986,7 +1009,7 @@ describe('warden user lifecycle commands', () => {
 
   it('round-trips snapshot output into restore dry-run planning', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'warden-roundtrip-test-'));
-    const snapshotPath = join(dir, 'snapshot.json');
+    const snapshotPath = join(dir, 'snapshot.csv');
     const conn = createConnection();
     conn.query.callsFake(async (soql: string) => {
       if (soql.includes("FROM User WHERE Username IN ('roundtrip@example.com')")) {

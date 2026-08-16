@@ -23,6 +23,11 @@ const readCaseInsensitive = (source: Record<string, unknown>, field: string): un
   return rawKey ? source[rawKey] : undefined;
 };
 
+const relationshipName = (
+  id: string | null | undefined,
+  relationship: { Name?: string } | null | undefined
+): string | undefined => relationship?.Name ?? id ?? undefined;
+
 export const parseUserFlag = (raw: string): { field: string; value: string } => {
   const colon = raw.indexOf(':');
   if (colon <= 0 || colon === raw.length - 1) {
@@ -223,6 +228,9 @@ export const resolveTargets = async (
       IsActive: Boolean(row.IsActive),
       name: row.Name,
       username: row.Username,
+      email: row.Email,
+      profile: relationshipName(row.ProfileId, row.Profile),
+      role: relationshipName(row.UserRoleId, row.UserRole),
       field: request.field,
       value: request.value,
       order: request.order,

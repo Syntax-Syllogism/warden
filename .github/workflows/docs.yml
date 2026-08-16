@@ -8,7 +8,9 @@ on:
 
 jobs:
   docs:
-    if: github.ref == 'refs/heads/release'
+    # The release branch is pushed to both the private origin and the public
+    # mirror, so the repository must be checked as well as the ref.
+    if: github.repository == 'Syntax-Syllogism/warden' && github.ref == 'refs/heads/release'
     uses: Syntax-Syllogism/workflows/.github/workflows/docs-publish.yml@workflows/v1
     with:
       tool_slug: 'warden'

@@ -42,7 +42,9 @@ describe('user matching', () => {
     expect(result.existingByField.get('Username')?.get('foo@bar.com')?.Name).to.equal('Foo User');
     expect(result.duplicates.has('Username:dup@bar.com')).to.equal(true);
     expect(query.firstCall.args[0]).to.include("Username LIKE 'foo@bar.com.%'");
-    expect(query.firstCall.args[0]).to.include('SELECT Id, IsActive, Name, Username FROM User');
+    expect(query.firstCall.args[0]).to.include(
+      'SELECT Id, IsActive, Name, Username, Email, ProfileId, Profile.Name, UserRoleId, UserRole.Name FROM User'
+    );
   });
 
   it('keeps exact matching grouped and preserves duplicate detection', async () => {
@@ -119,9 +121,11 @@ describe('user matching', () => {
       fieldMap
     );
 
-    expect(query.firstCall.args[0]).to.equal("SELECT Id, IsActive, Name, Username FROM User WHERE Name IN ('Alice')");
+    expect(query.firstCall.args[0]).to.equal(
+      "SELECT Id, IsActive, Name, Username, Email, ProfileId, Profile.Name, UserRoleId, UserRole.Name FROM User WHERE Name IN ('Alice')"
+    );
     expect(query.secondCall.args[0]).to.equal(
-      "SELECT Id, IsActive, Name, Username FROM User WHERE Username IN ('alice@example.com')"
+      "SELECT Id, IsActive, Name, Username, Email, ProfileId, Profile.Name, UserRoleId, UserRole.Name FROM User WHERE Username IN ('alice@example.com')"
     );
   });
 });

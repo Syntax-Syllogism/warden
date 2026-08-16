@@ -3,20 +3,21 @@ import { Flags } from '@salesforce/sf-plugins-core';
 import { describeUserFields } from '../../userShared/userFields.js';
 import { loadAssignmentState, type AssignmentState } from '../../userLifecycle/assignmentState.js';
 import { makeNotice, renderLifecycleResult, summarizeLifecycle } from '../../userLifecycle/output.js';
-import { assertSnapshotFile, type UserSnapshotEntry } from '../../userLifecycle/snapshotState.js';
+import { readSnapshotFile, type UserSnapshotEntry } from '../../userLifecycle/snapshotState.js';
 import { resolveTargetField, resolveTargets } from '../../userLifecycle/targeting.js';
 import type {
   LabelBundle,
+  IdentityReview,
   LifecycleResult,
   LifecycleUserResult,
   ResolvedTargetUser,
   TargetRequest,
 } from '../../userLifecycle/types.js';
-import { asArray, pushErrors, readJsonOrThrow, soqlIn } from '../../userShared/sfUtils.js';
+import { asArray, pushErrors, soqlIn } from '../../userShared/sfUtils.js';
 import { confirmWithTimeout } from '../../userShared/prompt.js';
 import { renderRestoreCsv } from '../../userShared/output.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
-import { WardenCommand } from './base.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.restore');
@@ -193,6 +194,40 @@ const addAssignmentActions = (
   );
 };
 
+const identityReview = (snapshotUser: UserSnapshotEntry, target: ResolvedTargetUser): IdentityReview | undefined => {
+  const snapshot = {
+    name: snapshotUser.name,
+    username: snapshotUser.username,
+    email: snapshotUser.email,
+    profile: snapshotUser.profile,
+    role: snapshotUser.role,
+  };
+  if (!Object.values(snapshot).some((value) => value !== undefined)) return undefined;
+  return {
+    snapshot,
+    org: {
+      name: target.name,
+      username: target.username,
+      email: target.email,
+      profile: target.profile,
+      role: target.role,
+      userId: target.Id,
+    },
+    match: { field: target.field, value: target.value },
+  };
+};
+
+const identityMismatches = (review: IdentityReview): string[] => {
+  const fields = ['name', 'username', 'email', 'profile', 'role'] as const;
+  return fields.flatMap((field) => {
+    const expected = review.snapshot[field];
+    const actual = review.org[field];
+    return expected !== undefined && expected !== actual
+      ? [`Snapshot ${field} "${expected}" differs from org "${actual ?? '(missing)'}".`]
+      : [];
+  });
+};
+
 const applyAssignmentCreates = async (
   conn: Connection,
   result: LifecycleUserResult,
@@ -302,6 +337,11 @@ const buildPlan = (
     warnings: [],
     errors: [],
   };
+  const review = identityReview(snapshotUser, target);
+  if (review) {
+    result.identityReview = review;
+    result.warnings.push(...identityMismatches(review));
+  }
   const psaRows = state.psaByUserId.get(target.Id) ?? [];
   const groupRows = state.groupByUserId.get(target.Id) ?? [];
   const pslRows = state.pslByUserId.get(target.Id) ?? [];
@@ -419,14 +459,12 @@ export default class UserRestore extends WardenCommand<LifecycleResult> {
     const { flags } = await this.parse(UserRestore);
     const context = this.resolveOutputContext(flags);
     const conn = flags['target-org'].getConnection(flags['api-version'] ?? undefined);
-    const rawSnapshot = await readJsonOrThrow(String(flags.snapshot), (path, error) =>
-      messages.getMessage('errorInvalidJson', [path, error])
-    );
     let snapshot;
     try {
-      snapshot = assertSnapshotFile(rawSnapshot);
+      snapshot = await readSnapshotFile(String(flags.snapshot));
     } catch (error) {
-      throw new SfError(error instanceof Error ? error.message : String(error));
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new SfError(messages.getMessage('errorInvalidJson', [String(flags.snapshot), detail]));
     }
     const fieldMap = await describeUserFields(conn);
     const requests: TargetRequest[] = [];

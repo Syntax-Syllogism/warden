@@ -14,7 +14,7 @@ import {
   type UserDiffResult,
 } from '../../userLifecycle/userDiff.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
-import { WardenCommand } from './base.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.diff');

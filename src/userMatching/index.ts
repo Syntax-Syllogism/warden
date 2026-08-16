@@ -12,7 +12,17 @@ export type UserFieldMeta = {
   isBoolean?: boolean;
 };
 
-export type ExistingUser = { Id: string; IsActive?: boolean; Name?: string; Username?: string };
+export type ExistingUser = {
+  Id: string;
+  IsActive?: boolean;
+  Name?: string;
+  Username?: string;
+  Email?: string;
+  ProfileId?: string | null;
+  Profile?: { Name?: string } | null;
+  UserRoleId?: string | null;
+  UserRole?: { Name?: string } | null;
+};
 
 export type UserMatchRequest = {
   field: string;
@@ -74,7 +84,17 @@ const distinctUsers = (rows: ExistingUser[]): ExistingUser[] => {
 const requestKey = (request: UserMatchRequest): string => request.key ?? matchKey(request.field, request.value);
 
 const selectUserFields = (matchField: string): string[] => {
-  const fields = ['Id', 'IsActive', 'Name', 'Username'];
+  const fields = [
+    'Id',
+    'IsActive',
+    'Name',
+    'Username',
+    'Email',
+    'ProfileId',
+    'Profile.Name',
+    'UserRoleId',
+    'UserRole.Name',
+  ];
   if (!fields.some((field) => field.toLowerCase() === matchField.toLowerCase())) fields.push(matchField);
   return fields;
 };
@@ -84,6 +104,11 @@ const toExistingUser = (row: ExistingUser): ExistingUser => ({
   IsActive: row.IsActive,
   Name: row.Name,
   Username: row.Username,
+  Email: row.Email,
+  ProfileId: row.ProfileId,
+  Profile: row.Profile,
+  UserRoleId: row.UserRoleId,
+  UserRole: row.UserRole,
 });
 
 const addRequestMatches = (
@@ -157,7 +182,7 @@ export const resolveExistingUsers = async (
     const bases = [...new Set(fuzzyUsernameRequests.map((request) => request.value))];
     const renderClause = (base: string): string =>
       `(Username = '${esc(base)}' OR Username LIKE '${escapeSoqlLike(base)}.%')`;
-    const prefix = 'SELECT Id, IsActive, Name, Username FROM User WHERE ';
+    const prefix = `SELECT ${selectUserFields('Username').join(', ')} FROM User WHERE `;
     const chunks = batchesByQueryLength(bases, renderClause, prefix.length);
     const rows = (
       await Promise.all(

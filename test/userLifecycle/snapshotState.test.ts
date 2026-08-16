@@ -3,7 +3,13 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { buildSnapshotFile, writeSnapshotFile } from '../../src/userLifecycle/snapshotState.js';
+import {
+  assertSnapshotFile,
+  buildSnapshotFile,
+  deserializeSnapshotCsv,
+  serializeSnapshotCsv,
+  writeSnapshotFile,
+} from '../../src/userLifecycle/snapshotState.js';
 
 describe('userLifecycle snapshot state', () => {
   it('creates parent directories before writing a snapshot', async () => {
@@ -196,5 +202,113 @@ describe('userLifecycle snapshot state', () => {
     expect(snapshot.users[0].queues).to.deep.equal(['Fallback_Queue']);
     expect(snapshot.users[0].permissionSetLicenses).to.deep.equal(['Fallback_License']);
     expect(conn.query.callCount).to.equal(4);
+  });
+
+  it('round-trips identity, frozen state, empty assignments, and neutralized names through CSV', () => {
+    const snapshot = {
+      snapshotVersion: 1 as const,
+      capturedAt: '2026-07-25T14:02:11.000Z',
+      org: 'acme-uat',
+      users: [
+        {
+          match: 'FederationIdentifier',
+          matchValue: 'E-9981',
+          userId: '005Ana',
+          name: 'Ana Park',
+          username: 'apark@acme.com.dev',
+          email: 'apark@acme.com',
+          profile: '=System Administrator',
+          role: 'Support_Role',
+          IsActive: true,
+          IsFrozen: false,
+          permissionSets: ['=Case_Agent', 'Knowledge_Reader'],
+          permissionSetGroups: [],
+          publicGroups: ['EMEA_Support'],
+          queues: [],
+          permissionSetLicenses: [],
+        },
+        {
+          match: 'FederationIdentifier',
+          matchValue: "'=A1",
+          userId: '005Ravi',
+          name: 'Ravi Suresh',
+          username: 'rsuresh@acme.com.dev',
+          email: 'rsuresh@acme.com',
+          profile: 'Standard User',
+          IsActive: false,
+          IsFrozen: true,
+          permissionSets: [],
+          permissionSetGroups: [],
+          publicGroups: [],
+          queues: [],
+          permissionSetLicenses: [],
+        },
+      ],
+    };
+
+    const csv = serializeSnapshotCsv(snapshot);
+    expect(csv).to.include(
+      'snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name'
+    );
+    expect(csv).to.include("'=Case_Agent");
+    expect(csv).to.include("''=A1,005Ravi,Ravi Suresh");
+    expect(deserializeSnapshotCsv(csv)).to.deep.equal(JSON.parse(JSON.stringify(snapshot)));
+    expect(serializeSnapshotCsv(deserializeSnapshotCsv(csv))).to.equal(csv);
+  });
+
+  it('round-trips an empty snapshot with its file metadata', () => {
+    const snapshot = {
+      snapshotVersion: 1 as const,
+      capturedAt: '2026-07-25T14:02:11.000Z',
+      org: 'acme-uat',
+      users: [],
+    };
+
+    const csv = serializeSnapshotCsv(snapshot);
+    expect(csv).to.include('2026-07-25T14:02:11.000Z,acme-uat,,,,,,,,,,,emptySnapshot,');
+    expect(deserializeSnapshotCsv(csv)).to.deep.equal(snapshot);
+    expect(serializeSnapshotCsv(deserializeSnapshotCsv(csv))).to.equal(csv);
+  });
+
+  it('rejects a header-only CSV because it cannot preserve file metadata', () => {
+    const header =
+      'snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name';
+
+    expect(() => deserializeSnapshotCsv(header)).to.throw('must contain an empty-snapshot row with metadata');
+  });
+
+  it('keeps v1 snapshots valid without advisory identity fields', () => {
+    expect(
+      assertSnapshotFile({
+        snapshotVersion: 1,
+        capturedAt: '2026-07-25T00:00:00.000Z',
+        users: [
+          {
+            match: 'Username',
+            matchValue: 'legacy@example.com',
+            userId: '005Legacy',
+            IsActive: true,
+            IsFrozen: true,
+            permissionSets: [],
+            permissionSetGroups: [],
+            publicGroups: [],
+            queues: [],
+            permissionSetLicenses: [],
+          },
+        ],
+      }).users[0]
+    ).to.not.have.any.keys('name', 'username', 'email', 'profile', 'role');
+  });
+
+  it('rejects conflicting CSV metadata and keeps users with the same match value separate by Id', () => {
+    const header =
+      'snapshotVersion,capturedAt,org,match,matchValue,userId,userName,username,email,profile,role,isActive,isFrozen,category,name';
+    const row = '1,2026-07-25T00:00:00.000Z,org,Email,same,005One,One,one@example.com,,Standard,,true,false,none,';
+    const otherUser =
+      '1,2026-07-25T00:00:00.000Z,org,Email,same,005Two,Two,two@example.com,,Standard,,true,false,none,';
+    expect(deserializeSnapshotCsv(`${header}\n${row}\n${otherUser}\n`).users).to.have.length(2);
+    expect(() => deserializeSnapshotCsv(`${header}\n${row}\n${row.replace(',org,', ',other-org,')}\n`)).to.throw(
+      'conflicts with metadata from row 2'
+    );
   });
 });
