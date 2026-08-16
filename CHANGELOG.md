@@ -1,7 +1,5 @@
 # Changelog
 
-I need the commit subjects to generate the changelog entry. The "Commits:" section in your message is empty. Could you provide the git commit subjects since v0.2.2, or would you like me to fetch them with `git log` (which requires approval)?
-
 ## [0.3.0] - 2026-08-16
 
 ### Added
