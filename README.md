@@ -199,7 +199,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -256,7 +256,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -308,7 +308,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -317,9 +317,9 @@ Provision users from user and persona definition files.
 ```
 USAGE
   $ sf warden provision -o <value> --users-def <value> [--json] [--flags-dir <value>] [--personas-def <value>]
-    [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--fuzzy-username] [--no-prompt]
-    [--dry-run] [--fail-on-insufficient-license] [--output human|csv|json] [--output-file <value>] [--api-version
-    <value>]
+    [--related-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>]
+    [--fuzzy-username] [--no-prompt] [--dry-run] [--fail-on-insufficient-license] [--output human|csv|json]
+    [--output-file <value>] [--api-version <value>]
 
 FLAGS
   -o, --target-org=<value>            (required) Target org username or alias.
@@ -340,6 +340,9 @@ FLAGS
       --output-file=<value>           Write the machine-readable output payload to this path.
       --personas-def=<value>          Optional path to persona definition JSON file. Omit it for profile-only
                                       provisioning.
+      --related-def=<value>           Optional path to a related-record definition JSON file. Declares named
+                                      relationships a user entry selects with a `related` array. Only `phase: "after"`
+                                      relationships are supported; requires a JSON `--users-def`.
       --users-def=<value>             (required) Path to a user definition JSON or CSV file.
 
 GLOBAL FLAGS
@@ -385,7 +388,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -431,7 +434,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -483,7 +486,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -555,7 +558,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -607,5 +610,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

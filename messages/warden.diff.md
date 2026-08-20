@@ -6,10 +6,6 @@ Compare users against an intended definition or another user.
 
 Reports read-only drift across profile, role, permission sets, permission set groups, public groups, and queues without applying changes.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
 # flags.user.summary
 
 Target user to compare using `field:value`.
@@ -18,29 +14,9 @@ Target user to compare using `field:value`.
 
 Reference user to compare against using `field:value`.
 
-# flags.users-def.summary
-
-Path to a user definition JSON or CSV file.
-
-# flags.input-format.summary
-
-Override users-def format detection: json or csv.
-
-# flags.csv-list-delimiter.summary
-
-Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
-
 # flags.personas-def.summary
 
 Optional path to persona definition JSON file. Omit it for profile-only diffing.
-
-# flags.external-id.summary
-
-Default User field used to match entries in `--users-def`.
-
-# flags.output.summary
-
-Output format when not using global `--json`.
 
 # flags.verbose.summary
 
@@ -53,10 +29,6 @@ Exit with code 1 when any user has access drift.
 # flags.verify.summary
 
 Check whether users conform to their intended definition.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
 
 # errorInvalidPersonaDefinition
 

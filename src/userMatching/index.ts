@@ -8,7 +8,13 @@ export type UserFieldMeta = {
   createable: boolean;
   updateable: boolean;
   filterable: boolean;
+  /** Field-read access when describe metadata supplies it. */
+  readable?: boolean;
   externalId?: boolean;
+  /** Salesforce `unique` field metadata. Paired with `externalId` when validating match fields. */
+  unique?: boolean;
+  /** Whether Salesforce compares values for this field with case sensitivity. */
+  caseSensitive?: boolean;
   isBoolean?: boolean;
 };
 
@@ -38,6 +44,16 @@ export type ExistingUserResolution = {
 };
 
 export const matchKey = (field: string, value: string): string => `${field}:${value}`;
+
+/**
+ * The value a match request would actually be issued under, or `null` when there is none.
+ *
+ * `getExistingUsers` issues no request for a non-string or empty value, so reporting one as
+ * a `matchValue` would name a lookup that never happened. Whitespace is deliberately not
+ * trimmed: a whitespace-only value *is* queried, and can match.
+ */
+export const usableMatchValue = (value: unknown): string | null =>
+  typeof value === 'string' && value.length > 0 ? value : null;
 
 export const validateMatchField = (field: string, fieldMap: Map<string, UserFieldMeta>): UserFieldMeta => {
   const meta = fieldMap.get(field.toLowerCase());

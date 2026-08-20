@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] - 2026-08-20
+
+### Added
+
+- Add related record provisioning
+
+### Fixed
+
+- Report matched values in provisioning output
+- Fix person-account eligibility reading
+- Address related-record provisioning review findings
+- Harden related record planning
+- Enforce diff message lookup requirements
+
 ## [0.3.0] - 2026-08-16
 
 ### Added

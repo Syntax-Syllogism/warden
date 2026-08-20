@@ -8,13 +8,14 @@ import sinon from 'sinon';
 import UserDiff from '../../../src/commands/warden/diff.js';
 import {
   executePersonaDiff,
-  renderUserConformanceCsv,
-  renderUserConformanceHuman,
-  renderUserDiffCsv,
-  renderUserDiffHuman,
-  verifyUserDiff,
   type UserDiffResult,
 } from '../../../src/userLifecycle/userDiff.js';
+import { renderUserDiffCsv, renderUserDiffHuman } from '../../../src/userLifecycle/diffOutput.js';
+import {
+  renderUserConformanceCsv,
+  renderUserConformanceHuman,
+  verifyUserDiff,
+} from '../../../src/userLifecycle/conformance.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -35,6 +36,21 @@ const makeFakeConnection = (): FakeConnection => ({
   query: sinon.stub().resolves({ records: [] }),
   sobject: sinon.stub(),
 });
+
+const diffLookup = (key: string, args: string[] = []): string => {
+  const messages: Record<string, string> = {
+    'info.summary': `Compared ${args[0]} users: ${args[1]} with drift, ${args[2]} failed.`,
+    'verify.summary': `Verified ${args[0]} users: ${args[1]} conformant, ${args[2]} non-conformant.`,
+    'verify.user': `${args[0]}: non-conformant`,
+    'verify.violation.notFound': 'user not found',
+    'verify.violation.error': `error: ${args[0]}`,
+    'verify.violation.missing': `${args[0]} missing: ${args[1]}`,
+    'verify.violation.extra': `${args[0]} extra (sync): ${args[1]}`,
+    'verify.violation.profile': `profile mismatch: ${args[0]} -> ${args[1]}`,
+    'verify.violation.role': `role mismatch: ${args[0]} -> ${args[1]}`,
+  };
+  return messages[key] ?? key;
+};
 
 const runDiff = async (args: string[] = []): Promise<UserDiffResult> => {
   const result = await UserDiff.run(args);
@@ -317,7 +333,7 @@ describe('warden user diff command', () => {
       ],
     };
 
-    const verdicts = verifyUserDiff(result);
+    const verdicts = verifyUserDiff(result, diffLookup);
     expect(verdicts).to.deep.include.members([
       { key: 'conformant', conformant: true, violations: [] },
       { key: 'missing-user', conformant: false, violations: ['user not found'] },
@@ -332,9 +348,9 @@ describe('warden user diff command', () => {
         'permissionSets extra (sync): ExtraPerm',
       ],
     });
-    expect(renderUserConformanceHuman(verdicts)).to.include('Verified 3 users: 1 conformant, 2 non-conformant.');
-    expect(renderUserConformanceHuman(verdicts)).to.include('permissionSets extra (sync): ExtraPerm');
-    expect(renderUserConformanceHuman(verdicts)).to.not.include('AdditiveExtra');
+    expect(renderUserConformanceHuman(verdicts, diffLookup)).to.include('Verified 3 users: 1 conformant, 2 non-conformant.');
+    expect(renderUserConformanceHuman(verdicts, diffLookup)).to.include('permissionSets extra (sync): ExtraPerm');
+    expect(renderUserConformanceHuman(verdicts, diffLookup)).to.not.include('AdditiveExtra');
     expect(renderUserConformanceCsv(verdicts)).to.include('key,conformant,violations');
     expect(renderUserConformanceCsv(verdicts)).to.include('sync-drift,false,');
   });
@@ -769,7 +785,7 @@ describe('warden user diff command', () => {
     expect(result.users[0].role.matches).to.equal(false);
     expect(result.labels?.['0PSCurrent']).to.include({ id: '0PSCurrent', apiName: 'Current_Perms' });
     expect(result.labels?.['0PSTarget']).to.include({ id: '0PSTarget', apiName: 'Target_Perms' });
-    expect(renderUserDiffHuman(result)).to.include('+ Target_Perms (Target Permissions)');
+    expect(renderUserDiffHuman(result, diffLookup)).to.include('+ Target_Perms (Target Permissions)');
     expect(result.labels).to.not.deep.equal({});
     expect(fakeConn.sobject.called).to.equal(false);
   });
@@ -817,8 +833,8 @@ describe('warden user diff command', () => {
       label: 'Actual Permissions',
       type: 'PermissionSet',
     });
-    expect(renderUserDiffHuman(result)).to.include('+ Actual_Perms (Actual Permissions)');
-    expect(renderUserDiffHuman(result)).to.not.include('+ 0PS000000000001AAA');
+    expect(renderUserDiffHuman(result, diffLookup)).to.include('+ Actual_Perms (Actual Permissions)');
+    expect(renderUserDiffHuman(result, diffLookup)).to.not.include('+ 0PS000000000001AAA');
   });
 
   it('renders csv output rows', async () => {
@@ -932,9 +948,9 @@ describe('warden user diff command', () => {
       ],
     };
 
-    expect(renderUserDiffHuman(result)).to.include('+ AddPerm (Add Permission)');
-    expect(renderUserDiffHuman(result)).to.not.include('= KeepPerm');
-    expect(renderUserDiffHuman(result, { verbose: true })).to.include('= KeepPerm');
+    expect(renderUserDiffHuman(result, diffLookup)).to.include('+ AddPerm (Add Permission)');
+    expect(renderUserDiffHuman(result, diffLookup)).to.not.include('= KeepPerm');
+    expect(renderUserDiffHuman(result, diffLookup, { verbose: true })).to.include('= KeepPerm');
   });
 
   it('rejects verbose output for non-human formats', async () => {

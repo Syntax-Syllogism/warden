@@ -6,25 +6,9 @@ Restore user assignment state from a snapshot file.
 
 Re-resolves users by the snapshot match key, reactivates and unfreezes them, and adds missing assignments without removing existing access.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
 # flags.snapshot.summary
 
 Path to a user snapshot JSON or CSV file.
-
-# flags.no-prompt.summary
-
-Skip confirmation prompts before write operations.
-
-# flags.dry-run.summary
-
-Validate and plan actions without any write operations.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
 
 # errorInvalidJson
 

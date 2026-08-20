@@ -6,38 +6,6 @@ Strip and deactivate one or more users.
 
 Freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are set.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
-# flags.user.summary
-
-Target a single user using `field:value`.
-
-# flags.users-def.summary
-
-Path to a user definition JSON or CSV file.
-
-# flags.input-format.summary
-
-Override users-def format detection: json or csv.
-
-# flags.csv-list-delimiter.summary
-
-Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
-
-# flags.external-id.summary
-
-Default User field used to match entries in `--users-def`.
-
-# flags.no-prompt.summary
-
-Skip confirmation prompts before write operations.
-
-# flags.dry-run.summary
-
-Validate and plan actions without any write operations.
-
 # flags.no-freeze.summary
 
 Skip the initial freeze step.
@@ -69,10 +37,6 @@ Keep queue memberships.
 # flags.snapshot.summary
 
 Write a portable user snapshot JSON or CSV file before stripping access, including during dry-run. The extension selects the format.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
 
 # errorInvalidJson
 

@@ -1,5 +1,6 @@
 import type { Connection } from '@salesforce/core';
 import { batch, soqlIn } from '../userShared/sfUtils.js';
+import type { LabelBundle } from './types.js';
 
 export type UserLoginRow = {
   Id: string;
@@ -29,6 +30,45 @@ export type PermissionSetLicenseAssignRow = {
   PermissionSetLicenseId: string;
   PermissionSetLicense?: { DeveloperName?: string; MasterLabel?: string } | null;
 };
+
+/**
+ * Describe a permission set assignment by its group when it came from one,
+ * otherwise by the permission set itself. Rows identifying neither assignment
+ * type are ignored; loadAssignmentState's query always projects PermissionSetId.
+ */
+export const permissionSetAssignmentLabel = (row: PermissionSetAssignmentRow): LabelBundle | undefined => {
+  if (row.PermissionSetGroupId) {
+    return {
+      id: row.PermissionSetGroupId,
+      apiName: row.PermissionSetGroup?.DeveloperName,
+      label: row.PermissionSetGroup?.MasterLabel,
+      type: 'PermissionSetGroup',
+    };
+  }
+  if (row.PermissionSetId) {
+    return {
+      id: row.PermissionSetId,
+      apiName: row.PermissionSet?.Name,
+      label: row.PermissionSet?.Label,
+      type: 'PermissionSet',
+    };
+  }
+  return undefined;
+};
+
+export const groupMemberLabel = (row: GroupMemberRow): LabelBundle => ({
+  id: row.GroupId,
+  apiName: row.Group?.DeveloperName,
+  label: row.Group?.Name,
+  type: row.Group?.Type === 'Queue' ? 'Queue' : 'PublicGroup',
+});
+
+export const permissionSetLicenseLabel = (row: PermissionSetLicenseAssignRow): LabelBundle => ({
+  id: row.PermissionSetLicenseId,
+  apiName: row.PermissionSetLicense?.DeveloperName,
+  label: row.PermissionSetLicense?.MasterLabel,
+  type: 'PermissionSetLicense',
+});
 
 export type AssignmentState = {
   userLoginByUserId: Map<string, UserLoginRow[]>;

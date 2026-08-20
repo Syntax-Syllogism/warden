@@ -2,6 +2,42 @@
 
 Output format: human, csv, or json. Defaults to human.
 
+# flags.target-org.summary
+
+Target org username or alias.
+
+# flags.api-version.summary
+
+Override the api version used for the org connection.
+
+# flags.user.summary
+
+Target a single user using `field:value`.
+
+# flags.users-def.summary
+
+Path to a user definition JSON or CSV file.
+
+# flags.external-id.summary
+
+Default User field used to match entries in `--users-def`.
+
+# flags.input-format.summary
+
+Override users-def format detection: json or csv.
+
+# flags.csv-list-delimiter.summary
+
+Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
+
+# flags.dry-run.summary
+
+Validate and plan actions without any write operations.
+
+# flags.no-prompt.summary
+
+Skip confirmation prompts before write operations.
+
 # flags.output-file.summary
 
 Write the machine-readable output payload to this path.

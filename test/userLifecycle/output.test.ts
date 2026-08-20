@@ -6,7 +6,8 @@ import {
   resolvedTargetResult,
   summarizeLifecycle,
 } from '../../src/userLifecycle/output.js';
-import { displayName, renderUserDiffCsv } from '../../src/userLifecycle/userDiff.js';
+import { renderUserDiffCsv } from '../../src/userLifecycle/diffOutput.js';
+import { displayName } from '../../src/userLifecycle/userDiff.js';
 import {
   renderLifecycleCsv,
   renderProvisionCsv,

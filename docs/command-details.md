@@ -6,7 +6,7 @@ description: Detailed provisioning, assignment, matching, and output behavior fo
 # Command details
 
 Deeper logic notes for warden's more involved commands. Flag-by-flag
-reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands) and in each command's
+reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands) and in each command's
 `--help` output; this doc covers the *why* and the *merge/precedence rules*
 that don't fit in a flag summary.
 
@@ -274,8 +274,7 @@ case-insensitively to `User` API fields; `personas`, `match`, and
 `fuzzyUsername` are metadata columns. Empty cells are omitted, and persona
 lists use semicolons by default. Use `--input-format json|csv` when the file
 extension does not identify the format, and `--csv-list-delimiter` for a
-different list separator. The repository does not ship a separate example
-directory; the CSV shape is shown here.
+different list separator. See the committed [CSV example](examples/users.csv).
 
 CSV headers are validated strictly and all cells remain strings except for
 `fuzzyUsername` and describe-backed boolean User fields. Accepted boolean
@@ -330,8 +329,84 @@ Users CSV follows these rules:
 }
 ```
 
-The examples above also show the supported multi-persona and profile-only
-shapes; no separate example directory is required.
+The examples above show the supported multi-persona and profile-only shapes.
+Larger samples are available as [users.json](examples/users.json),
+[personas.json](examples/personas.json), and
+[users-profile-only.json](examples/users-profile-only.json).
+
+#### Related records (`--related-def`)
+
+`--related-def` accepts a JSON catalog of reusable relationships. A JSON user
+entry selects catalog names with a `related` array; the key is metadata only
+and is never sent to the User API. CSV user definitions cannot select
+relationships, so combining CSV input with `--related-def` is an error.
+
+The catalog must contain a `relationships` object. Each selected name must
+exist in that object and occur only once in the user's `related` array:
+
+```json
+{
+  "users": [
+    {
+      "related": ["employee"],
+      "FederationIdentifier": "E-9981"
+    }
+  ]
+}
+```
+
+Only `phase: "after"` is supported: Warden saves the User first, then creates
+or updates the related row and can set a lookup from `{ "from": "user.Id" }`.
+Before-phase external-user provisioning is deferred to v2. A relationship has
+a unique or External-ID, filterable match field sourced from a non-Id User
+field. A zero/one/multiple match respectively creates, updates, or fails that
+user; duplicate resolved match values across users also fail before DML.
+
+```json
+{
+  "relationships": {
+    "employee": {
+      "sobject": "Employee__c",
+      "phase": "after",
+      "match": {
+        "field": "External_Person_Id__c",
+        "from": "user.FederationIdentifier"
+      },
+      "fields": {
+        "Department__c": { "from": "user.Department" },
+        "Employment_Status__c": { "value": "Active" },
+        "User__c": { "from": "user.Id" }
+      }
+    }
+  }
+}
+```
+
+Every relationship needs a non-empty `sobject`, `phase`, `match`, and `fields`
+object. A field source is exactly `{ "from": "user.<UserField>" }` or
+`{ "value": <literal> }`; `{ "from": "user.Id" }` is also valid for a
+field, but never for `match.from`. User-field sources must name a real User
+field and resolve to a non-empty value. The target match field must be
+filterable and either unique or an External ID.
+
+`mode` defaults to `setIfEmpty`, which preserves populated values on a matched
+record (only literal `null` and `""` are empty). Set `mode: "sync"` to
+overwrite every configured field. On creates, both modes write all configured
+fields and always write the match field. A configured record type is applied
+only on create; Warden never retags a matched record, and a matched row with a
+different configured record type fails that user. An `Account` relationship
+must declare an available Person Account record type.
+
+Before planning, Warden checks each selected relationship's target object,
+field access, match metadata, and record type. An ineligible relationship is
+reported as a warning and skipped after the command's single warning
+confirmation; `--no-prompt` and non-interactive JSON runs skip it
+automatically. Related DML is bulked by sObject in batches of at most 200
+records. Dry runs validate, match, and show the related plan without issuing
+DML. In a live run, a related-record save failure leaves the already-saved User
+in place but marks that user's provisioning result failed. Human output prints
+one `related:` line per result; see the [output contract](output-contract.md)
+for JSON and CSV shapes.
 
 ## `warden diff`
 
