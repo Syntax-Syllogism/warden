@@ -11,6 +11,8 @@ export type ProvisionDefinitionDocuments = {
   usersDoc: Record<string, unknown>;
   personasDoc: Record<string, unknown>;
   personasSupplied: boolean;
+  /** Parsed `--related-def` catalog document, when one was supplied. JSON only. */
+  relatedDoc?: Record<string, unknown>;
 };
 
 export type DefinitionMessages = {
@@ -24,6 +26,8 @@ export type DefinitionSource = {
   personasDoc?: Record<string, unknown>;
   usersPath?: string;
   personasPath?: string;
+  relatedDoc?: Record<string, unknown>;
+  relatedPath?: string;
   personasSupplied?: boolean;
   inputFormat?: InputFormat;
   csvListDelimiter?: string;
@@ -33,6 +37,7 @@ export type DefinitionReaderOptions = {
   inputFormat?: InputFormat;
   csvListDelimiter?: string;
   fieldMap?: Map<string, UserFieldMeta>;
+  relatedPath?: string;
 };
 
 type JsonErrorMessage = (filePath: string, error: string) => string;
@@ -73,11 +78,17 @@ export const readProvisionDefinitions = async (
   personasPath?: string,
   options: DefinitionReaderOptions = {},
   jsonErrorMessage: JsonErrorMessage = defaultJsonErrorMessage
-): Promise<ProvisionDefinitionDocuments> => ({
-  usersDoc: await readUsersDefinition(usersPath, options, jsonErrorMessage),
-  personasDoc: personasPath ? await readDefinitionJson(personasPath, jsonErrorMessage) : { personas: {} },
-  personasSupplied: Boolean(personasPath),
-});
+): Promise<ProvisionDefinitionDocuments> => {
+  const relatedDoc = options.relatedPath ? await readDefinitionJson(options.relatedPath, jsonErrorMessage) : undefined;
+  return {
+    usersDoc: await readUsersDefinition(usersPath, options, jsonErrorMessage),
+    personasDoc: personasPath ? await readDefinitionJson(personasPath, jsonErrorMessage) : { personas: {} },
+    personasSupplied: Boolean(personasPath),
+    // Omit the key entirely when no catalog was supplied so callers (and deep-equality
+    // assertions) never see an own property holding `undefined`.
+    ...(relatedDoc ? { relatedDoc } : {}),
+  };
+};
 
 export const resolveDefinitions = async (
   source: DefinitionSource,
@@ -85,17 +96,26 @@ export const resolveDefinitions = async (
   message: DefinitionMessages
 ): Promise<ProvisionDefinitionDocuments> => {
   if (source.usersDoc) {
+    const relatedDoc =
+      source.relatedDoc ??
+      (source.relatedPath ? await readDefinitionJson(source.relatedPath, message.invalidJson) : undefined);
     return {
       usersDoc: source.usersDoc,
       personasDoc: source.personasDoc ?? { personas: {} },
       personasSupplied: source.personasSupplied ?? (source.personasDoc ? true : Boolean(source.personasPath)),
+      ...(relatedDoc ? { relatedDoc } : {}),
     };
   }
   if (!source.usersPath) throw new SfError(message.invalidJson('users-def', 'missing path'));
   return readProvisionDefinitions(
     source.usersPath,
     source.personasPath,
-    { inputFormat: source.inputFormat, csvListDelimiter: source.csvListDelimiter, fieldMap },
+    {
+      inputFormat: source.inputFormat,
+      csvListDelimiter: source.csvListDelimiter,
+      fieldMap,
+      relatedPath: source.relatedPath,
+    },
     message.invalidJson
   );
 };

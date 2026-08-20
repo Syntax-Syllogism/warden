@@ -2,6 +2,7 @@ import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
 import { describeUserFields } from '../../userShared/userFields.js';
 import { loadAssignmentState, type AssignmentState } from '../../userLifecycle/assignmentState.js';
+import { runAssignmentCreates, runRecordUpdate } from '../../userLifecycle/dmlRunner.js';
 import { makeNotice, renderLifecycleResult, summarizeLifecycle } from '../../userLifecycle/output.js';
 import { readSnapshotFile, type UserSnapshotEntry } from '../../userLifecycle/snapshotState.js';
 import { resolveTargetField, resolveTargets } from '../../userLifecycle/targeting.js';
@@ -13,8 +14,9 @@ import type {
   ResolvedTargetUser,
   TargetRequest,
 } from '../../userLifecycle/types.js';
-import { asArray, pushErrors, soqlIn } from '../../userShared/sfUtils.js';
+import { soqlIn } from '../../userShared/sfUtils.js';
 import { confirmWithTimeout } from '../../userShared/prompt.js';
+import { apiVersionFlag, dryRunFlag, noPromptFlag, targetOrgFlag } from '../../userShared/targetFlags.js';
 import { renderRestoreCsv } from '../../userShared/output.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import { WardenCommand } from '../../wardenCommand.js';
@@ -228,92 +230,52 @@ const identityMismatches = (review: IdentityReview): string[] => {
   });
 };
 
-const applyAssignmentCreates = async (
-  conn: Connection,
-  result: LifecycleUserResult,
-  sobject: 'PermissionSetAssignment' | 'GroupMember' | 'PermissionSetLicenseAssign',
-  rows: Array<Record<string, string>>,
-  actionKey: string,
-  items: LabelBundle[]
-): Promise<void> => {
-  if (rows.length === 0) return;
-  const saveResults = asArray(await conn.sobject(sobject).create(rows, { allOrNone: false }));
-  const successfulItems = items.filter((_, index) => saveResults[index]?.success);
-  if (successfulItems.length > 0) {
-    if (result.status !== 'failed') result.status = 'changed';
-    result.actions.push(makeNotice(actionKey, successfulItems.length, successfulItems));
-  }
-  pushErrors(result.errors, saveResults);
-};
-
 const applyPlan = async (conn: Connection, plan: AssignmentPlan): Promise<void> => {
   const result = plan.result;
   if (plan.userUpdate) {
-    const saveResults = asArray(await conn.sobject('User').update([plan.userUpdate], { allOrNone: false }));
-    if (saveResults.some((saveResult) => saveResult.success)) {
-      if (result.status !== 'failed') result.status = 'changed';
-      result.actions.push(makeNotice('activated'));
-    }
-    pushErrors(result.errors, saveResults);
+    await runRecordUpdate({ conn, result, sobject: 'User', rows: [plan.userUpdate], actionKey: 'activated' });
   }
-  if (plan.loginUpdates.length > 0) {
-    const saveResults = asArray(await conn.sobject('UserLogin').update(plan.loginUpdates, { allOrNone: false }));
-    if (saveResults.some((saveResult) => saveResult.success)) {
-      if (result.status !== 'failed') result.status = 'changed';
-      result.actions.push(makeNotice('unfrozen'));
-    }
-    pushErrors(result.errors, saveResults);
-  }
-  if (plan.permissionSetAdds.length > 0) {
-    await applyAssignmentCreates(
-      conn,
-      result,
-      'PermissionSetAssignment',
-      plan.permissionSetAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetId: id })),
-      'assignedPermissionSet',
-      plan.permissionSetItems
-    );
-  }
-  if (plan.permissionSetGroupAdds.length > 0) {
-    await applyAssignmentCreates(
-      conn,
-      result,
-      'PermissionSetAssignment',
-      plan.permissionSetGroupAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetGroupId: id })),
-      'assignedPermissionSetGroup',
-      plan.permissionSetGroupItems
-    );
-  }
-  if (plan.publicGroupAdds.length > 0) {
-    await applyAssignmentCreates(
-      conn,
-      result,
-      'GroupMember',
-      plan.publicGroupAdds.map((groupId) => ({ GroupId: groupId, UserOrGroupId: plan.userId })),
-      'addedPublicGroupMember',
-      plan.publicGroupItems
-    );
-  }
-  if (plan.queueAdds.length > 0) {
-    await applyAssignmentCreates(
-      conn,
-      result,
-      'GroupMember',
-      plan.queueAdds.map((groupId) => ({ GroupId: groupId, UserOrGroupId: plan.userId })),
-      'addedQueueMember',
-      plan.queueItems
-    );
-  }
-  if (plan.licenseAdds.length > 0) {
-    await applyAssignmentCreates(
-      conn,
-      result,
-      'PermissionSetLicenseAssign',
-      plan.licenseAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetLicenseId: id })),
-      'assignedPermissionSetLicense',
-      plan.licenseItems
-    );
-  }
+  await runRecordUpdate({ conn, result, sobject: 'UserLogin', rows: plan.loginUpdates, actionKey: 'unfrozen' });
+  await runAssignmentCreates({
+    conn,
+    result,
+    sobject: 'PermissionSetAssignment',
+    rows: plan.permissionSetAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetId: id })),
+    actionKey: 'assignedPermissionSet',
+    items: plan.permissionSetItems,
+  });
+  await runAssignmentCreates({
+    conn,
+    result,
+    sobject: 'PermissionSetAssignment',
+    rows: plan.permissionSetGroupAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetGroupId: id })),
+    actionKey: 'assignedPermissionSetGroup',
+    items: plan.permissionSetGroupItems,
+  });
+  await runAssignmentCreates({
+    conn,
+    result,
+    sobject: 'GroupMember',
+    rows: plan.publicGroupAdds.map((groupId) => ({ GroupId: groupId, UserOrGroupId: plan.userId })),
+    actionKey: 'addedPublicGroupMember',
+    items: plan.publicGroupItems,
+  });
+  await runAssignmentCreates({
+    conn,
+    result,
+    sobject: 'GroupMember',
+    rows: plan.queueAdds.map((groupId) => ({ GroupId: groupId, UserOrGroupId: plan.userId })),
+    actionKey: 'addedQueueMember',
+    items: plan.queueItems,
+  });
+  await runAssignmentCreates({
+    conn,
+    result,
+    sobject: 'PermissionSetLicenseAssign',
+    rows: plan.licenseAdds.map((id) => ({ AssigneeId: plan.userId, PermissionSetLicenseId: id })),
+    actionKey: 'assignedPermissionSetLicense',
+    items: plan.licenseItems,
+  });
   if (result.errors.length > 0) result.status = 'failed';
 };
 
@@ -447,12 +409,12 @@ export default class UserRestore extends WardenCommand<LifecycleResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
+    'target-org': targetOrgFlag,
     snapshot: Flags.file({ exists: true, required: true, summary: messages.getMessage('flags.snapshot.summary') }),
     ...outputFlags,
-    'no-prompt': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-prompt.summary') }),
-    'dry-run': Flags.boolean({ default: false, summary: messages.getMessage('flags.dry-run.summary') }),
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'no-prompt': noPromptFlag,
+    'dry-run': dryRunFlag,
+    'api-version': apiVersionFlag,
   };
 
   public async run(): Promise<LifecycleResult> {

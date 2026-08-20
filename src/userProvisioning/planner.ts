@@ -36,9 +36,25 @@ export type ValidationError = {
     | 'errorUserProfileConflict'
     | 'errorUserRoleConflict'
     | 'errorInvalidUserProfile'
-    | 'errorInvalidUserRole';
+    | 'errorInvalidUserRole'
+    | 'errorInvalidRelatedKey'
+    | 'errorUnknownRelationship'
+    | 'errorDuplicateRelationshipSelection'
+    | 'errorRelatedWithoutCatalog'
+    | 'errorRelatedSourceEmpty'
+    | 'errorRelatedInvalidSourceValue'
+    | 'errorAmbiguousRelatedMatch'
+    | 'errorRelatedMatchCollision'
+    | 'errorRelatedRecordTypeMismatch';
   messageArgs: string[];
 };
+
+/**
+ * Relationship names available to a user's `related` meta key.
+ * `catalogSupplied` is false when no `--related-def` was passed, which turns a stale
+ * `related` key into a per-user failure rather than a batch-wide abort.
+ */
+export type RelatedSelectionContext = { catalogSupplied: boolean; names: Set<string> };
 
 export type CanonicalizedUser = {
   inputKey: string;
@@ -48,6 +64,8 @@ export type CanonicalizedUser = {
   roleRef?: string;
   matchField?: string;
   fuzzyUsername?: boolean;
+  /** Relationship names selected by this user's `related` meta key. Never persona-inferred. */
+  related?: string[];
   fields: Record<string, unknown>;
   validationErrors?: ValidationError[];
   source?: CsvRowInfo;
@@ -56,7 +74,7 @@ export type CanonicalizedUser = {
 export const modeKeys = ['permissionSetMode', 'permissionSetGroupMode', 'publicGroupMode', 'queueMode'] as const;
 
 export const assignmentListKeys = ['permissionSets', 'permissionSetGroups', 'publicGroups', 'queues'] as const;
-const reservedUserKeys = new Set(['personas', 'match', 'profile', 'role', 'fuzzyusername']);
+const reservedUserKeys = new Set(['personas', 'match', 'profile', 'role', 'fuzzyusername', 'related']);
 
 export type { UserFieldMeta } from '../userMatching/index.js';
 
@@ -319,6 +337,41 @@ const extractUserRef = (
   return value.trim() === '' ? undefined : value;
 };
 
+// Reads the user-level `related` meta key. Every problem is per-user: one row carrying a
+// stale `related` key must not abort a batch that otherwise does not use the feature.
+const resolveRelatedSelection = (
+  rawRelated: unknown,
+  related: RelatedSelectionContext | undefined,
+  errors: ValidationError[]
+): string[] | undefined => {
+  if (rawRelated === null || rawRelated === undefined) return undefined;
+  if (!Array.isArray(rawRelated) || rawRelated.some((name) => typeof name !== 'string')) {
+    errors.push(buildValidationError('errorInvalidRelatedKey', [JSON.stringify(rawRelated) ?? String(rawRelated)]));
+    return undefined;
+  }
+  const names = rawRelated as string[];
+  if (names.length === 0) return [];
+  if (!related?.catalogSupplied) {
+    errors.push(buildValidationError('errorRelatedWithoutCatalog', []));
+    return undefined;
+  }
+  const seen = new Set<string>();
+  const selected: string[] = [];
+  for (const name of names) {
+    if (seen.has(name)) {
+      errors.push(buildValidationError('errorDuplicateRelationshipSelection', [name]));
+      continue;
+    }
+    seen.add(name);
+    if (!related.names.has(name)) {
+      errors.push(buildValidationError('errorUnknownRelationship', [name]));
+      continue;
+    }
+    selected.push(name);
+  }
+  return selected;
+};
+
 const attachCsvSource = (user: CanonicalizedUser, input: unknown): CanonicalizedUser => {
   const source = getCsvRowInfo(input);
   if (source) Object.defineProperty(user, 'source', { value: source, enumerable: false });
@@ -330,7 +383,8 @@ const canonicalizeValidUser = (
   names: string[],
   personas: Record<string, PersonaDefinition>,
   fieldMap: Map<string, UserFieldMeta>,
-  fallback: string
+  fallback: string,
+  related?: RelatedSelectionContext
 ): CanonicalizedUser => {
   const candidateFields: Record<string, unknown> = {};
   const errors: ValidationError[] = [];
@@ -375,7 +429,10 @@ const canonicalizeValidUser = (
     const displayValue = typeof rawFuzzy === 'string' ? rawFuzzy : JSON.stringify(rawFuzzy) ?? typeof rawFuzzy;
     errors.push(buildValidationError('errorInvalidFuzzyUsername', [displayValue]));
   }
-  const allErrors = [...errors, ...mergeErrors, ...matchErrors];
+  const rawRelated = Object.entries(input).find(([k]) => k.toLowerCase() === 'related')?.[1];
+  const relatedErrors: ValidationError[] = [];
+  const selectedRelated = resolveRelatedSelection(rawRelated, related, relatedErrors);
+  const allErrors = [...errors, ...mergeErrors, ...matchErrors, ...relatedErrors];
   const result: CanonicalizedUser = {
     inputKey: resolveInputKey(merged, names.length > 0 ? `${names.join('+')}:${fallback}` : fallback),
     personas: names,
@@ -384,6 +441,7 @@ const canonicalizeValidUser = (
     roleRef,
     matchField,
     fuzzyUsername,
+    related: selectedRelated,
     fields: merged,
     validationErrors: allErrors.length > 0 ? allErrors : undefined,
   };
@@ -394,7 +452,8 @@ export const validateAndCanonicalizeUsers = (
   rawUsers: unknown,
   personas: Record<string, PersonaDefinition>,
   fieldMap: Map<string, UserFieldMeta>,
-  personasSupplied = true
+  personasSupplied = true,
+  related?: RelatedSelectionContext
 ): CanonicalizedUser[] => {
   if (!Array.isArray(rawUsers)) throw new Error('user-def.json must contain a users array.');
   const users: CanonicalizedUser[] = [];
@@ -430,7 +489,7 @@ export const validateAndCanonicalizeUsers = (
       Array.isArray(personaNames) && personaNames.length > 0 && personaNames.every((n) => typeof n === 'string');
     if (!validNames) {
       if (!personasSupplied) {
-        users.push(canonicalizeValidUser(input, [], personas, fieldMap, fallback));
+        users.push(canonicalizeValidUser(input, [], personas, fieldMap, fallback, related));
         continue;
       }
       const fields: Record<string, unknown> = {};
@@ -453,7 +512,7 @@ export const validateAndCanonicalizeUsers = (
       continue;
     }
 
-    users.push(canonicalizeValidUser(input, personaNames, personas, fieldMap, fallback));
+    users.push(canonicalizeValidUser(input, personaNames, personas, fieldMap, fallback, related));
   }
   return users;
 };

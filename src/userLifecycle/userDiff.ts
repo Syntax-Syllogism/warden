@@ -7,12 +7,9 @@ import {
   validateExternalIdFieldForFlag,
   validatePersonaModes,
 } from '../userProvisioning/planner.js';
-import {
-  buildTarget,
-  getExistingUsers,
-  resolveReferences,
-  type ExistingUser,
-} from '../userProvisioning/provisionUserUseCase.js';
+import { getExistingUsers, type ExistingUser } from '../userProvisioning/provisionUserUseCase.js';
+import { buildTarget } from '../userProvisioning/userPlan.js';
+import { resolveReferences } from '../userProvisioning/referenceResolution.js';
 import {
   computeAssignmentDeltaFromState,
   extractCurrentIds,
@@ -21,7 +18,7 @@ import {
   type ResolvedRefs,
 } from '../userProvisioning/assignmentPlan.js';
 import { batch, soqlIn } from '../userShared/sfUtils.js';
-import { serializeCsv, type InputFormat } from '../userShared/csv.js';
+import type { InputFormat } from '../userShared/csv.js';
 import { describeUserFields } from '../userShared/userFields.js';
 import {
   loadValidatedDefinitions,
@@ -29,7 +26,13 @@ import {
   type ProvisionDefinitionDocuments,
 } from '../userProvisioning/definitionReader.js';
 import { matchKey } from '../userMatching/index.js';
-import { loadAssignmentState, type GroupMemberRow, type PermissionSetAssignmentRow } from './assignmentState.js';
+import {
+  groupMemberLabel,
+  loadAssignmentState,
+  permissionSetAssignmentLabel,
+  type GroupMemberRow,
+  type PermissionSetAssignmentRow,
+} from './assignmentState.js';
 import { parseUserFlag, resolveTargetField, resolveTargets } from './targeting.js';
 import type { LabelBundle, LabelMap } from './types.js';
 
@@ -41,15 +44,9 @@ const diffDefinitionMessages: DefinitionMessages = {
   personasWithoutDefinition: (userKey) => messages.getMessage('errorPersonasWithoutDefinition', [userKey]),
   invalidJson: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
 };
-
 type JsonRecord = Record<string, unknown>;
 type ExistingUserWithFields = ExistingUser & { ProfileId?: string | null; UserRoleId?: string | null };
-type DiffField = {
-  current?: string | null;
-  intended?: string | null;
-  matches: boolean;
-};
-
+export type DiffField = { current?: string | null; intended?: string | null; matches: boolean };
 export type UserAssignmentDiff = {
   key: string;
   id?: string;
@@ -63,7 +60,6 @@ export type UserAssignmentDiff = {
   assignments: AssignmentDelta;
   errors: string[];
 };
-
 export type UserDiffRow = {
   userKey: string;
   userId: string;
@@ -76,7 +72,6 @@ export type UserDiffRow = {
   valueBefore?: string;
   valueAfter?: string;
 };
-
 export type UserDiffResult = {
   summary: { total: number; compared: number; wouldCreate: number; failed: number; changed: number };
   users: UserAssignmentDiff[];
@@ -84,13 +79,6 @@ export type UserDiffResult = {
   warnings: string[];
   labels?: LabelMap;
 };
-
-export type UserConformanceVerdict = {
-  key: string;
-  conformant: boolean;
-  violations: string[];
-};
-
 type PersonaDiffRequest = {
   connection: Connection;
   usersDoc?: JsonRecord;
@@ -102,15 +90,12 @@ type PersonaDiffRequest = {
   externalId?: string;
   personasSupplied?: boolean;
 };
-
 type UserDiffRequest = {
   connection: Connection;
   user: string;
   against: string;
 };
-
 const QUERY_BATCH_SIZE = 100;
-
 const emptyCategory = (mode?: 'additive' | 'sync'): AssignmentCategoryDelta => ({
   adds: [],
   removes: [],
@@ -118,14 +103,12 @@ const emptyCategory = (mode?: 'additive' | 'sync'): AssignmentCategoryDelta => (
   onlyInOrg: [],
   ...(mode ? { mode } : {}),
 });
-
 const emptyAssignments = (): AssignmentDelta => ({
   permissionSets: emptyCategory(),
   permissionSetGroups: emptyCategory(),
   publicGroups: emptyCategory(),
   queues: emptyCategory(),
 });
-
 const summarize = (users: UserAssignmentDiff[]): UserDiffResult['summary'] => ({
   total: users.length,
   compared: users.filter((user) => user.status === 'compared').length,
@@ -133,10 +116,8 @@ const summarize = (users: UserAssignmentDiff[]): UserDiffResult['summary'] => ({
   failed: users.filter((user) => user.status === 'failed').length,
   changed: users.filter(hasChanges).length,
 });
-
 const hasCategoryChanges = (category: AssignmentCategoryDelta): boolean =>
   category.adds.length > 0 || category.removes.length > 0;
-
 const hasChanges = (user: UserAssignmentDiff): boolean =>
   user.status !== 'failed' &&
   (!user.profile.matches ||
@@ -145,7 +126,6 @@ const hasChanges = (user: UserAssignmentDiff): boolean =>
     hasCategoryChanges(user.assignments.permissionSetGroups) ||
     hasCategoryChanges(user.assignments.publicGroups) ||
     hasCategoryChanges(user.assignments.queues));
-
 const rowsForUser = (user: UserAssignmentDiff): UserDiffRow[] => {
   const rows: UserDiffRow[] = [];
   const identity = { userName: user.userName ?? '', username: user.username ?? '' };
@@ -205,7 +185,6 @@ const rowsForUser = (user: UserAssignmentDiff): UserDiffRow[] => {
   }
   return rows;
 };
-
 const buildResult = (users: UserAssignmentDiff[], warnings: string[] = [], labels?: LabelMap): UserDiffResult => ({
   summary: summarize(users),
   users,
@@ -213,16 +192,13 @@ const buildResult = (users: UserAssignmentDiff[], warnings: string[] = [], label
   warnings,
   labels,
 });
-
 const addSourceContext = (user: CanonicalizedUser, errors: string[]): string[] =>
   user.source ? errors.map((error) => `${user.source?.path}:${user.source?.line} — ${error}`) : errors;
-
 const validationErrorsFor = (user: CanonicalizedUser): string[] =>
   addSourceContext(
     user,
     (user.validationErrors ?? []).map((error) => messages.getMessage(error.messageKey, error.messageArgs))
   );
-
 const findExisting = (
   user: CanonicalizedUser,
   target: JsonRecord,
@@ -235,7 +211,6 @@ const findExisting = (
     matchedBy && typeof matchValue === 'string' ? existingByField.get(matchedBy)?.get(matchValue) : undefined;
   return { matchedBy, existing };
 };
-
 const makeProfileRole = (
   existing: ExistingUserWithFields | undefined,
   target: JsonRecord
@@ -255,7 +230,6 @@ const makeProfileRole = (
     },
   };
 };
-
 const addLabel = (labels: LabelMap, bundle: LabelBundle): void => {
   const current = labels[bundle.id];
   const merged: LabelBundle = {
@@ -268,58 +242,30 @@ const addLabel = (labels: LabelMap, bundle: LabelBundle): void => {
   if (bundle.type ?? current?.type) merged.type = bundle.type ?? current?.type;
   labels[bundle.id] = merged;
 };
-
 const addAssignmentLabels = (
   labels: LabelMap,
   psaRows: PermissionSetAssignmentRow[],
   groupRows: GroupMemberRow[]
 ): void => {
   for (const row of psaRows) {
-    if (row.PermissionSetGroupId) {
-      addLabel(labels, {
-        id: row.PermissionSetGroupId,
-        apiName: row.PermissionSetGroup?.DeveloperName,
-        label: row.PermissionSetGroup?.MasterLabel,
-        type: 'PermissionSetGroup',
-      });
-    } else if (row.PermissionSetId) {
-      addLabel(labels, {
-        id: row.PermissionSetId,
-        apiName: row.PermissionSet?.Name,
-        label: row.PermissionSet?.Label,
-        type: 'PermissionSet',
-      });
-    }
+    const bundle = permissionSetAssignmentLabel(row);
+    if (bundle) addLabel(labels, bundle);
   }
-  for (const row of groupRows) {
-    addLabel(labels, {
-      id: row.GroupId,
-      apiName: row.Group?.DeveloperName,
-      label: row.Group?.Name,
-      type: row.Group?.Type === 'Queue' ? 'Queue' : 'PublicGroup',
-    });
-  }
+  for (const row of groupRows) addLabel(labels, groupMemberLabel(row));
 };
-
 type ProfileRoleState = {
   ProfileId?: string | null;
   UserRoleId?: string | null;
   profileName: string;
   roleName: string;
 };
-
-export const displayName = (
-  id: string | null | undefined,
-  relationship: { Name?: string } | null | undefined
-): string => relationship?.Name ?? id ?? '';
-
+export const displayName = (id: string | null | undefined, relationship: { Name?: string } | null | undefined): string => relationship?.Name ?? id ?? '';
 const addProfileRoleLabels = (labels: LabelMap, states: Map<string, ProfileRoleState>): void => {
   for (const state of states.values()) {
     if (state.ProfileId) addLabel(labels, { id: state.ProfileId, label: state.profileName, type: 'Profile' });
     if (state.UserRoleId) addLabel(labels, { id: state.UserRoleId, label: state.roleName, type: 'UserRole' });
   }
 };
-
 const buildLabelMap = (
   refs: ResolvedRefs | undefined,
   assignmentState: Awaited<ReturnType<typeof loadAssignmentState>>,
@@ -335,7 +281,6 @@ const buildLabelMap = (
   addProfileRoleLabels(labels, profileRoles);
   return labels;
 };
-
 const diffForMissingUser = (
   user: CanonicalizedUser,
   refs: ResolvedRefs,
@@ -354,7 +299,6 @@ const diffForMissingUser = (
   assignments: computeAssignmentDeltaFromState(user.effectivePersona, refs, [], []),
   errors: [],
 });
-
 export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<UserDiffResult> => {
   const { connection: conn } = request;
   let fieldMap: Map<string, UserFieldMeta>;
@@ -368,7 +312,6 @@ export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<U
   }
   const { usersDoc, personasDoc } = definitions;
   const personasSupplied = request.personasSupplied ?? definitions.personasSupplied;
-
   const personas = personasDoc.personas as Record<string, PersonaDefinition>;
   validatePersonaModes(personas);
   validateExternalIdFieldForFlag(request.externalId, fieldMap);
@@ -387,7 +330,6 @@ export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<U
     queryUserRoles(conn, uniqueExistingIds),
     loadAssignmentState(conn, uniqueExistingIds, { permissionSetAssignments: true, groupMemberships: true }),
   ]);
-
   const results = users.map((user): UserAssignmentDiff => {
     const validationErrors = validationErrorsFor(user);
     if (validationErrors.length > 0) {
@@ -406,7 +348,6 @@ export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<U
         errors: validationErrors,
       };
     }
-
     const errors: string[] = [];
     const target = buildTarget(user, refs, errors);
     const { matchedBy, existing: existingMatch } = findExisting(
@@ -461,10 +402,8 @@ export const executePersonaDiff = async (request: PersonaDiffRequest): Promise<U
       errors: [],
     };
   });
-
   return buildResult(results, refs.warnings, buildLabelMap(refs, assignmentState, existingProfileRoles));
 };
-
 const queryUserRoles = async (conn: Connection, ids: string[]): Promise<Map<string, ProfileRoleState>> => {
   if (ids.length === 0) return new Map();
   const rowBatches = await Promise.all(
@@ -496,7 +435,6 @@ const queryUserRoles = async (conn: Connection, ids: string[]): Promise<Map<stri
     )
   );
 };
-
 const partitionIds = (
   currentIds: string[],
   intendedIds: string[],
@@ -514,13 +452,9 @@ const partitionIds = (
     ...(mode ? { mode } : {}),
   };
 };
-
-const loadCurrentAssignmentIds = (
-  state: Awaited<ReturnType<typeof loadAssignmentState>>,
-  userId: string
-): { permissionSets: string[]; permissionSetGroups: string[]; publicGroups: string[]; queues: string[] } =>
+type CurrentAssignmentIds = ReturnType<typeof extractCurrentIds>;
+const loadCurrentAssignmentIds = (state: Awaited<ReturnType<typeof loadAssignmentState>>, userId: string): CurrentAssignmentIds =>
   extractCurrentIds(state.psaByUserId.get(userId) ?? [], state.groupByUserId.get(userId) ?? []);
-
 const parseUserFlagAsSfError = (
   raw: string,
   messageKey: 'errorInvalidUserValue' | 'errorInvalidAgainstValue'
@@ -531,7 +465,6 @@ const parseUserFlagAsSfError = (
     throw new SfError(messages.getMessage(messageKey, [raw]));
   }
 };
-
 export const executeUserToUserDiff = async (request: UserDiffRequest): Promise<UserDiffResult> => {
   const { connection: conn } = request;
   const fieldMap = await describeUserFields(conn);
@@ -604,196 +537,4 @@ export const executeUserToUserDiff = async (request: UserDiffRequest): Promise<U
     errors: [],
   };
   return buildResult([result], [], buildLabelMap(undefined, state, profilesById));
-};
-
-export const renderUserDiffCsv = (result: UserDiffResult): string => {
-  const header = [
-    'userKey',
-    'userId',
-    'category',
-    'kind',
-    'value',
-    'mode',
-    'userName',
-    'username',
-    'valueApiName',
-    'valueLabel',
-    'valueType',
-    'valueBefore',
-    'valueAfter',
-  ];
-  return serializeCsv(
-    result.rows.map((row) => {
-      const label = result.labels?.[row.value] ?? (row.valueAfter ? result.labels?.[row.valueAfter] : undefined);
-      return {
-        userKey: row.userKey,
-        userId: row.userId,
-        category: row.category,
-        kind: row.kind,
-        value: row.value,
-        mode: row.mode ?? '',
-        userName: row.userName ?? '',
-        username: row.username ?? '',
-        valueApiName: label?.apiName ?? '',
-        valueLabel: label?.label ?? '',
-        valueType: label?.type ?? '',
-        valueBefore: row.valueBefore ?? '',
-        valueAfter: row.valueAfter ?? '',
-      };
-    }),
-    header
-  );
-};
-
-const displayValue = (result: UserDiffResult, value: string): string =>
-  result.labels?.[value]
-    ? result.labels[value].apiName &&
-      result.labels[value].label &&
-      result.labels[value].apiName !== result.labels[value].label
-      ? `${result.labels[value].apiName} (${result.labels[value].label})`
-      : result.labels[value].apiName ?? result.labels[value].label ?? value
-    : value;
-
-const renderFieldDiff = (result: UserDiffResult, label: 'profile' | 'role', field: DiffField): string | undefined =>
-  field.matches
-    ? undefined
-    : `  ${label}: ${displayValue(result, field.current ?? '')} -> ${displayValue(result, field.intended ?? '')}`;
-
-const renderCategoryDiff = (
-  result: UserDiffResult,
-  label: keyof AssignmentDelta,
-  delta: AssignmentCategoryDelta,
-  verbose: boolean
-): string[] => {
-  if (
-    delta.adds.length === 0 &&
-    delta.removes.length === 0 &&
-    delta.inBoth.length === 0 &&
-    delta.onlyInOrg.length === 0
-  ) {
-    return [];
-  }
-  const lines = [`  ${label}${delta.mode ? ` (${delta.mode})` : ''}:`];
-  for (const value of delta.adds) lines.push(`    + ${displayValue(result, value)}`);
-  for (const value of delta.removes) lines.push(`    - ${displayValue(result, value)}`);
-  if (verbose) {
-    for (const value of delta.inBoth) lines.push(`    = ${displayValue(result, value)}`);
-  }
-  for (const extraValue of delta.onlyInOrg.filter((candidate) => !delta.removes.includes(candidate))) {
-    lines.push(`    extra ${displayValue(result, extraValue)}`);
-  }
-  return lines;
-};
-
-export const renderUserDiffHuman = (result: UserDiffResult, options: { verbose?: boolean } = {}): string => {
-  const lines = [
-    messages.getMessage('info.summary', [
-      String(result.summary.total),
-      String(result.summary.changed),
-      String(result.summary.failed),
-    ]),
-  ];
-  for (const warning of result.warnings) lines.push(`warning: ${warning}`);
-  for (const user of result.users) {
-    lines.push('');
-    lines.push(`${user.key}${user.id ? ` (${user.id})` : ''}: ${user.status}`);
-    for (const error of user.errors) lines.push(`  error: ${error}`);
-    const profileLine = renderFieldDiff(result, 'profile', user.profile);
-    const roleLine = renderFieldDiff(result, 'role', user.role);
-    if (profileLine) lines.push(profileLine);
-    if (roleLine) lines.push(roleLine);
-    for (const [label, delta] of Object.entries(user.assignments) as Array<
-      [keyof AssignmentDelta, AssignmentCategoryDelta]
-    >) {
-      lines.push(...renderCategoryDiff(result, label, delta, options.verbose === true));
-    }
-  }
-  return lines.join('\n');
-};
-
-const conformanceViolationsForCategory = (
-  result: UserDiffResult,
-  category: keyof AssignmentDelta,
-  delta: AssignmentCategoryDelta
-): string[] => {
-  const violations: string[] = [];
-  if (delta.adds.length > 0) {
-    violations.push(
-      messages.getMessage('verify.violation.missing', [
-        category,
-        delta.adds.map((value) => displayValue(result, value)).join(', '),
-      ])
-    );
-  }
-  if (delta.mode === 'sync' && delta.removes.length > 0) {
-    violations.push(
-      messages.getMessage('verify.violation.extra', [
-        category,
-        delta.removes.map((value) => displayValue(result, value)).join(', '),
-      ])
-    );
-  }
-  return violations;
-};
-
-const conformanceViolationsForUser = (result: UserDiffResult, user: UserAssignmentDiff): string[] => {
-  if (user.status === 'would-create') return [messages.getMessage('verify.violation.notFound')];
-  if (user.status === 'failed') {
-    return user.errors.length > 0
-      ? user.errors.map((error) => messages.getMessage('verify.violation.error', [error]))
-      : [messages.getMessage('verify.violation.error', ['user diff failed'])];
-  }
-
-  const violations: string[] = [];
-  if (!user.profile.matches) {
-    violations.push(
-      messages.getMessage('verify.violation.profile', [
-        displayValue(result, user.profile.current ?? ''),
-        displayValue(result, user.profile.intended ?? ''),
-      ])
-    );
-  }
-  if (!user.role.matches) {
-    violations.push(
-      messages.getMessage('verify.violation.role', [
-        displayValue(result, user.role.current ?? ''),
-        displayValue(result, user.role.intended ?? ''),
-      ])
-    );
-  }
-  for (const [category, delta] of Object.entries(user.assignments) as Array<
-    [keyof AssignmentDelta, AssignmentCategoryDelta]
-  >) {
-    violations.push(...conformanceViolationsForCategory(result, category, delta));
-  }
-  return violations;
-};
-
-export const verifyUserDiff = (result: UserDiffResult): UserConformanceVerdict[] =>
-  result.users.map((user) => {
-    const violations = conformanceViolationsForUser(result, user);
-    return { key: user.key, conformant: violations.length === 0, violations };
-  });
-
-export const renderUserConformanceCsv = (verdicts: UserConformanceVerdict[]): string =>
-  serializeCsv(
-    verdicts.map((verdict) => ({
-      key: verdict.key,
-      conformant: String(verdict.conformant),
-      violations: verdict.violations.join('; '),
-    })),
-    ['key', 'conformant', 'violations']
-  );
-
-export const renderUserConformanceHuman = (verdicts: UserConformanceVerdict[]): string => {
-  const conformant = verdicts.filter((verdict) => verdict.conformant).length;
-  const nonConformant = verdicts.length - conformant;
-  const lines = [
-    messages.getMessage('verify.summary', [String(verdicts.length), String(conformant), String(nonConformant)]),
-  ];
-  for (const verdict of verdicts.filter((candidate) => !candidate.conformant)) {
-    lines.push('', messages.getMessage('verify.user', [verdict.key]));
-    for (const violation of verdict.violations) lines.push(`  - ${violation}`);
-  }
-  return lines.join('\n');
 };

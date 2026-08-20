@@ -6,37 +6,9 @@ Capture user assignment state to a portable snapshot file.
 
 Captures matching users' active/frozen state and access assignments using developer/API names so the snapshot can be restored later.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
-# flags.user.summary
-
-Target a single user using `field:value`.
-
-# flags.users-def.summary
-
-Path to a user definition JSON or CSV file.
-
-# flags.input-format.summary
-
-Override users-def format detection: json or csv.
-
-# flags.csv-list-delimiter.summary
-
-Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
-
-# flags.external-id.summary
-
-Default User field used to match entries in `--users-def`.
-
 # flags.out.summary
 
 Path to write the snapshot JSON or CSV file. The extension selects the format.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
 
 # errorInvalidJson
 

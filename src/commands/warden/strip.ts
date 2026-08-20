@@ -5,6 +5,17 @@ import { executeStrip, type StripFlags } from '../../userLifecycle/stripPlan.js'
 import type { LifecycleResult } from '../../userLifecycle/types.js';
 import { renderStripCsv } from '../../userShared/output.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import {
+  apiVersionFlag,
+  csvListDelimiterFlag,
+  dryRunFlag,
+  externalIdFlag,
+  inputFormatFlag,
+  noPromptFlag,
+  targetOrgFlag,
+  userFlag,
+  usersDefFlag,
+} from '../../userShared/targetFlags.js';
 import { describeUserFields } from '../../userShared/userFields.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
@@ -17,21 +28,14 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
-    user: Flags.string({ exactlyOne: ['user', 'users-def'], summary: messages.getMessage('flags.user.summary') }),
-    'users-def': Flags.file({
-      exists: true,
-      exactlyOne: ['user', 'users-def'],
-      summary: messages.getMessage('flags.users-def.summary'),
-    }),
-    'external-id': Flags.string({ summary: messages.getMessage('flags.external-id.summary') }),
-    'input-format': Flags.string({
-      options: ['json', 'csv'] as const,
-      summary: messages.getMessage('flags.input-format.summary'),
-    }),
-    'csv-list-delimiter': Flags.string({ summary: messages.getMessage('flags.csv-list-delimiter.summary') }),
-    'no-prompt': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-prompt.summary') }),
-    'dry-run': Flags.boolean({ default: false, summary: messages.getMessage('flags.dry-run.summary') }),
+    'target-org': targetOrgFlag,
+    user: userFlag,
+    'users-def': usersDefFlag,
+    'external-id': externalIdFlag,
+    'input-format': inputFormatFlag,
+    'csv-list-delimiter': csvListDelimiterFlag,
+    'no-prompt': noPromptFlag,
+    'dry-run': dryRunFlag,
     'no-freeze': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-freeze.summary') }),
     'no-deactivate': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-deactivate.summary') }),
     'keep-permsets': Flags.boolean({ default: false, summary: messages.getMessage('flags.keep-permsets.summary') }),
@@ -47,7 +51,7 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
     'keep-queues': Flags.boolean({ default: false, summary: messages.getMessage('flags.keep-queues.summary') }),
     snapshot: Flags.file({ summary: messages.getMessage('flags.snapshot.summary') }),
     ...outputFlags,
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'api-version': apiVersionFlag,
   };
 
   public async run(): Promise<LifecycleResult> {

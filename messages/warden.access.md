@@ -6,10 +6,6 @@ Audit active-user access for a permission target.
 
 Resolves active users who have access to a target and attributes each access path to Profile, Permission Set, or Permission Set Group sources.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
 # flags.type.summary
 
 Target type to audit: field, object, apex-class, vf-page, custom-permission, or tab.
@@ -18,10 +14,6 @@ Target type to audit: field, object, apex-class, vf-page, custom-permission, or 
 
 Target API name. Use Object.Field for field, Object for object, Apex class name for apex-class, Visualforce page name for vf-page, custom permission DeveloperName for custom-permission, or tab API name for tab.
 
-# flags.output.summary
-
-Output format: human, csv, or json. Defaults to human.
-
 # flags.user.summary
 
 Reverse audit for one user, using field:value matching (for example Username:alice@example.com).
@@ -29,10 +21,6 @@ Reverse audit for one user, using field:value matching (for example Username:ali
 # flags.sobject.summary
 
 In reverse user mode, report field or object access scoped to this SObject.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
 
 # errorUnsupportedAccessType
 

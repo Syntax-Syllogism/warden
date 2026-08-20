@@ -5,15 +5,24 @@ import { readProvisionDefinitions } from '../../userProvisioning/definitionReade
 import {
   executePersonaDiff,
   executeUserToUserDiff,
-  renderUserConformanceCsv,
-  renderUserConformanceHuman,
-  renderUserDiffCsv,
-  renderUserDiffHuman,
-  verifyUserDiff,
-  type UserConformanceVerdict,
   type UserDiffResult,
 } from '../../userLifecycle/userDiff.js';
+import { renderUserDiffCsv, renderUserDiffHuman } from '../../userLifecycle/diffOutput.js';
+import {
+  renderUserConformanceCsv,
+  renderUserConformanceHuman,
+  verifyUserDiff,
+  type UserConformanceVerdict,
+} from '../../userLifecycle/conformance.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import {
+  apiVersionFlag,
+  csvListDelimiterFlag,
+  externalIdFlag,
+  inputFormatFlag,
+  targetOrgFlag,
+  usersDefFlag,
+} from '../../userShared/targetFlags.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -44,7 +53,7 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
+    'target-org': targetOrgFlag,
     user: Flags.string({
       exactlyOne: ['user', 'users-def'],
       dependsOn: ['against'],
@@ -54,21 +63,14 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
       dependsOn: ['user'],
       summary: messages.getMessage('flags.against.summary'),
     }),
-    'users-def': Flags.file({
-      exists: true,
-      exactlyOne: ['user', 'users-def'],
-      summary: messages.getMessage('flags.users-def.summary'),
-    }),
+    'users-def': usersDefFlag,
     'personas-def': Flags.file({
       exists: true,
       summary: messages.getMessage('flags.personas-def.summary'),
     }),
-    'external-id': Flags.string({ summary: messages.getMessage('flags.external-id.summary') }),
-    'input-format': Flags.string({
-      options: ['json', 'csv'] as const,
-      summary: messages.getMessage('flags.input-format.summary'),
-    }),
-    'csv-list-delimiter': Flags.string({ summary: messages.getMessage('flags.csv-list-delimiter.summary') }),
+    'external-id': externalIdFlag,
+    'input-format': inputFormatFlag,
+    'csv-list-delimiter': csvListDelimiterFlag,
     ...outputFlags,
     verbose: Flags.boolean({
       default: false,
@@ -82,7 +84,7 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
       default: false,
       summary: messages.getMessage('flags.verify.summary'),
     }),
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'api-version': apiVersionFlag,
   };
 
   private static async runPersonaMode(
@@ -138,11 +140,12 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
           );
 
     if (flags.verify) {
-      const verdicts = verifyUserDiff(diffResult);
+      const lookup = messages.getMessage.bind(messages);
+      const verdicts = verifyUserDiff(diffResult, lookup);
       await this.emitResult(context, {
         result: verdicts,
         csv: renderUserConformanceCsv(verdicts),
-        human: renderUserConformanceHuman(verdicts),
+        human: renderUserConformanceHuman(verdicts, lookup),
       });
       if (verdicts.some((verdict) => !verdict.conformant)) process.exitCode = 1;
       return verdicts;
@@ -152,7 +155,7 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
     await this.emitResult(context, {
       result: diffResult,
       csv,
-      human: renderUserDiffHuman(diffResult, { verbose: flags.verbose }),
+      human: renderUserDiffHuman(diffResult, messages.getMessage.bind(messages), { verbose: flags.verbose }),
     });
     if (diffResult.summary.failed > 0 || (flags['fail-on-drift'] && diffResult.summary.changed > 0)) {
       process.exitCode = 1;

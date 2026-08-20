@@ -14,6 +14,15 @@ import type { LifecycleResult, LifecycleUserResult } from '../../userLifecycle/t
 import { renderSnapshotCsv } from '../../userShared/output.js';
 import { describeUserFields } from '../../userShared/userFields.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import {
+  apiVersionFlag,
+  csvListDelimiterFlag,
+  externalIdFlag,
+  inputFormatFlag,
+  targetOrgFlag,
+  userFlag,
+  usersDefFlag,
+} from '../../userShared/targetFlags.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -34,22 +43,15 @@ export default class UserSnapshot extends WardenCommand<LifecycleResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
-    user: Flags.string({ exactlyOne: ['user', 'users-def'], summary: messages.getMessage('flags.user.summary') }),
-    'users-def': Flags.file({
-      exists: true,
-      exactlyOne: ['user', 'users-def'],
-      summary: messages.getMessage('flags.users-def.summary'),
-    }),
-    'external-id': Flags.string({ summary: messages.getMessage('flags.external-id.summary') }),
-    'input-format': Flags.string({
-      options: ['json', 'csv'] as const,
-      summary: messages.getMessage('flags.input-format.summary'),
-    }),
-    'csv-list-delimiter': Flags.string({ summary: messages.getMessage('flags.csv-list-delimiter.summary') }),
+    'target-org': targetOrgFlag,
+    user: userFlag,
+    'users-def': usersDefFlag,
+    'external-id': externalIdFlag,
+    'input-format': inputFormatFlag,
+    'csv-list-delimiter': csvListDelimiterFlag,
     ...outputFlags,
     out: Flags.file({ summary: messages.getMessage('flags.out.summary') }),
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'api-version': apiVersionFlag,
   };
 
   public async run(): Promise<LifecycleResult> {

@@ -5,6 +5,7 @@ import { parseUserFlag, resolveTargetField, resolveTargets } from '../../userLif
 import type { ResolvedTargetUser } from '../../userLifecycle/types.js';
 import { serializeCsv } from '../../userShared/csv.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import { apiVersionFlag, targetOrgFlag } from '../../userShared/targetFlags.js';
 import {
   flattenAccessRow,
   renderEnabledTable,
@@ -87,7 +88,7 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
+    'target-org': targetOrgFlag,
     type: Flags.string({
       required: true,
       options: ['field', 'object', 'apex-class', 'vf-page', 'custom-permission', 'tab'] as const,
@@ -97,7 +98,7 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
     user: Flags.string({ summary: messages.getMessage('flags.user.summary') }),
     sobject: Flags.string({ summary: messages.getMessage('flags.sobject.summary') }),
     ...outputFlags,
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'api-version': apiVersionFlag,
   };
 
   // eslint-disable-next-line complexity

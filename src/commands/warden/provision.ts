@@ -4,6 +4,13 @@ import { confirmWithTimeout } from '../../userShared/prompt.js';
 import { renderProvisionCsv } from '../../userShared/output.js';
 import { detectInputFormat, type InputFormat } from '../../userShared/csv.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import {
+  apiVersionFlag,
+  csvListDelimiterFlag,
+  dryRunFlag,
+  inputFormatFlag,
+  targetOrgFlag,
+} from '../../userShared/targetFlags.js';
 import { ProvisionUserUseCase, type ProvisionResult } from '../../userProvisioning/provisionUserUseCase.js';
 import { readProvisionDefinitions } from '../../userProvisioning/definitionReader.js';
 import { WardenCommand } from '../../wardenCommand.js';
@@ -11,17 +18,32 @@ import { WardenCommand } from '../../wardenCommand.js';
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');
 
+/**
+ * Report the match field alongside the value actually looked up under it.
+ *
+ * `user.key` is a display identity (FederationIdentifier, then Username, then Email,
+ * then a synthesized `<personas>:<index>` fallback), so it is only ever the match value
+ * by coincidence and must not be printed as one. `matchedBy` likewise only says a match
+ * field was configured, so `matched` is what distinguishes a resolved user from a
+ * net-new one.
+ */
+const renderMatchProvenance = (user: ProvisionResult['users'][number]): string => {
+  if (!user.matchedBy) return 'unmatched';
+  const label = user.matched ? 'matched' : 'unmatched';
+  return user.matchValue === null ? `${label} ${user.matchedBy}` : `${label} ${user.matchedBy} = ${user.matchValue}`;
+};
+
 const renderProvisionHuman = (output: ProvisionResult): string => {
   const lines: string[] = [];
   for (const user of output.users) {
     lines.push(`${user.key}${user.id ? ` · ${user.id}` : ''} · ${user.status}`);
-    const matched = user.matchedBy
-      ? `matched ${user.matchedBy} = ${
-          user.key.startsWith(`${user.matchedBy}:`) ? user.key.slice(user.matchedBy.length + 1) : user.key
-        }`
-      : 'unmatched';
-    lines.push(`  ${matched} · personas: ${user.personas.join(', ') || '(none)'}`);
+    lines.push(`  ${renderMatchProvenance(user)} · personas: ${user.personas.join(', ') || '(none)'}`);
     for (const action of user.actions) lines.push(`  action: ${action}`);
+    for (const related of user.relatedRecords ?? []) {
+      const recordId = related.recordId ? ` · ${related.recordId}` : '';
+      lines.push(`  related: ${related.phase} ${related.sobject} ${related.action}${recordId}`);
+      if (related.error) lines.push(`  related error: ${related.error}`);
+    }
     for (const error of user.errors) lines.push(`  error: ${error}`);
   }
   lines.push('');
@@ -60,30 +82,31 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
-    'target-org': Flags.requiredOrg({ summary: messages.getMessage('flags.target-org.summary') }),
+    'target-org': targetOrgFlag,
     'users-def': Flags.file({ required: true, exists: true, summary: messages.getMessage('flags.users-def.summary') }),
     'personas-def': Flags.file({
       exists: true,
       summary: messages.getMessage('flags.personas-def.summary'),
     }),
+    'related-def': Flags.file({
+      exists: true,
+      summary: messages.getMessage('flags.related-def.summary'),
+    }),
     'external-id': Flags.string({
       aliases: ['match-field'],
       summary: messages.getMessage('flags.external-id.summary'),
     }),
-    'input-format': Flags.string({
-      options: ['json', 'csv'] as const,
-      summary: messages.getMessage('flags.input-format.summary'),
-    }),
-    'csv-list-delimiter': Flags.string({ summary: messages.getMessage('flags.csv-list-delimiter.summary') }),
+    'input-format': inputFormatFlag,
+    'csv-list-delimiter': csvListDelimiterFlag,
     'fuzzy-username': Flags.boolean({ default: false, summary: messages.getMessage('flags.fuzzy-username.summary') }),
     'no-prompt': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-prompt.summary') }),
-    'dry-run': Flags.boolean({ default: false, summary: messages.getMessage('flags.dry-run.summary') }),
+    'dry-run': dryRunFlag,
     'fail-on-insufficient-license': Flags.boolean({
       default: false,
       summary: messages.getMessage('flags.fail-on-insufficient-license.summary'),
     }),
     ...outputFlags,
-    'api-version': Flags.orgApiVersion({ summary: messages.getMessage('flags.api-version.summary') }),
+    'api-version': apiVersionFlag,
   };
 
   public async run(): Promise<ProvisionResult> {
@@ -91,10 +114,17 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     const context = this.resolveOutputContext(flags);
     const conn = flags['target-org'].getConnection(flags['api-version'] ?? undefined);
     const inputFormat = detectInputFormat(flags['users-def'], flags['input-format'] as InputFormat | undefined);
+    // Refuse before the connection is used, so a misconfigured invocation costs zero API calls.
+    if (flags['related-def'] && inputFormat === 'csv') {
+      throw new SfError(messages.getMessage('errorRelatedRequiresJson'));
+    }
     const definitions =
       inputFormat === 'json'
-        ? await readProvisionDefinitions(flags['users-def'], flags['personas-def'], {}, (path, error) =>
-            messages.getMessage('errorInvalidJson', [path, error])
+        ? await readProvisionDefinitions(
+            flags['users-def'],
+            flags['personas-def'],
+            { relatedPath: flags['related-def'] },
+            (path, error) => messages.getMessage('errorInvalidJson', [path, error])
           )
         : undefined;
     const useCase = new ProvisionUserUseCase();
@@ -104,6 +134,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       usersDoc: definitions?.usersDoc,
       personasDoc: definitions?.personasDoc,
       personasSupplied: definitions?.personasSupplied,
+      relatedDoc: definitions?.relatedDoc,
       usersPath: inputFormat === 'csv' ? flags['users-def'] : undefined,
       personasPath: inputFormat === 'csv' ? flags['personas-def'] : undefined,
       inputFormat: inputFormat === 'csv' ? inputFormat : undefined,

@@ -2436,6 +2436,139 @@ describe('warden user provision command', () => {
     expect(rendered).to.include('Processed 1 users: 0 created, 0 updated, 1 failed.');
   });
 
+  it('reports the value actually matched on, and does not claim a match for a net-new user', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-provision-test-'));
+    const usersPath = join(dir, 'users-match-provenance.json');
+    const personasPath = join(dir, 'personas-match-provenance.json');
+    const defaults = {
+      TimeZoneSidKey: 'America/Los_Angeles',
+      LocaleSidKey: 'en_US',
+      EmailEncodingKey: 'UTF-8',
+      LanguageLocaleKey: 'en_US',
+    };
+    writeFileSync(
+      usersPath,
+      JSON.stringify({
+        users: [
+          // Matches on Alias while carrying a FederationIdentifier, so the display key and the
+          // match value are different strings and printing the wrong one is visible.
+          {
+            ...defaults,
+            personas: ['default'],
+            match: 'Alias',
+            Alias: 'ckradm',
+            FederationIdentifier: 'CKR-SMOKE-ADMIN',
+            LastName: 'Existing',
+          },
+          {
+            ...defaults,
+            personas: ['default'],
+            match: 'Alias',
+            Alias: 'ckrnew',
+            Username: 'never.existed@example.test',
+            LastName: 'NetNew',
+          },
+        ],
+      })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { default: { profile: 'Admin' } } }));
+    fakeConn.query.callsFake(async (soql: string) => {
+      if (soql.includes('FROM Profile')) return { records: [{ Id: '00exx0000000001AAA', Name: 'Admin' }] };
+      if (soql.includes('FROM User WHERE Alias IN'))
+        return { records: [{ Id: '005xx0000000009AAA', IsActive: true, Alias: 'ckradm' }] };
+      return { records: [] };
+    });
+    sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        'external-id': undefined,
+        'no-prompt': true,
+        'dry-run': true,
+        'api-version': undefined,
+      },
+    } as never);
+
+    await UserProvision.run([]);
+    const rendered = sfCommandStubs.log.firstCall.args[0] as string;
+    // Anchored on the two-space line prefix: bare 'matched ...' is also a substring of
+    // 'unmatched ...', so an unanchored negative assertion here proves nothing.
+    // The matched user prints the Alias it was looked up by, not its FederationIdentifier display key.
+    expect(rendered).to.include('  matched Alias = ckradm ·');
+    expect(rendered).to.not.include('  matched Alias = CKR-SMOKE-ADMIN');
+    // The net-new user matched nothing, so it must not be reported as matched at all.
+    expect(rendered).to.include('  unmatched Alias = ckrnew ·');
+    expect(rendered).to.not.include('  matched Alias = ckrnew');
+    expect(rendered).to.not.include('  matched Alias = never.existed@example.test');
+  });
+
+  it('reports no match value when the match field is empty, on both the validation and plan paths', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-provision-test-'));
+    const usersPath = join(dir, 'users-empty-match.json');
+    const personasPath = join(dir, 'personas-empty-match.json');
+    const defaults = {
+      TimeZoneSidKey: 'America/Los_Angeles',
+      LocaleSidKey: 'en_US',
+      EmailEncodingKey: 'UTF-8',
+      LanguageLocaleKey: 'en_US',
+    };
+    writeFileSync(
+      usersPath,
+      JSON.stringify({
+        users: [
+          // Explicit `match` with an empty value fails validation, so this user is reported
+          // from the validation path, which carries its own matchedBy/matchValue pair.
+          {
+            ...defaults,
+            personas: ['default'],
+            match: 'Alias',
+            Alias: '',
+            Username: 'empty.explicit@example.test',
+            LastName: 'EmptyExplicit',
+          },
+          // No `match` key, so --external-id supplies matchedBy and this user reaches planning.
+          // Its empty Alias is later replaced by a generated one, which is exactly why the
+          // reported match value has to be captured as "nothing", not as the eventual alias.
+          {
+            ...defaults,
+            personas: ['default'],
+            Alias: '',
+            Username: 'empty.default@example.test',
+            LastName: 'EmptyDefault',
+          },
+        ],
+      })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { default: { profile: 'Admin' } } }));
+    fakeConn.query.callsFake(async (soql: string) => {
+      if (soql.includes('FROM Profile')) return { records: [{ Id: '00exx0000000001AAA', Name: 'Admin' }] };
+      return { records: [] };
+    });
+    sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        'external-id': 'Alias',
+        'no-prompt': true,
+        'dry-run': true,
+        'api-version': undefined,
+      },
+    } as never);
+
+    await UserProvision.run([]);
+    const rendered = sfCommandStubs.log.firstCall.args[0] as string;
+    // No lookup is issued for an empty value, so no value may be printed as having been
+    // looked up. The failure mode being guarded is a dangling `Alias = ` with nothing after it.
+    expect(rendered).to.not.include('Alias = ');
+    expect(rendered).to.not.match(/Alias =\s*$/m);
+    // Both users must render the bare field form: one from the validation path, one from planning.
+    expect(rendered.match(/^ {2}unmatched Alias · personas:/gm) ?? []).to.have.length(2);
+  });
+
   it('legacy persona key produces migration error per user', async () => {
     const fakeConn = createFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-provision-test-'));
@@ -2602,5 +2735,117 @@ describe('warden user provision command', () => {
       expect(error).to.have.property('message').that.includes('--personas-def');
     }
     expect(fakeConn.describe.called).to.equal(false);
+  });
+
+  it('writes an after-phase related record after the User save and reports its result', async () => {
+    const fakeConn = createFakeConnection();
+    const relatedCreate = bulkSuccessStub('a01xx000000000');
+    fakeConn.sobjectMap['Employee__c'] = {
+      create: relatedCreate,
+      update: bulkSuccessStub('a01xx000000000'),
+      delete: sinon.stub(),
+    };
+    fakeConn.describe.withArgs('Employee__c').resolves({
+      fields: [
+        { name: 'External_Id__c', createable: true, updateable: true, filterable: true, externalId: true },
+        { name: 'Department__c', createable: true, updateable: true, filterable: true, externalId: false },
+        { name: 'User__c', createable: true, updateable: true, filterable: true, externalId: false },
+      ],
+    });
+    const result = await new ProvisionUserUseCase().execute({
+      connection: fakeConn as never,
+      usersDoc: {
+        users: [
+          {
+            related: ['employee'],
+            FederationIdentifier: 'EMP-1',
+            Department: 'Operations',
+            ProfileId: '00exx0000000001AAA',
+            Username: 'employee@example.test',
+            LastName: 'Employee',
+            Alias: 'employ',
+            TimeZoneSidKey: 'America/Los_Angeles',
+            LocaleSidKey: 'en_US',
+            EmailEncodingKey: 'UTF-8',
+            LanguageLocaleKey: 'en_US',
+          },
+        ],
+      },
+      personasDoc: { personas: {} },
+      personasSupplied: false,
+      relatedDoc: {
+        relationships: {
+          employee: {
+            sobject: 'Employee__c',
+            phase: 'after',
+            match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
+            fields: { 'User__c': { from: 'user.Id' }, 'Department__c': { from: 'user.Department' } },
+          },
+        },
+      },
+      dryRun: false,
+    });
+
+    const userCreate = fakeConn.sobjectMap.User.create;
+    const [relatedPayloads] = relatedCreate.firstCall.args as [Array<Record<string, unknown>>];
+    expect(relatedCreate.calledAfter(userCreate)).to.equal(true);
+    expect(relatedPayloads[0]).to.deep.include({
+      'External_Id__c': 'EMP-1',
+      'Department__c': 'Operations',
+      'User__c': result.users[0].id,
+    });
+    expect(result.users[0].relatedRecords?.[0]).to.deep.include({ action: 'created', status: 'applied' });
+  });
+
+  it('marks the User failed when related-record DML fails without undoing the User save', async () => {
+    const fakeConn = createFakeConnection();
+    fakeConn.sobjectMap['Employee__c'] = {
+      create: sinon.stub().resolves([{ success: false, errors: [{ message: 'required related field missing' }] }]),
+      update: bulkSuccessStub('a01xx000000000'),
+      delete: sinon.stub(),
+    };
+    fakeConn.describe.withArgs('Employee__c').resolves({
+      fields: [
+        { name: 'External_Id__c', createable: true, updateable: true, filterable: true, externalId: true },
+        { name: 'User__c', createable: true, updateable: true, filterable: true, externalId: false },
+      ],
+    });
+    const result = await new ProvisionUserUseCase().execute({
+      connection: fakeConn as never,
+      usersDoc: {
+        users: [
+          {
+            related: ['employee'],
+            FederationIdentifier: 'EMP-2',
+            ProfileId: '00exx0000000001AAA',
+            Username: 'employee-two@example.test',
+            LastName: 'Employee',
+            Alias: 'employ',
+            TimeZoneSidKey: 'America/Los_Angeles',
+            LocaleSidKey: 'en_US',
+            EmailEncodingKey: 'UTF-8',
+            LanguageLocaleKey: 'en_US',
+          },
+        ],
+      },
+      personasDoc: { personas: {} },
+      personasSupplied: false,
+      relatedDoc: {
+        relationships: {
+          employee: {
+            sobject: 'Employee__c',
+            phase: 'after',
+            match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
+            fields: { 'User__c': { from: 'user.Id' } },
+          },
+        },
+      },
+      dryRun: false,
+    });
+
+    expect(fakeConn.sobjectMap.User.create.calledOnce).to.equal(true);
+    expect(result.users[0].status).to.equal('failed');
+    expect(result.users[0].id).to.be.a('string');
+    expect(result.users[0].relatedRecords?.[0]).to.deep.include({ action: 'skipped', status: 'failed' });
   });
 });

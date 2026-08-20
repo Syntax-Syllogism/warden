@@ -2,9 +2,12 @@ import { SfError, type Connection } from '@salesforce/core';
 import type { UserFieldMeta } from '../userProvisioning/planner.js';
 import { confirmWithTimeout } from '../userShared/prompt.js';
 import {
+  groupMemberLabel,
   type GroupMemberRow,
   loadAssignmentState,
+  permissionSetAssignmentLabel,
   type PermissionSetAssignmentRow,
+  permissionSetLicenseLabel,
   type PermissionSetLicenseAssignRow,
   type UserLoginRow,
 } from './assignmentState.js';
@@ -65,7 +68,7 @@ type StripCategory<Row extends StripCategoryRow> = {
   skipKey: string;
   dryRunKey: string;
   actionKey: DeleteStripStep['actionKey'];
-  toItem: (row: Row) => LabelBundle;
+  toItem: (row: Row) => LabelBundle | undefined;
   rowId: (row: Row) => string;
 };
 
@@ -93,35 +96,6 @@ const addSkipped = (result: LifecycleUserResult, key: string, count?: number, it
   if (count && count > 0) result.skipped.push(makeNotice(key, count, items));
 };
 
-const permissionSetItem = (row: PermissionSetAssignmentRow): LabelBundle =>
-  row.PermissionSetGroupId
-    ? {
-        id: row.PermissionSetGroupId,
-        apiName: row.PermissionSetGroup?.DeveloperName,
-        label: row.PermissionSetGroup?.MasterLabel,
-        type: 'PermissionSetGroup',
-      }
-    : {
-        id: row.PermissionSetId ?? '',
-        apiName: row.PermissionSet?.Name,
-        label: row.PermissionSet?.Label,
-        type: 'PermissionSet',
-      };
-
-const groupItem = (row: GroupMemberRow): LabelBundle => ({
-  id: row.GroupId,
-  apiName: row.Group?.DeveloperName,
-  label: row.Group?.Name,
-  type: row.Group?.Type === 'Queue' ? 'Queue' : 'PublicGroup',
-});
-
-const licenseItem = (row: PermissionSetLicenseAssignRow): LabelBundle => ({
-  id: row.PermissionSetLicenseId,
-  apiName: row.PermissionSetLicense?.DeveloperName,
-  label: row.PermissionSetLicense?.MasterLabel,
-  type: 'PermissionSetLicense',
-});
-
 export const STRIP_CATEGORIES = [
   defineCategory({
     select: (state) =>
@@ -131,7 +105,7 @@ export const STRIP_CATEGORIES = [
     skipKey: 'skippedPermissionSets',
     dryRunKey: 'wouldRemovePermissionSet',
     actionKey: 'removedPermissionSet',
-    toItem: permissionSetItem,
+    toItem: permissionSetAssignmentLabel,
     rowId: (row) => row.Id,
   }),
   defineCategory({
@@ -141,7 +115,7 @@ export const STRIP_CATEGORIES = [
     skipKey: 'skippedPermissionSetGroups',
     dryRunKey: 'wouldRemovePermissionSetGroup',
     actionKey: 'removedPermissionSetGroup',
-    toItem: permissionSetItem,
+    toItem: permissionSetAssignmentLabel,
     rowId: (row) => row.Id,
   }),
   defineCategory({
@@ -151,7 +125,7 @@ export const STRIP_CATEGORIES = [
     skipKey: 'skippedPublicGroups',
     dryRunKey: 'wouldRemovePublicGroupMember',
     actionKey: 'removedPublicGroupMember',
-    toItem: groupItem,
+    toItem: groupMemberLabel,
     rowId: (row) => row.Id,
   }),
   defineCategory({
@@ -161,7 +135,7 @@ export const STRIP_CATEGORIES = [
     skipKey: 'skippedQueues',
     dryRunKey: 'wouldRemoveQueueMember',
     actionKey: 'removedQueueMember',
-    toItem: groupItem,
+    toItem: groupMemberLabel,
     rowId: (row) => row.Id,
   }),
   defineCategory({
@@ -171,7 +145,7 @@ export const STRIP_CATEGORIES = [
     skipKey: 'skippedPermissionSetLicenses',
     dryRunKey: 'wouldRemovePermissionSetLicense',
     actionKey: 'removedPermissionSetLicense',
-    toItem: licenseItem,
+    toItem: permissionSetLicenseLabel,
     rowId: (row) => row.Id,
   }),
 ] as const;
@@ -207,22 +181,38 @@ const planCategory = <Row extends StripCategoryRow>(
   category: StripCategory<Row>,
   flags: StripFlags
 ): StripStep[] => {
+  const mappedRows = rows.flatMap((row) => {
+    const item = category.toItem(row);
+    return item ? [{ row, item }] : [];
+  });
+
   if (isFlagSet(flags, category.skipFlag)) {
-    addSkipped(result, category.skipKey, rows.length, rows.map(category.toItem));
+    addSkipped(
+      result,
+      category.skipKey,
+      mappedRows.length,
+      mappedRows.map(({ item }) => item)
+    );
     return [];
   }
-  if (rows.length === 0) return [];
+  if (mappedRows.length === 0) return [];
   if (isFlagSet(flags, 'dry-run')) {
-    addAction(result, category.dryRunKey, rows.length, true, rows.map(category.toItem));
+    addAction(
+      result,
+      category.dryRunKey,
+      mappedRows.length,
+      true,
+      mappedRows.map(({ item }) => item)
+    );
     return [];
   }
   return [
     {
       kind: 'delete',
       sobject: category.sobject,
-      ids: rows.map(category.rowId),
+      ids: mappedRows.map(({ row }) => category.rowId(row)),
       actionKey: category.actionKey,
-      items: rows.map(category.toItem),
+      items: mappedRows.map(({ item }) => item),
     },
   ];
 };

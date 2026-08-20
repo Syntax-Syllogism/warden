@@ -7,7 +7,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 All eight operational `warden` commands accept `--output human|csv|json` and
 `--output-file <path>`. Human output is the default. The generated flag
-reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.3.0/README.md#commands).
+reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands).
 
 ## Formats and destinations
 
@@ -62,8 +62,25 @@ serialization rule.
 * `diff` appends `userName,username,valueApiName,valueLabel,valueType,
   valueBefore,valueAfter` after its existing six columns.
   `diff --verify` instead uses `key,conformant,violations`.
-* `provision` emits one row per action or error with
+* `provision` emits one row per action, related-record result, or error with
   `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`.
+  Related rows retain these same ten columns: `action` is `related`, `detail`
+  is `<relationship> <phase> <sobject> <related-action>`, and `error` contains
+  a related-record failure when applicable. Provision JSON keeps user actions
+  unchanged and adds `users[].relatedRecords[]` for selected relationships.
+  Each entry contains `relationship`, `phase`, `sobject`, `action`, `status`,
+  and, when available, `recordId`, `detail`, and `error`. Dry-run actions use
+  `wouldCreate`, `wouldUpdate`, or `wouldSkip`; an unchanged matched row is
+  `matched`. Live actions use `created`, `updated`, `matched`, or `skipped`.
+  Provision JSON also carries `users[].matchValue`, the value looked up under
+  `matchedBy` (`null` when no lookup was issued under it, because the value
+  was absent, empty, or not a string), and `users[].matched`, whether an
+  existing user was actually found. `matchedBy` reports only that a match
+  field was configured, so it is not a substitute for `matched` on a net-new
+  user. Provision human output composes the same
+  two fields into `matched <field> = <value>` or `unmatched <field> =
+  <value>`, and bare `unmatched` when no match field was configured. The CSV
+  columns are unchanged and still carry `matchedBy` only.
 * `freeze` and `unfreeze` emit one row per user with
   `userKey,userId,userName,username,wasFrozen,status,action,error`.
 * `restore` emits one row per action or action item with

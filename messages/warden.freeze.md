@@ -6,42 +6,6 @@ Freeze one or more users.
 
 Freezes matching users by setting `UserLogin.IsFrozen = true` and leaving all other access untouched.
 
-# flags.target-org.summary
-
-Target org username or alias.
-
-# flags.user.summary
-
-Target a single user using `field:value`.
-
-# flags.users-def.summary
-
-Path to a user definition JSON or CSV file.
-
-# flags.input-format.summary
-
-Override users-def format detection: json or csv.
-
-# flags.csv-list-delimiter.summary
-
-Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
-
-# flags.external-id.summary
-
-Default User field used to match entries in `--users-def`.
-
-# flags.no-prompt.summary
-
-Skip confirmation prompts before write operations.
-
-# flags.dry-run.summary
-
-Validate and plan actions without any write operations.
-
-# flags.api-version.summary
-
-Override the api version used for the org connection.
-
 # errorInvalidJson
 
 Failed to parse JSON file %s: %s

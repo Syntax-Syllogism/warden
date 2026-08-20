@@ -72,6 +72,7 @@ export const renderProvisionCsv = (result: {
     status: string;
     actions: string[];
     errors: string[];
+    relatedRecords?: Array<{ relationship: string; phase: string; sobject: string; action: string; error?: string }>;
   }>;
 }): string =>
   serializeCsv(
@@ -86,9 +87,21 @@ export const renderProvisionCsv = (result: {
         status: user.status,
       };
       const actionRows = user.actions.map((action) => ({ ...base, action, detail: '', error: '' }));
+      // Related records reuse the existing ten columns: `action=related` plus a composed detail.
+      const relatedRows = (user.relatedRecords ?? []).map((related) => ({
+        ...base,
+        action: 'related',
+        detail: `${related.relationship} ${related.phase} ${related.sobject} ${related.action}`,
+        error: related.error ?? '',
+      }));
       const errorRows = user.errors.map((error) => ({ ...base, action: '', detail: '', error }));
-      return actionRows.concat(
-        errorRows.length > 0 ? errorRows : actionRows.length > 0 ? [] : [{ ...base, action: '', detail: '', error: '' }]
+      const populatedRows = actionRows.concat(relatedRows);
+      return populatedRows.concat(
+        errorRows.length > 0
+          ? errorRows
+          : populatedRows.length > 0
+          ? []
+          : [{ ...base, action: '', detail: '', error: '' }]
       );
     }),
     ['userKey', 'userId', 'userName', 'username', 'personas', 'matchedBy', 'status', 'action', 'detail', 'error']

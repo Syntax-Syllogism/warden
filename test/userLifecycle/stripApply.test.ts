@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { runDelete } from '../../src/userLifecycle/stripApply.js';
+import { runAssignmentDeletes } from '../../src/userLifecycle/dmlRunner.js';
 import type { LifecycleUserResult } from '../../src/userLifecycle/types.js';
 
 const result = (): LifecycleUserResult => ({
@@ -20,7 +20,7 @@ describe('userLifecycle strip apply', () => {
     ]);
     const lifecycleResult = result();
 
-    await runDelete({
+    await runAssignmentDeletes({
       conn: { sobject: sinon.stub().returns({ delete: remove }) } as never,
       result: lifecycleResult,
       sobject: 'PermissionSetAssignment',
