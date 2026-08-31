@@ -7,7 +7,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 This page documents the human-readable output and snapshot data produced by
 the user lifecycle commands. Flag and command reference remains in the
-[README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.1/README.md#commands).
+[README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/README.md#commands).
 
 ## Resolved user identity
 

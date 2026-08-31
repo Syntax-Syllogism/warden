@@ -6,7 +6,7 @@ description: Detailed provisioning, assignment, matching, and output behavior fo
 # Command details
 
 Deeper logic notes for warden's more involved commands. Flag-by-flag
-reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.1/README.md#commands) and in each command's
+reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/README.md#commands) and in each command's
 `--help` output; this doc covers the *why* and the *merge/precedence rules*
 that don't fit in a flag summary.
 
