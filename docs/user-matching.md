@@ -78,5 +78,5 @@ sf warden freeze --users-def ./users.json --target-org mySandbox
 ```
 
 See [command details](command-details.md#warden-provision) for provisioning
-merge and precedence rules, and the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md)
+merge and precedence rules, and the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md)
 for the complete flag surface.

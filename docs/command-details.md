@@ -6,7 +6,7 @@ description: Detailed provisioning, assignment, matching, and output behavior fo
 # Command details
 
 Deeper logic notes for warden's more involved commands. Flag-by-flag
-reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands) and in each command's
+reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md#commands) and in each command's
 `--help` output; this doc covers the *why* and the *merge/precedence rules*
 that don't fit in a flag summary.
 
@@ -422,6 +422,20 @@ Use `--fail-on-drift` when `diff` is a CI gate: it returns exit code `1` when
 one or more users have drift. The flag is disabled by default. See the
 [output contract](output-contract.md#exit-codes) for the interaction with
 per-user failures and global `--json`.
+
+### Assignment delta buckets
+
+Each assignment category in `users[].assignments` has `adds`, `removes`,
+`inBoth`, and `onlyInOrg` arrays. The structured `rows[]` result expands those
+same buckets into one row per value. `onlyInOrg` is exclusive of `removes`: an
+assignment is reported as `onlyInOrg` only when it is extra on the org side and
+is not also being removed.
+
+Consequently, an extra assignment appears only in `removes` for a user-to-user
+comparison and for a persona category in `sync` mode. In persona `additive`
+mode, existing extras are retained, so they remain in `onlyInOrg` and produce
+`onlyInOrg` rows. This keeps the assignment arrays and structured rows
+consistent and prevents duplicate reporting of an assignment.
 
 Use `--verify` with `--users-def` to turn the diff into a conformance check.
 `--personas-def` is optional when verifying profile-only definitions. It

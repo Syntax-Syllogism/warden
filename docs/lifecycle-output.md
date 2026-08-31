@@ -7,7 +7,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 This page documents the human-readable output and snapshot data produced by
 the user lifecycle commands. Flag and command reference remains in the
-[README](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands).
+[README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md#commands).
 
 ## Resolved user identity
 
@@ -55,8 +55,10 @@ label formatting described here is for human output.
 
 Dry runs report planned actions using `would...` notices and do not perform
 DML. A real run reports an action only after its corresponding DML succeeds.
-Interactive real runs confirm before pending DML unless `--no-prompt` is set
-or JSON output is requested.
+Flag-only real runs confirm before pending DML unless `--no-prompt` is set or
+global JSON output is requested. Interactive runs use their resolved-values
+summary confirmation as the single operation gate; they do not ask a second
+`--no-prompt`-controlled confirmation.
 For partial `allOrNone: false` results, itemized notices contain only the
 successful assignments or removals, and the user result is failed if any
 requested DML returned an error. Restore activation and unfreeze notices obey

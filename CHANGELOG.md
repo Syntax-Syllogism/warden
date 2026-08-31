@@ -2,6 +2,21 @@
 
 I need the commit subjects to generate the changelog entry. The "Commits:" section in your message is empty. Could you provide the git commit subjects since v0.2.2, or would you like me to fetch them with `git log` (which requires approval)?
 
+## [0.5.0] - 2026-08-31
+
+### Added
+
+- New interactive command mode for streamlined user provisioning and lifecycle management
+- Automatic inference of user definition format in interactive provisioning
+- Support for provisioning related records through interactive mode
+
+### Fixed
+
+- Validation of API configuration and flag conflicts in interactive mode
+- Validation of branch names and prompted file paths when using interactive provisioning
+- Early rejection of unusable access types with the --sobject flag
+- Removal of duplicate rows in diff assignment output
+
 ## [0.4.0] - 2026-08-20
 
 ### Added

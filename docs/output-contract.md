@@ -7,7 +7,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 All eight operational `warden` commands accept `--output human|csv|json` and
 `--output-file <path>`. Human output is the default. The generated flag
-reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands).
+reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md#commands).
 
 ## Formats and destinations
 
@@ -32,6 +32,12 @@ The global Salesforce CLI `--json` flag is separate from warden's
 
 Direct machine output does not suppress mutating-command confirmations. Use
 global `--json` when a non-interactive run is required.
+
+`-i`/`--interactive` is a separate guided input mode. It requires a standard
+input TTY and cannot be combined with global `--json`; Warden rejects that
+combination before prompting. Interactive mode's resolved-values confirmation
+is the only confirmation for that invocation, including for mutating
+commands. See [Interactive mode](interactive-mode.md) for its prompt flows.
 
 ## Exit codes
 

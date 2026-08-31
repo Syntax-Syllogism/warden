@@ -13,7 +13,12 @@ import {
   dryRunFlag,
   externalIdFlag,
   inputFormatFlag,
+  interactiveFlag,
   noPromptFlag,
+  requireExactlyOne,
+  requireFlagDependencies,
+  requireFlagValue,
+  requireTargetOrg,
   targetOrgFlag,
   userFlag,
   usersDefFlag,
@@ -33,6 +38,7 @@ describe('shared target flags', () => {
     ]) {
       expect(command.flags['target-org']).to.equal(targetOrgFlag);
       expect(command.flags['api-version']).to.equal(apiVersionFlag);
+      expect(command.flags.interactive).to.equal(interactiveFlag);
     }
   });
 
@@ -63,5 +69,28 @@ describe('shared target flags', () => {
     expect(UserProvision.flags['users-def']).not.to.equal(usersDefFlag);
     expect(UserProvision.flags['external-id']).not.to.equal(externalIdFlag);
     expect(UserProvision.flags['no-prompt']).not.to.equal(noPromptFlag);
+  });
+
+  it('keeps oclif-compatible required, exactly-one, and dependency validation', () => {
+    expect(() => requireFlagValue(undefined, '--users-def')).to.throw('Missing required flag users-def');
+    expect(() => requireExactlyOne({}, ['user', 'users-def'])).to.throw(
+      'Exactly one of the following must be provided: --user, --users-def'
+    );
+    expect(() => requireExactlyOne({ user: 'Username:first@example.test', 'users-def': 'users.json' }, ['user', 'users-def']))
+      .to.throw('--users-def cannot also be provided when using --user');
+    expect(() => requireFlagDependencies({ user: 'Username:first@example.test' }, 'user', ['against'])).to.throw(
+      'All of the following must be provided when using --user: --against'
+    );
+    expect(() => requireFlagDependencies({ against: 'Username:second@example.test' }, 'against', ['user'])).to.throw(
+      'All of the following must be provided when using --against: --user'
+    );
+  });
+
+  it('reproduces the requiredOrg parse error that optionalOrg no longer raises', () => {
+    expect(() => requireTargetOrg(undefined)).to.throw(
+      'No default environment found. Use -o or --target-org to specify an environment.'
+    );
+    const org = { getUsername: () => 'first@example.test' };
+    expect(requireTargetOrg(org)).to.equal(org);
   });
 });

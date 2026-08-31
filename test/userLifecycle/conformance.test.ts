@@ -56,7 +56,7 @@ describe('user diff conformance', () => {
         }),
         makeUser('extra', {
           assignments: {
-            permissionSets: { ...emptyCategory('sync'), removes: ['ExtraPerm'], onlyInOrg: ['ExtraPerm'] },
+            permissionSets: { ...emptyCategory('sync'), removes: ['ExtraPerm'] },
             permissionSetGroups: emptyCategory('additive'),
             publicGroups: emptyCategory('additive'),
             queues: emptyCategory('additive'),

@@ -75,7 +75,8 @@ const renderCategoryDiff = (
   for (const value of delta.adds) lines.push(`    + ${displayValue(result, value)}`);
   for (const value of delta.removes) lines.push(`    - ${displayValue(result, value)}`);
   if (verbose) for (const value of delta.inBoth) lines.push(`    = ${displayValue(result, value)}`);
-  for (const value of delta.onlyInOrg.filter((candidate) => !delta.removes.includes(candidate))) {
+  // onlyInOrg is exclusive of removes by construction.
+  for (const value of delta.onlyInOrg) {
     lines.push(`    extra ${displayValue(result, value)}`);
   }
   return lines;

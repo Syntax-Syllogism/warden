@@ -5,7 +5,29 @@ import { parseUserFlag, resolveTargetField, resolveTargets } from '../../userLif
 import type { ResolvedTargetUser } from '../../userLifecycle/types.js';
 import { serializeCsv } from '../../userShared/csv.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
-import { apiVersionFlag, targetOrgFlag } from '../../userShared/targetFlags.js';
+import {
+  apiVersionFlag,
+  assertInteractiveAllowed,
+  flagWasSupplied,
+  interactiveFlag,
+  requireFlagValue,
+  requireTargetOrg,
+  resolveFlagsInteractively,
+  resolveOrgInteractively,
+  targetOrgFlag,
+  type InteractiveParse,
+  type InteractivePrompt,
+} from '../../userShared/targetFlags.js';
+import {
+  promptAccessMode,
+  promptAccessType,
+  promptAccessUserScope,
+  promptOptionalApiVersion,
+  promptOptionalText,
+  promptOrgAlias,
+  promptOutputFormat,
+  promptText,
+} from '../../userShared/prompting.js';
 import {
   flattenAccessRow,
   renderEnabledTable,
@@ -90,7 +112,6 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
   public static readonly flags = {
     'target-org': targetOrgFlag,
     type: Flags.string({
-      required: true,
       options: ['field', 'object', 'apex-class', 'vf-page', 'custom-permission', 'tab'] as const,
       summary: messages.getMessage('flags.type.summary'),
     }),
@@ -99,14 +120,86 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
     sobject: Flags.string({ summary: messages.getMessage('flags.sobject.summary') }),
     ...outputFlags,
     'api-version': apiVersionFlag,
+    interactive: interactiveFlag,
   };
 
   // eslint-disable-next-line complexity
   public async run(): Promise<UserAccessResult> {
-    const { flags } = await this.parse(UserAccess);
-    const context = this.resolveOutputContext(flags);
+    const parsed = await this.parse(UserAccess);
+    let { flags } = parsed;
+    assertInteractiveAllowed(flags.interactive, !this.jsonEnabled());
+    let context = this.resolveOutputContext(flags);
+    if (flags.interactive) {
+      const prompts: InteractivePrompt[] = [];
+      const parsedInteractive = parsed as InteractiveParse<typeof flags>;
+      const hasUserScope = flagWasSupplied(parsedInteractive, flags, ['user', 'sobject']);
+      const hasTarget = flagWasSupplied(parsedInteractive, flags, ['target']);
+      // A supplied --sobject only works for the field and object audits, so a
+      // contradictory scope or type has to fail before anything is collected or
+      // summarized, with the message the flag-only path raises for the same input.
+      const hasSobject = flagWasSupplied(parsedInteractive, flags, ['sobject']);
+      if (hasUserScope && hasTarget && hasSobject) {
+        throw new SfError(messages.getMessage('errorUserModeScopesMutuallyExclusive'));
+      }
+      const hasType = flagWasSupplied(parsedInteractive, flags, ['type']);
+      if (hasSobject && hasType && flags.type !== 'field' && flags.type !== 'object') {
+        throw new SfError(messages.getMessage('errorSobjectUnsupported', [flags.type as string]));
+      }
+      const mode = hasUserScope ? 'user' : hasTarget ? 'target' : await promptAccessMode();
+      // The type prompt must not offer a choice that would fail the same way.
+      if (!hasType) flags.type = await promptAccessType(hasSobject ? ['field', 'object'] : undefined);
+      if (mode === 'target') {
+        if (!flagWasSupplied(parsedInteractive, flags, ['target'])) {
+          prompts.push({ key: 'target', prompt: () => promptText('Access target') });
+        }
+      } else {
+        if (!flagWasSupplied(parsedInteractive, flags, ['user'])) {
+          prompts.push({ key: 'user', prompt: () => promptText('User match (field:value)') });
+        }
+        const scope = flagWasSupplied(parsedInteractive, flags, ['sobject'])
+          ? 'sobject'
+          : flagWasSupplied(parsedInteractive, flags, ['target'])
+            ? 'target'
+            : await promptAccessUserScope(flags.type === 'field' || flags.type === 'object');
+        if (scope === 'target') {
+          if (!flagWasSupplied(parsedInteractive, flags, ['target'])) {
+            prompts.push({ key: 'target', prompt: () => promptText('Access target') });
+          }
+        } else if (!flagWasSupplied(parsedInteractive, flags, ['sobject'])) {
+          prompts.push({ key: 'sobject', prompt: () => promptText('SObject API name') });
+        }
+      }
+      if (!flags['target-org']) flags['target-org'] = await resolveOrgInteractively(undefined, promptOrgAlias);
+      prompts.push(
+        { key: 'output', prompt: promptOutputFormat },
+        { key: 'output-file', prompt: () => promptOptionalText('Output file path') },
+        { key: 'api-version', prompt: () => promptOptionalApiVersion(flags['api-version']) }
+      );
+      const resolved = await resolveFlagsInteractively(parsedInteractive, prompts, {
+        log: (message) => this.log(message),
+        confirm: () => this.confirm({ message: 'Proceed with these values?' }),
+      });
+      flags = resolved.flags;
+      if (!resolved.confirmed) {
+        return {
+          targetType: (flags.type ?? 'field') as AccessTargetType,
+          targetName: '',
+          rows: [],
+          stats: {
+            totalActiveUsersWithAccess: 0,
+            profileGrants: 0,
+            permissionSetGrants: 0,
+            permissionSetGroupGrants: 0,
+          },
+          warnings: [],
+        };
+      }
+      context = this.resolveOutputContext(flags);
+    }
+    const targetOrg = requireTargetOrg(flags['target-org']);
+    const type = requireFlagValue(flags.type, '--type') as AccessTargetType;
     const { format, outputFile } = context;
-    const conn = flags['target-org'].getConnection(flags['api-version'] ?? undefined);
+    const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
     try {
       const userMode = typeof flags.user === 'string' && flags.user.length > 0;
       const hasTarget = typeof flags.target === 'string' && flags.target.length > 0;
@@ -116,16 +209,16 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
       if (!userMode && !hasTarget) throw new SfError(messages.getMessage('errorTargetRequired'));
       if (userMode && !hasTarget && !hasSobject) throw new SfError(messages.getMessage('errorUserModeRequiresScope'));
 
-      const resolver = getResolver(flags.type);
+      const resolver = getResolver(type);
       let validatedTarget: ValidatedAccessTarget;
       if (hasTarget) {
         validatedTarget = await resolver.validateTarget(conn, flags.target as string);
       } else {
-        if (flags.type !== 'field' && flags.type !== 'object') {
-          throw new SfError(messages.getMessage('errorSobjectUnsupported', [flags.type]));
+        if (type !== 'field' && type !== 'object') {
+          throw new SfError(messages.getMessage('errorSobjectUnsupported', [type]));
         }
         const objectTarget = await getResolver('object').validateTarget(conn, flags.sobject as string);
-        validatedTarget = { ...objectTarget, type: flags.type };
+        validatedTarget = { ...objectTarget, type };
       }
 
       let user: ResolvedTargetUser | undefined;
@@ -177,12 +270,7 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
     } catch (error) {
       if (error instanceof UserAccessError) throw new SfError(messages.getMessage(error.code, error.args));
       if (error instanceof SfError) throw error;
-      throw new SfError(
-        messages.getMessage('errorAccessQueryFailed', [
-          flags.type as AccessTargetType,
-          flags.target ?? flags.sobject ?? '',
-        ])
-      );
+      throw new SfError(messages.getMessage('errorAccessQueryFailed', [type, flags.target ?? flags.sobject ?? '']));
     }
   }
 }

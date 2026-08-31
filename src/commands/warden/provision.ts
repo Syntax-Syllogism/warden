@@ -6,11 +6,32 @@ import { detectInputFormat, type InputFormat } from '../../userShared/csv.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
+  assertInteractiveAllowed,
   csvListDelimiterFlag,
   dryRunFlag,
+  flagWasSupplied,
   inputFormatFlag,
+  interactiveFlag,
+  requireFlagValue,
+  requireTargetOrg,
+  resolveFlagsInteractively,
+  resolveOrgInteractively,
   targetOrgFlag,
+  type InteractiveParse,
+  type InteractivePrompt,
 } from '../../userShared/targetFlags.js';
+import {
+  effectiveInputFormat,
+  promptBoolean,
+  promptExistingFile,
+  promptInputFormatForPath,
+  promptOptionalApiVersion,
+  promptOptionalExistingFile,
+  promptOptionalText,
+  promptOrgAlias,
+  promptOutputFormat,
+  promptText,
+} from '../../userShared/prompting.js';
 import { ProvisionUserUseCase, type ProvisionResult } from '../../userProvisioning/provisionUserUseCase.js';
 import { readProvisionDefinitions } from '../../userProvisioning/definitionReader.js';
 import { WardenCommand } from '../../wardenCommand.js';
@@ -83,7 +104,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
 
   public static readonly flags = {
     'target-org': targetOrgFlag,
-    'users-def': Flags.file({ required: true, exists: true, summary: messages.getMessage('flags.users-def.summary') }),
+    'users-def': Flags.file({ exists: true, summary: messages.getMessage('flags.users-def.summary') }),
     'personas-def': Flags.file({
       exists: true,
       summary: messages.getMessage('flags.personas-def.summary'),
@@ -107,21 +128,91 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     }),
     ...outputFlags,
     'api-version': apiVersionFlag,
+    interactive: interactiveFlag,
   };
 
+  // eslint-disable-next-line complexity
   public async run(): Promise<ProvisionResult> {
-    const { flags } = await this.parse(UserProvision);
-    const context = this.resolveOutputContext(flags);
-    const conn = flags['target-org'].getConnection(flags['api-version'] ?? undefined);
-    const inputFormat = detectInputFormat(flags['users-def'], flags['input-format'] as InputFormat | undefined);
+    const parsed = await this.parse(UserProvision);
+    let { flags } = parsed;
+    assertInteractiveAllowed(flags.interactive, !this.jsonEnabled());
+    let context = this.resolveOutputContext(flags);
+    if (flags.interactive) {
+      const parsedInteractive = parsed as InteractiveParse<typeof flags>;
+      // The interactive summary confirmation replaces the downstream operation gate.
+      flags['no-prompt'] = true;
+      const prompts: InteractivePrompt[] = [];
+      if (!flagWasSupplied(parsedInteractive, flags, ['users-def'])) {
+        prompts.push({ key: 'users-def', prompt: () => promptExistingFile('Users definition file') });
+      }
+      if (!flagWasSupplied(parsedInteractive, flags, ['personas-def'])) {
+        prompts.push({ key: 'personas-def', prompt: () => promptOptionalExistingFile('Personas definition file') });
+      }
+      if (!flagWasSupplied(parsedInteractive, flags, ['external-id'])) {
+        prompts.push({ key: 'external-id', prompt: () => promptOptionalText('External ID field') });
+      }
+      prompts.push({
+        key: 'input-format',
+        prompt: (resolvedFlags) => promptInputFormatForPath(resolvedFlags['users-def']),
+      });
+      prompts.push({
+        key: 'related-def',
+        when: (resolvedFlags) => effectiveInputFormat(resolvedFlags) !== 'csv',
+        prompt: () => promptOptionalExistingFile('Related record definition file'),
+      });
+      prompts.push({
+        key: 'csv-list-delimiter',
+        when: (resolvedFlags) => effectiveInputFormat(resolvedFlags) === 'csv',
+        prompt: () => promptText('CSV list delimiter', ';'),
+      });
+      if (!flagWasSupplied(parsedInteractive, flags, ['fuzzy-username'])) {
+        prompts.push({
+          key: 'fuzzy-username',
+          prompt: () => promptBoolean('Allow fuzzy usernames?', flags['fuzzy-username']),
+        });
+      }
+      if (!flagWasSupplied(parsedInteractive, flags, ['dry-run'])) {
+        prompts.push({ key: 'dry-run', prompt: () => promptBoolean('Dry run?', flags['dry-run']) });
+      }
+      if (!flagWasSupplied(parsedInteractive, flags, ['fail-on-insufficient-license'])) {
+        prompts.push({
+          key: 'fail-on-insufficient-license',
+          prompt: () => promptBoolean('Fail when licenses are insufficient?', flags['fail-on-insufficient-license']),
+        });
+      }
+      if (!flags['target-org']) flags['target-org'] = await resolveOrgInteractively(undefined, promptOrgAlias);
+      prompts.push(
+        { key: 'output', prompt: promptOutputFormat },
+        { key: 'output-file', prompt: () => promptOptionalText('Output file path') },
+        { key: 'api-version', prompt: () => promptOptionalApiVersion(flags['api-version']) }
+      );
+      const resolved = await resolveFlagsInteractively(parsedInteractive, prompts, {
+        log: (message) => this.log(message),
+        confirm: () => this.confirm({ message: 'Proceed with these values?' }),
+        validate: (resolvedFlags) => {
+          if (resolvedFlags['related-def'] && effectiveInputFormat(resolvedFlags) === 'csv') {
+            throw new SfError(messages.getMessage('errorRelatedRequiresJson'));
+          }
+        },
+      });
+      flags = resolved.flags;
+      if (!resolved.confirmed) {
+        return { summary: { total: 0, created: 0, updated: 0, failed: 0, warnings: 0 }, users: [] };
+      }
+      context = this.resolveOutputContext(flags);
+    }
+    const targetOrg = requireTargetOrg(flags['target-org']);
+    const usersPath = requireFlagValue(flags['users-def'], '--users-def');
+    const inputFormat = detectInputFormat(usersPath, flags['input-format'] as InputFormat | undefined);
     // Refuse before the connection is used, so a misconfigured invocation costs zero API calls.
     if (flags['related-def'] && inputFormat === 'csv') {
       throw new SfError(messages.getMessage('errorRelatedRequiresJson'));
     }
+    const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
     const definitions =
       inputFormat === 'json'
         ? await readProvisionDefinitions(
-            flags['users-def'],
+            usersPath,
             flags['personas-def'],
             { relatedPath: flags['related-def'] },
             (path, error) => messages.getMessage('errorInvalidJson', [path, error])
@@ -135,7 +226,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       personasDoc: definitions?.personasDoc,
       personasSupplied: definitions?.personasSupplied,
       relatedDoc: definitions?.relatedDoc,
-      usersPath: inputFormat === 'csv' ? flags['users-def'] : undefined,
+      usersPath: inputFormat === 'csv' ? usersPath : undefined,
       personasPath: inputFormat === 'csv' ? flags['personas-def'] : undefined,
       inputFormat: inputFormat === 'csv' ? inputFormat : undefined,
       csvListDelimiter: flags['csv-list-delimiter'],
@@ -143,7 +234,8 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       fuzzyUsername: flags['fuzzy-username'],
       dryRun: flags['dry-run'],
       acknowledgeWarnings: context.interactive
-        ? (warnings): Promise<void> => this.acknowledgeWarnings(warnings, flags['no-prompt'])
+        ? (warnings): Promise<void> =>
+            this.acknowledgeWarnings(warnings, flags['no-prompt'] || Boolean(flags.interactive))
         : undefined,
     });
 

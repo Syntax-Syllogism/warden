@@ -442,13 +442,14 @@ const partitionIds = (
 ): AssignmentCategoryDelta => {
   const current = new Set(currentIds);
   const intended = new Set(intendedIds);
-  const onlyInOrg = [...current].filter((id) => !intended.has(id));
+  const extras = [...current].filter((id) => !intended.has(id));
   const sorted = (ids: string[]): string[] => ids.sort((a, b) => a.localeCompare(b));
+  const removes = mode === 'additive' ? [] : sorted(extras);
   return {
     adds: sorted([...intended].filter((id) => !current.has(id))),
-    removes: mode === 'additive' ? [] : sorted(onlyInOrg),
+    removes,
     inBoth: sorted([...intended].filter((id) => current.has(id))),
-    onlyInOrg: sorted(onlyInOrg),
+    onlyInOrg: sorted(extras).filter((id) => !removes.includes(id)),
     ...(mode ? { mode } : {}),
   };
 };

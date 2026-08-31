@@ -15,7 +15,7 @@ This guide gets you from zero to your first provisioning run.
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -37,6 +37,9 @@ warden's commands fall into three groups:
   `strip`, and `restore` perform DML. Every one of them supports `--dry-run`
   to preview planned changes first, and `--no-prompt` to skip the confirmation
   prompt once you trust the plan (e.g. in CI).
+  All eight commands also support `-i`/`--interactive` for guided flag
+  collection and a resolved-values confirmation; see
+  [Interactive mode](interactive-mode.md).
 * **Portable state** — `snapshot` captures a user's active/frozen state and
   assignments to a JSON or CSV file; the output extension selects the format
   and `restore` accepts either one. Snapshots use developer/API names when
@@ -66,6 +69,11 @@ warden's commands fall into three groups:
      --users-def ./users.json --personas-def ./personas.json \
      --external-id FederationIdentifier --no-prompt
    ```
+
+For a guided run that asks for the definition files and remaining options,
+use `sf warden provision -i`. Interactive mode is terminal-only and its
+single summary confirmation replaces the normal write confirmation for that
+run.
 
 For the full merge/precedence rules behind `provision` (multiple personas per
 user, assignment modes, Username/Alias defaults), see
@@ -110,7 +118,9 @@ snapshot before deciding whether to run the real strip.
   CSV shape, and global `--json` behavior.
 * [Lifecycle output and snapshots](lifecycle-output.md) — resolved user
   identity, assignment labels, snapshots, and action reporting.
+* [Interactive mode](interactive-mode.md) — guided flag collection and
+  confirmation behavior for all eight commands.
 * [Example definitions](command-details.md#example-usersjson) — full
   `users.json` and `personas.json` samples are included in command details.
-* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/README.md#commands) section of
+* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/README.md#commands) section of
   the README, or run any command with `--help`.

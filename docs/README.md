@@ -22,5 +22,7 @@ an individual workflow or its machine-readable output.
   resolution, and lifecycle targeting.
 * [Lifecycle output and snapshots](lifecycle-output.md) — resolved identity,
   assignment labels, snapshots, and action reporting.
+* [Interactive mode](interactive-mode.md) — guided flag collection, branching
+  prompts, terminal requirements, and confirmation behavior.
 * [Output contract](output-contract.md) — human, CSV, and JSON formats,
   destinations, and exit codes.

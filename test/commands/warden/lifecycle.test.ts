@@ -10,6 +10,7 @@ import UserRestore from '../../../src/commands/warden/restore.js';
 import UserSnapshot from '../../../src/commands/warden/snapshot.js';
 import UserStrip from '../../../src/commands/warden/strip.js';
 import UserUnfreeze from '../../../src/commands/warden/unfreeze.js';
+import type { LifecycleResult } from '../../../src/userLifecycle/types.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -132,6 +133,64 @@ describe('warden user lifecycle commands', () => {
       'matched Username = freeze@example.com · was active'
     );
     expect(process.exitCode).to.equal(undefined);
+  });
+
+  it('uses the interactive confirmation as the only freeze confirmation', async () => {
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes("FROM User WHERE Username IN ('interactive-freeze@example.com')")) {
+        return {
+          records: [
+            {
+              Id: '005xx0000000002AAA',
+              IsActive: true,
+              Name: 'Interactive Freeze User',
+              Username: 'interactive-freeze@example.com',
+            },
+          ],
+        };
+      }
+      if (soql.includes('FROM UserLogin')) {
+        return { records: [{ Id: '0LLxx0000000002AAA', UserId: '005xx0000000002AAA', IsFrozen: false }] };
+      }
+      return { records: [] };
+    });
+
+    const interactiveFlags = {
+      'target-org': { getConnection: () => conn },
+      user: 'username:interactive-freeze@example.com',
+      'users-def': undefined,
+      'external-id': undefined,
+      'input-format': undefined,
+      'csv-list-delimiter': undefined,
+      'no-prompt': false,
+      'dry-run': false,
+      output: 'human',
+      'output-file': undefined,
+      'api-version': undefined,
+      interactive: true,
+    };
+    sinon.stub(UserFreeze.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: interactiveFlags,
+      raw: Object.keys(interactiveFlags).map((flag) => ({ type: 'flag', flag })),
+    } as never);
+    const confirmStub = sinon
+      .stub(UserFreeze.prototype as unknown as { confirm: () => Promise<boolean> }, 'confirm')
+      .resolves(true);
+
+    const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true });
+    let result: LifecycleResult;
+    try {
+      result = await UserFreeze.run([]);
+    } finally {
+      if (ttyDescriptor) Object.defineProperty(process.stdin, 'isTTY', ttyDescriptor);
+      else delete (process.stdin as unknown as { isTTY?: boolean }).isTTY;
+    }
+
+    expect(confirmStub.calledOnce).to.equal(true);
+    expect(conn.sobjectMap.UserLogin.update.calledOnce).to.equal(true);
+    expect(result.summary.changed).to.equal(1);
   });
 
   it('reads users-def CSV through every lifecycle command with an explicit format override', async () => {

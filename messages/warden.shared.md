@@ -42,6 +42,22 @@ Skip confirmation prompts before write operations.
 
 Write the machine-readable output payload to this path.
 
+# flags.interactive.summary
+
+Prompt for missing command values, summarize them, and confirm before continuing.
+
+# errorInteractiveGuard
+
+Interactive mode requires a TTY and cannot be combined with --json.
+
+# interactive.summary
+
+Resolved interactive values:
+
+# interactive.declined
+
+Operation cancelled.
+
 # errorOutputJsonConflict
 
 `--output` and `--json` both write to stdout. Pass `--output-file <path>` to write the `--output` payload to a file.

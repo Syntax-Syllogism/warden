@@ -62,12 +62,13 @@ const computeCategoryDelta = (
   const current = new Set(currentIds);
   const target = new Set(targetIds);
   const mode = normalizeMode(modeRaw);
-  const onlyInOrg = [...current].filter((id) => !target.has(id));
+  const extras = [...current].filter((id) => !target.has(id));
+  const removes = mode === 'sync' ? extras : [];
   return {
     adds: [...target].filter((id) => !current.has(id)),
-    removes: mode === 'sync' ? onlyInOrg : [],
+    removes,
     inBoth: [...target].filter((id) => current.has(id)),
-    onlyInOrg,
+    onlyInOrg: extras.filter((id) => !removes.includes(id)),
     mode,
   };
 };

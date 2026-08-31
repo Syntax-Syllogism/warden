@@ -5,6 +5,7 @@ import { expect } from 'chai';
 import {
   csvEscape,
   detectInputFormat,
+  inputFormatFromExtension,
   neutralizeCsvFormula,
   readCsvUsers,
   serializeCsv,
@@ -79,6 +80,12 @@ describe('shared csv output', () => {
   });
 
   it('infers and overrides input formats', () => {
+    expect(inputFormatFromExtension('users.json')).to.equal('json');
+    expect(inputFormatFromExtension('USERS.JSON')).to.equal('json');
+    expect(inputFormatFromExtension('users.csv')).to.equal('csv');
+    expect(inputFormatFromExtension('users.tsv')).to.equal('csv');
+    expect(inputFormatFromExtension('users.data')).to.equal(undefined);
+    expect(inputFormatFromExtension('users')).to.equal(undefined);
     expect(detectInputFormat('users.csv')).to.equal('csv');
     expect(detectInputFormat('USERS.CSV')).to.equal('csv');
     expect(detectInputFormat('users.tsv')).to.equal('csv');

@@ -70,6 +70,10 @@ User "%s" lists personas but no --personas-def was supplied.
 
 --verify is only valid with --users-def; it cannot be used with --user or --against.
 
+# errorDiffModeFlagsMutuallyExclusive
+
+--user and --against compare two users; --users-def, --personas-def, --external-id, --input-format, --csv-list-delimiter, and --verify compare users against personas. Supply flags for one mode, not both.
+
 # errorDuplicateExternalIdMatch
 
 Multiple users matched %s="%s".

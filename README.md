@@ -124,12 +124,13 @@ Audit active-user access for a permission target.
 
 ```
 USAGE
-  $ sf warden access -o <value> --type field|object|apex-class|vf-page|custom-permission|tab [--json] [--flags-dir
-    <value>] [--target <value>] [--user <value>] [--sobject <value>] [--output human|csv|json] [--output-file <value>]
-    [--api-version <value>]
+  $ sf warden access [--json] [--flags-dir <value>] [-o <value>] [--type
+    field|object|apex-class|vf-page|custom-permission|tab] [--target <value>] [--user <value>] [--sobject <value>]
+    [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>   (required) Target org username or alias.
+  -i, --interactive          Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>   Target org username or alias.
       --api-version=<value>  Override the api version used for the org connection.
       --output=<option>      [default: human] Output format: human, csv, or json. Defaults to human.
                              <options: human|csv|json>
@@ -138,8 +139,7 @@ FLAGS
       --target=<value>       Target API name. Use Object.Field for field, Object for object, Apex class name for
                              apex-class, Visualforce page name for vf-page, custom permission DeveloperName for
                              custom-permission, or tab API name for tab.
-      --type=<option>        (required) Target type to audit: field, object, apex-class, vf-page, custom-permission, or
-                             tab.
+      --type=<option>        Target type to audit: field, object, apex-class, vf-page, custom-permission, or tab.
                              <options: field|object|apex-class|vf-page|custom-permission|tab>
       --user=<value>         Reverse audit for one user, using field:value matching (for example
                              Username:alice@example.com).
@@ -199,7 +199,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -207,12 +207,14 @@ Compare users against an intended definition or another user.
 
 ```
 USAGE
-  $ sf warden diff -o <value> [--json] [--flags-dir <value>] [--user <value> --against <value>] [--users-def
+  $ sf warden diff [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--against <value>] [--users-def
     <value>] [--personas-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>]
     [--output human|csv|json] [--output-file <value>] [--verbose] [--fail-on-drift] [--verify] [--api-version <value>]
+    [-i]
 
 FLAGS
-  -o, --target-org=<value>          (required) Target org username or alias.
+  -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>          Target org username or alias.
       --against=<value>             Reference user to compare against using `field:value`.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
@@ -256,7 +258,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -264,12 +266,13 @@ Freeze one or more users.
 
 ```
 USAGE
-  $ sf warden freeze -o <value> [--json] [--flags-dir <value>] [--user <value>] [--users-def <value>]
+  $ sf warden freeze [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>]
     [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--output human|csv|json]
-    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>]
+    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>          (required) Target org username or alias.
+  -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>          Target org username or alias.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
       --dry-run                     Validate and plan actions without any write operations.
@@ -308,7 +311,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -316,13 +319,14 @@ Provision users from user and persona definition files.
 
 ```
 USAGE
-  $ sf warden provision -o <value> --users-def <value> [--json] [--flags-dir <value>] [--personas-def <value>]
+  $ sf warden provision [--json] [--flags-dir <value>] [-o <value>] [--users-def <value>] [--personas-def <value>]
     [--related-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>]
     [--fuzzy-username] [--no-prompt] [--dry-run] [--fail-on-insufficient-license] [--output human|csv|json]
-    [--output-file <value>] [--api-version <value>]
+    [--output-file <value>] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>            (required) Target org username or alias.
+  -i, --interactive                   Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>            Target org username or alias.
       --api-version=<value>           Override the api version used for the org connection.
       --csv-list-delimiter=<value>    Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
       --dry-run                       Validate and plan actions without any write operations.
@@ -343,7 +347,7 @@ FLAGS
       --related-def=<value>           Optional path to a related-record definition JSON file. Declares named
                                       relationships a user entry selects with a `related` array. Only `phase: "after"`
                                       relationships are supported; requires a JSON `--users-def`.
-      --users-def=<value>             (required) Path to a user definition JSON or CSV file.
+      --users-def=<value>             Path to a user definition JSON or CSV file.
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
@@ -388,7 +392,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -396,18 +400,19 @@ Restore user assignment state from a snapshot file.
 
 ```
 USAGE
-  $ sf warden restore -o <value> --snapshot <value> [--json] [--flags-dir <value>] [--output human|csv|json]
-    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>]
+  $ sf warden restore [--json] [--flags-dir <value>] [-o <value>] [--snapshot <value>] [--output human|csv|json]
+    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>   (required) Target org username or alias.
+  -i, --interactive          Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>   Target org username or alias.
       --api-version=<value>  Override the api version used for the org connection.
       --dry-run              Validate and plan actions without any write operations.
       --no-prompt            Skip confirmation prompts before write operations.
       --output=<option>      [default: human] Output format: human, csv, or json. Defaults to human.
                              <options: human|csv|json>
       --output-file=<value>  Write the machine-readable output payload to this path.
-      --snapshot=<value>     (required) Path to a user snapshot JSON or CSV file.
+      --snapshot=<value>     Path to a user snapshot JSON or CSV file.
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
@@ -434,7 +439,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -442,12 +447,13 @@ Capture user assignment state to a portable snapshot file.
 
 ```
 USAGE
-  $ sf warden snapshot -o <value> [--json] [--flags-dir <value>] [--user <value>] [--users-def <value>]
+  $ sf warden snapshot [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>]
     [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--output human|csv|json]
-    [--output-file <value>] [--out <value>] [--api-version <value>]
+    [--output-file <value>] [--out <value>] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>          (required) Target org username or alias.
+  -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>          Target org username or alias.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
       --external-id=<value>         Default User field used to match entries in `--users-def`.
@@ -486,7 +492,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -494,13 +500,14 @@ Strip and deactivate one or more users.
 
 ```
 USAGE
-  $ sf warden strip -o <value> [--json] [--flags-dir <value>] [--user <value>] [--users-def <value>]
+  $ sf warden strip [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>]
     [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--no-prompt] [--dry-run]
     [--no-freeze] [--no-deactivate] [--keep-permsets] [--keep-permset-groups] [--keep-licenses] [--keep-public-groups]
-    [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>]
+    [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>          (required) Target org username or alias.
+  -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>          Target org username or alias.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
       --dry-run                     Validate and plan actions without any write operations.
@@ -558,7 +565,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -566,12 +573,13 @@ Unfreeze one or more users.
 
 ```
 USAGE
-  $ sf warden unfreeze -o <value> [--json] [--flags-dir <value>] [--user <value>] [--users-def <value>]
+  $ sf warden unfreeze [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>]
     [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--output human|csv|json]
-    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>]
+    [--output-file <value>] [--no-prompt] [--dry-run] [--api-version <value>] [-i]
 
 FLAGS
-  -o, --target-org=<value>          (required) Target org username or alias.
+  -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
+  -o, --target-org=<value>          Target org username or alias.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
       --dry-run                     Validate and plan actions without any write operations.
@@ -610,5 +618,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.4.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

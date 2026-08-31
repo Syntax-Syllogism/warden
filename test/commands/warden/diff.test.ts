@@ -209,10 +209,21 @@ describe('warden user diff command', () => {
     expect(result.users[0].assignments.permissionSets.adds).to.deep.equal(['0PSPermAdd0002']);
     expect(result.users[0].assignments.permissionSets.removes).to.deep.equal(['0PSPermRemove']);
     expect(result.users[0].assignments.permissionSets.inBoth).to.deep.equal(['0PSPermKeep0001']);
+    expect(result.users[0].assignments.permissionSets.onlyInOrg).to.deep.equal([]);
+    expect(
+      result.rows
+        .filter((row) => row.category === 'permissionSets' && row.value === '0PSPermRemove')
+        .map((row) => row.kind)
+    ).to.deep.equal(['remove']);
     expect(result.users[0].assignments.permissionSetGroups.adds).to.deep.equal(['0PGGroupAdd0001']);
     expect(result.users[0].assignments.queues.adds).to.deep.equal(['00GQueueAdd0002']);
     expect(result.users[0].assignments.queues.removes).to.deep.equal([]);
     expect(result.users[0].assignments.queues.onlyInOrg).to.include('00GQueueExtra');
+    expect(
+      result.rows
+        .filter((row) => row.category === 'queues' && row.value === '00GQueueExtra')
+        .map((row) => row.kind)
+    ).to.deep.equal(['onlyInOrg']);
     expect(fakeConn.sobject.called).to.equal(false);
   });
 
@@ -305,7 +316,7 @@ describe('warden user diff command', () => {
               adds: ['MissingPerm'],
               removes: ['ExtraPerm'],
               inBoth: [],
-              onlyInOrg: ['ExtraPerm'],
+              onlyInOrg: [],
               mode: 'sync',
             },
             permissionSetGroups: {
@@ -781,6 +792,12 @@ describe('warden user diff command', () => {
     expect(result.users[0].assignments.permissionSets.adds).to.deep.equal(['0PSTarget']);
     expect(result.users[0].assignments.permissionSets.removes).to.deep.equal(['0PSCurrent']);
     expect(result.users[0].assignments.permissionSets.inBoth).to.deep.equal(['0PSShared']);
+    expect(result.users[0].assignments.permissionSets.onlyInOrg).to.deep.equal([]);
+    expect(
+      result.rows
+        .filter((row) => row.category === 'permissionSets' && row.value === '0PSCurrent')
+        .map((row) => row.kind)
+    ).to.deep.equal(['remove']);
     expect(result.users[0].profile.matches).to.equal(false);
     expect(result.users[0].role.matches).to.equal(false);
     expect(result.labels?.['0PSCurrent']).to.include({ id: '0PSCurrent', apiName: 'Current_Perms' });

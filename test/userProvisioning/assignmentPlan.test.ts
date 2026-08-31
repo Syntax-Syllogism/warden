@@ -66,6 +66,7 @@ describe('userProvisioning assignmentPlan', () => {
     expect(delta.permissionSets.adds).to.deep.equal(['0PSAdd']);
     expect(delta.permissionSets.removes).to.deep.equal(['0PSExtra']);
     expect(delta.permissionSets.inBoth).to.deep.equal(['0PSKeep']);
+    expect(delta.permissionSets.onlyInOrg).to.deep.equal([]);
     expect(delta.publicGroups.adds).to.deep.equal(['00GAddPublic']);
     expect(delta.publicGroups.removes).to.deep.equal([]);
     expect(delta.publicGroups.onlyInOrg).to.deep.equal(['00GExtraPublic']);

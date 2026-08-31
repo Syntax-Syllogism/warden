@@ -4,28 +4,21 @@
         "command": "warden:access",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
             "api-version",
             "flags-dir",
+            "interactive",
             "json",
             "output",
             "output-file",
+            "sobject",
             "target",
             "target-org",
-            "type"
-        ],
-        "plugin": "@syntax-syllogism/warden"
-    },
-    {
-        "alias": [],
-        "command": "warden:base",
-        "flagAliases": [],
-        "flagChars": [],
-        "flags": [
-            "flags-dir",
-            "json"
+            "type",
+            "user"
         ],
         "plugin": "@syntax-syllogism/warden"
     },
@@ -34,6 +27,7 @@
         "command": "warden:diff",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -44,6 +38,7 @@
             "fail-on-drift",
             "flags-dir",
             "input-format",
+            "interactive",
             "json",
             "output",
             "output-file",
@@ -61,6 +56,7 @@
         "command": "warden:freeze",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -70,6 +66,7 @@
             "external-id",
             "flags-dir",
             "input-format",
+            "interactive",
             "json",
             "no-prompt",
             "output",
@@ -87,6 +84,7 @@
             "match-field"
         ],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -98,11 +96,13 @@
             "flags-dir",
             "fuzzy-username",
             "input-format",
+            "interactive",
             "json",
             "no-prompt",
             "output",
             "output-file",
             "personas-def",
+            "related-def",
             "target-org",
             "users-def"
         ],
@@ -113,12 +113,14 @@
         "command": "warden:restore",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
             "api-version",
             "dry-run",
             "flags-dir",
+            "interactive",
             "json",
             "no-prompt",
             "output",
@@ -133,6 +135,7 @@
         "command": "warden:snapshot",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -141,6 +144,7 @@
             "external-id",
             "flags-dir",
             "input-format",
+            "interactive",
             "json",
             "out",
             "output",
@@ -156,6 +160,7 @@
         "command": "warden:strip",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -165,6 +170,7 @@
             "external-id",
             "flags-dir",
             "input-format",
+            "interactive",
             "json",
             "keep-licenses",
             "keep-permset-groups",
@@ -188,6 +194,7 @@
         "command": "warden:unfreeze",
         "flagAliases": [],
         "flagChars": [
+            "i",
             "o"
         ],
         "flags": [
@@ -197,6 +204,7 @@
             "external-id",
             "flags-dir",
             "input-format",
+            "interactive",
             "json",
             "no-prompt",
             "output",

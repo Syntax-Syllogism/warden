@@ -5,8 +5,15 @@ const FORMULA_PREFIX = /^[=+\-@\t\r]/;
 
 export type InputFormat = 'json' | 'csv';
 
+/** The format a path's extension settles on its own, or undefined when it does not settle one. */
+export const inputFormatFromExtension = (path: string): InputFormat | undefined => {
+  if (/\.(csv|tsv)$/i.test(path)) return 'csv';
+  if (/\.json$/i.test(path)) return 'json';
+  return undefined;
+};
+
 export const detectInputFormat = (path: string, override?: InputFormat): InputFormat =>
-  override ?? (/\.(csv|tsv)$/i.test(path) ? 'csv' : 'json');
+  override ?? inputFormatFromExtension(path) ?? 'json';
 
 export type CsvRowInfo = { path: string; line: number };
 
