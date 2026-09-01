@@ -23,6 +23,7 @@ Reverse audits require exactly one bounded scope:
 | `--user u:x --type object --target Account` | Object permissions on `Account` |
 | `--user u:x --type object --sobject Account` | Object permissions on `Account` |
 | `--user u:x --type apex-class/vf-page/custom-permission/tab --target <name>` | One setup or tab target |
+| `--user u:x --type record-type --target Account.Business_Account` | One active, non-master record type |
 
 `--sobject` is valid only with reverse `field` and `object` audits. A reverse
 audit cannot omit both `--target` and `--sobject`, and the two scopes cannot be
@@ -31,10 +32,22 @@ rules documented in [User matching](user-matching.md); it resolves exactly one
 user and does not request fuzzy Username matching.
 
 The target-audit direction supports `field`, `object`, `apex-class`,
-`vf-page`, `custom-permission`, and `tab` targets. Field targets use
+`vf-page`, `custom-permission`, `tab`, and `record-type` targets. Field targets use
 `ObjectApiName.FieldApiName`; object targets use an object API name. Setup
 targets use the Apex class, Visualforce page, or custom-permission developer
-name, and tab targets use the tab API name.
+name, tab targets use the tab API name, and record-type targets require the
+qualified `SObject.DeveloperName` form for an active non-master record type.
+
+Record-type audits read Profile and PermissionSet `recordTypeVisibilities`
+through the Metadata API, plus `MutingPermissionSet` metadata for candidate
+Permission Set Groups, only for sources connected to active users. A matching
+visible muting entry suppresses that PSG path while leaving a direct assignment
+to the component Permission Set intact. They can take longer than data-API
+audits. A metadata read failure is fail-closed: the command returns an
+actionable error and no partial result. Profile rows report
+`default: true` or `false`; Permission Set and Permission Set Group rows report
+`default: null` because those sources do not define the profile default. Reverse
+record-type audits require an explicit `--target`; `--sobject` is not supported.
 
 ## Attribution and effective access
 
@@ -85,4 +98,12 @@ sf warden access --target-org myOrg --user 'FederationIdentifier:E-123' \
 # Does this user have access to a setup target?
 sf warden access --target-org myOrg --user 'Username:alice@example.com' \
   --type apex-class --target MyController
+
+# Who can select this active record type?
+sf warden access --target-org myOrg --type record-type \
+  --target Account.Business_Account
+
+# Which paths let one user select it?
+sf warden access --target-org myOrg --user 'Username:alice@example.com' \
+  --type record-type --target Account.Business_Account
 ```

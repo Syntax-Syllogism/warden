@@ -11,6 +11,14 @@ type SetupEntityDefinition = {
   notFoundCode: 'errorApexClassNotFound' | 'errorVisualforcePageNotFound' | 'errorCustomPermissionNotFound';
 };
 
+type RecordTypeRow = {
+  Id: string;
+  SobjectType?: string;
+  DeveloperName?: string;
+  Name?: string;
+  IsActive?: boolean;
+};
+
 const setupEntityDefinitions: Record<string, SetupEntityDefinition> = {
   'apex-class': { objectName: 'ApexClass', nameField: 'Name', notFoundCode: 'errorApexClassNotFound' },
   'vf-page': { objectName: 'ApexPage', nameField: 'Name', notFoundCode: 'errorVisualforcePageNotFound' },
@@ -68,7 +76,9 @@ export const validateSetupEntityTarget = async (
   const definition = setupEntityDefinitions[type];
   const rows = await queryAll<{ Id: string; Name?: string; DeveloperName?: string }>(
     conn,
-    `SELECT Id, ${definition.nameField} FROM ${definition.objectName} WHERE ${definition.nameField} = '${esc(trimmed)}' LIMIT 1`
+    `SELECT Id, ${definition.nameField} FROM ${definition.objectName} WHERE ${definition.nameField} = '${esc(
+      trimmed
+    )}' LIMIT 1`
   );
   const row = rows[0];
   if (!row) throw new UserAccessError(definition.notFoundCode, [trimmed]);
@@ -88,4 +98,44 @@ export const validateTabTarget = async (conn: Connection, target: string): Promi
   );
   if (!rows[0]) throw new UserAccessError('errorTabNotFound', [trimmed]);
   return { type: 'tab', targetName: rows[0].DurableId ?? trimmed };
+};
+
+export const validateRecordTypeTarget = async (conn: Connection, target: string): Promise<ValidatedAccessTarget> => {
+  const trimmed = target.trim();
+  const parts = trimmed.split('.');
+  if (
+    !trimmed ||
+    (trimmed.startsWith('012') && !trimmed.includes('.')) ||
+    parts.length !== 2 ||
+    parts.some((part) => !part)
+  ) {
+    throw new UserAccessError('errorRecordTypeTargetMustBeQualified', [target]);
+  }
+  const [inputSobjectType, inputDeveloperName] = parts;
+  if (inputDeveloperName.toLowerCase() === 'master') {
+    throw new UserAccessError('errorMasterRecordTypeUnsupported', [trimmed]);
+  }
+  const rows = await queryAll<RecordTypeRow>(
+    conn,
+    [
+      'SELECT Id, SobjectType, DeveloperName, Name, IsActive',
+      'FROM RecordType',
+      `WHERE SobjectType = '${esc(inputSobjectType)}'`,
+      `AND DeveloperName = '${esc(inputDeveloperName)}'`,
+      'LIMIT 2',
+    ].join(' ')
+  );
+  if (rows.length === 0) throw new UserAccessError('errorRecordTypeNotFound', [trimmed]);
+  if (rows.length > 1) throw new UserAccessError('errorRecordTypeAmbiguous', [trimmed]);
+  const row = rows[0];
+  if (row.IsActive !== true) throw new UserAccessError('errorRecordTypeInactive', [trimmed]);
+  if (!row.SobjectType || !row.DeveloperName || !row.Id) {
+    throw new UserAccessError('errorRecordTypeNotFound', [trimmed]);
+  }
+  return {
+    type: 'record-type',
+    targetName: `${row.SobjectType}.${row.DeveloperName}`,
+    sobjectType: row.SobjectType,
+    recordTypeId: row.Id,
+  };
 };

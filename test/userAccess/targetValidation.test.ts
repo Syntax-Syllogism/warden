@@ -3,6 +3,7 @@ import sinon from 'sinon';
 import {
   validateFieldTarget,
   validateObjectTarget,
+  validateRecordTypeTarget,
 } from '../../src/userAccess/targetValidation.js';
 import { UserAccessError } from '../../src/userAccess/types.js';
 
@@ -82,4 +83,65 @@ describe('userAccess target validation', () => {
     expect((caught as UserAccessError).code).to.equal('errorObjectNotFound');
   });
 
+  it('validates and canonicalizes an active qualified record type', async () => {
+    const conn = {
+      query: sinon.stub().resolves({
+        done: true,
+        records: [{ Id: '0121', SobjectType: 'Account', DeveloperName: 'Business_Account', IsActive: true }],
+      }),
+    };
+    const result = await validateRecordTypeTarget(conn as never, 'account.business_account');
+    expect(result.targetName).to.equal('Account.Business_Account');
+    expect(result.sobjectType).to.equal('Account');
+    expect(result.recordTypeId).to.equal('0121');
+    expect(conn.query.firstCall.args[0]).to.include("SobjectType = 'account'");
+  });
+
+  it('rejects invalid, master, missing, ambiguous, and inactive record types', async () => {
+    const conn = { query: sinon.stub() };
+    for (const target of ['Account', '012000000000000AAA', 'Account.', 'Account.One.Two']) {
+      let caught: unknown;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await validateRecordTypeTarget(conn as never, target);
+      } catch (error) {
+        caught = error;
+      }
+      expect((caught as UserAccessError).code).to.equal('errorRecordTypeTargetMustBeQualified');
+    }
+    let caught: unknown;
+    try {
+      await validateRecordTypeTarget(conn as never, 'Account.Master');
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as UserAccessError).code).to.equal('errorMasterRecordTypeUnsupported');
+
+    for (const records of [
+      [],
+      [{ Id: '0121', SobjectType: 'Account', DeveloperName: 'Inactive', IsActive: false }],
+      [
+        { Id: '0121', SobjectType: 'Account', DeveloperName: 'Duplicate', IsActive: true },
+        { Id: '0122', SobjectType: 'Account', DeveloperName: 'Duplicate', IsActive: true },
+      ],
+    ]) {
+      conn.query.resolves({ done: true, records });
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await validateRecordTypeTarget(
+          conn as never,
+          `Account.${records.length === 0 ? 'Missing' : records.length === 1 ? 'Inactive' : 'Duplicate'}`
+        );
+      } catch (error) {
+        caught = error;
+      }
+      expect((caught as UserAccessError).code).to.equal(
+        records.length === 1
+          ? 'errorRecordTypeInactive'
+          : records.length === 0
+          ? 'errorRecordTypeNotFound'
+          : 'errorRecordTypeAmbiguous'
+      );
+    }
+  });
 });

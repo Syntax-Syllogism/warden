@@ -6,7 +6,7 @@ description: Detailed provisioning, assignment, matching, and output behavior fo
 # Command details
 
 Deeper logic notes for warden's more involved commands. Flag-by-flag
-reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/README.md#commands) and in each command's
+reference lives in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/README.md#commands) and in each command's
 `--help` output; this doc covers the *why* and the *merge/precedence rules*
 that don't fit in a flag summary.
 
@@ -463,7 +463,12 @@ sf warden diff --users-def ./users-profile-only.json \
 See [Access audits](access-audits.md) for target and reverse-user scopes,
 attribution, Permission Set Group muting, limitations, and examples. The
 command remains read-only and its shared output behavior is covered by the
-[output contract](output-contract.md).
+[output contract](output-contract.md). Record-type audits require a qualified
+`SObject.DeveloperName` target and use Profile, PermissionSet, and candidate
+PSG MutingPermissionSet Metadata API reads, which can add latency. Reads are
+limited to active-user sources and fail closed if metadata is incomplete; a
+matching muting visibility suppresses only the PSG path. Reverse record-type
+audits require an explicit target and do not support `--sobject` scope.
 
 ## `warden snapshot` / `warden restore`
 

@@ -8,11 +8,11 @@ Resolves active users who have access to a target and attributes each access pat
 
 # flags.type.summary
 
-Target type to audit: field, object, apex-class, vf-page, custom-permission, or tab.
+Target type to audit: field, object, apex-class, vf-page, custom-permission, tab, or record-type.
 
 # flags.target.summary
 
-Target API name. Use Object.Field for field, Object for object, Apex class name for apex-class, Visualforce page name for vf-page, custom permission DeveloperName for custom-permission, or tab API name for tab.
+Target API name. Use Object.Field for field, Object for object, Apex class name for apex-class, Visualforce page name for vf-page, custom permission DeveloperName for custom-permission, tab API name for tab, or SObject.DeveloperName for an active non-master record type.
 
 # flags.user.summary
 
@@ -57,6 +57,30 @@ Custom permission not found: %s.
 # errorTabNotFound
 
 Tab not found: %s.
+
+# errorRecordTypeTargetMustBeQualified
+
+Record type target must be qualified as SObject.DeveloperName for an active, non-master record type: %s.
+
+# errorMasterRecordTypeUnsupported
+
+The Master record type is not supported. Specify an active non-master record type as SObject.DeveloperName: %s.
+
+# errorRecordTypeNotFound
+
+Record type not found or ambiguous: %s.
+
+# errorRecordTypeAmbiguous
+
+Record type target matched multiple records and cannot be selected safely: %s.
+
+# errorRecordTypeInactive
+
+Record type is inactive: %s.
+
+# errorRecordTypeMetadataReadFailed
+
+Unable to read complete %s metadata for record-type access audit (%s). No partial audit result was returned. Check the authenticated user's Setup and Metadata API read permissions.
 
 # errorAccessQueryFailed
 
@@ -132,6 +156,10 @@ No access grants matched this user and scope.
 
   <%= config.bin %> <%= command.id %> --type tab --target Account --target-org myOrg
 
+- Record type access in human output:
+
+  <%= config.bin %> <%= command.id %> --type record-type --target Account.Business_Account --target-org myOrg
+
 - Reverse field access for one user:
 
   <%= config.bin %> <%= command.id %> --user 'Username:alice@example.com' --type field --target Account.CustomField__c --target-org myOrg
@@ -139,3 +167,7 @@ No access grants matched this user and scope.
 - Reverse object access across an SObject:
 
   <%= config.bin %> <%= command.id %> --user 'Username:alice@example.com' --type object --sobject Account --target-org myOrg --output json
+
+- Reverse record type access for one user:
+
+  <%= config.bin %> <%= command.id %> --user 'Username:alice@example.com' --type record-type --target Account.Business_Account --target-org myOrg

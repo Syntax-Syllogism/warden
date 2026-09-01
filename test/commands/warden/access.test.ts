@@ -11,11 +11,13 @@ const createConnection = (): {
   describe: sinon.SinonStub;
   query: sinon.SinonStub;
   queryMore: sinon.SinonStub;
+  getApiVersion: sinon.SinonStub;
 } => ({
   describe: sinon.stub().callsFake(async (name: string) => ({
     name: name === 'account' ? 'Account' : name,
     fields: [{ name: 'CustomField__c' }],
   })),
+  getApiVersion: sinon.stub().returns('66.0'),
   queryMore: sinon.stub().resolves({ records: [], done: true }),
   query: sinon.stub().callsFake(async (soql: string) => {
     if (soql.includes('FROM ApexClass')) return { done: true, records: [{ Id: '01p1', Name: 'MyController' }] };
@@ -220,6 +222,94 @@ describe('warden user access command', () => {
     expect(output).to.include('Tab: Account');
     expect(output).to.include('Visibility');
     expect(output).to.include('DefaultOn');
+  });
+
+  it('accepts record-type and renders metadata-backed access', async () => {
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes('FROM RecordType')) {
+        return {
+          done: true,
+          records: [{ Id: '0121', SobjectType: 'Account', DeveloperName: 'Business_Account', IsActive: true }],
+        };
+      }
+      if (soql.includes('FROM User')) return { done: true, records: [{ ProfileId: '00eProfile' }] };
+      if (soql.includes('FROM Profile')) return { done: true, records: [{ Id: '00eProfile', Name: 'Sales' }] };
+      if (soql.includes('FROM PermissionSet ') && soql.includes('IsOwnedByProfile = true')) {
+        return {
+          done: true,
+          records: [
+            { Id: '0PSProfile', Name: 'Sales', IsOwnedByProfile: true, ProfileId: '00eProfile', Type: 'Regular' },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSet ') && soql.includes('Id IN')) {
+        return {
+          done: true,
+          records: [{ Id: '0PSDirect', Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' }],
+        };
+      }
+      if (soql.includes('FROM PermissionSetGroupComponent')) return { done: true, records: [] };
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              Id: '0PA1',
+              AssigneeId: '0051',
+              Assignee: { Name: 'Jane Smith', Username: 'jane@example.com', IsActive: true },
+              PermissionSetId: '0PSProfile',
+              PermissionSet: {
+                Name: 'Sales',
+                IsOwnedByProfile: true,
+                ProfileId: '00eProfile',
+                Profile: { Name: 'Sales' },
+                Type: 'Regular',
+              },
+            },
+            {
+              Id: '0PA2',
+              AssigneeId: '0051',
+              Assignee: { Name: 'Jane Smith', Username: 'jane@example.com', IsActive: true },
+              PermissionSetId: '0PSDirect',
+              PermissionSet: { Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    });
+    (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
+      list: sinon.stub().resolves([{ id: '00eProfile', fullName: 'Sales' }]),
+      read: sinon
+        .stub()
+        .callsFake(async (type: string, names: string[]) =>
+          type === 'Profile'
+            ? {
+                fullName: names[0],
+                recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }],
+              }
+            : [
+                {
+                  fullName: names[0],
+                  recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
+                },
+              ]
+        ),
+    };
+    sinon.stub(UserAccess.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        type: 'record-type',
+        target: 'Account.Business_Account',
+        output: 'human',
+        'api-version': undefined,
+      },
+    } as never);
+    const result = await UserAccess.run([]);
+    expect(result.rows).to.have.length(2);
+    expect(sfCommandStubs.log.firstCall.args[0] as string).to.include('Record Type: Account.Business_Account');
+    expect(sfCommandStubs.log.firstCall.args[0] as string).to.include('Default');
   });
 
   it('defaults to human output when output flag is omitted', async () => {
@@ -838,6 +928,9 @@ describe('warden user access command', () => {
       )
     ).to.include('only one reverse-audit scope');
     expect(String(await runWithFlags({ sobject: 'Account', type: 'object' }))).to.include('only supported with --user');
+    expect(
+      String(await runWithFlags({ user: 'Username:jane@example.com', sobject: 'Account', type: 'record-type' }))
+    ).to.include('only supported for reverse field and object audits');
   });
 
   it('surfaces no-match and multi-match user resolution errors', async () => {

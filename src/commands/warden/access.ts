@@ -33,6 +33,7 @@ import {
   renderEnabledTable,
   renderFieldTable,
   renderObjectTable,
+  renderRecordTypeTable,
   renderTabTable,
 } from '../../userAccess/output.js';
 import { getResolver } from '../../userAccess/resolvers/index.js';
@@ -70,6 +71,7 @@ const targetLabels: Record<AccessTargetType, string> = {
   'vf-page': 'Visualforce Page',
   'custom-permission': 'Custom Permission',
   tab: 'Tab',
+  'record-type': 'Record Type',
 };
 
 const renderHuman = (result: UserAccessResult, userLabel?: string): string => {
@@ -96,6 +98,7 @@ const renderHuman = (result: UserAccessResult, userLabel?: string): string => {
       lines.push(renderFieldTable(sortedRows, showFieldTarget));
     } else if (result.targetType === 'object') lines.push(renderObjectTable(sortedRows));
     else if (result.targetType === 'tab') lines.push(renderTabTable(sortedRows));
+    else if (result.targetType === 'record-type') lines.push(renderRecordTypeTable(sortedRows));
     else lines.push(renderEnabledTable(sortedRows));
   } else if (result.warnings.length === 0) {
     lines.push('');
@@ -112,7 +115,7 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
   public static readonly flags = {
     'target-org': targetOrgFlag,
     type: Flags.string({
-      options: ['field', 'object', 'apex-class', 'vf-page', 'custom-permission', 'tab'] as const,
+      options: ['field', 'object', 'apex-class', 'vf-page', 'custom-permission', 'tab', 'record-type'] as const,
       summary: messages.getMessage('flags.type.summary'),
     }),
     target: Flags.string({ summary: messages.getMessage('flags.target.summary') }),
@@ -159,8 +162,8 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
         const scope = flagWasSupplied(parsedInteractive, flags, ['sobject'])
           ? 'sobject'
           : flagWasSupplied(parsedInteractive, flags, ['target'])
-            ? 'target'
-            : await promptAccessUserScope(flags.type === 'field' || flags.type === 'object');
+          ? 'target'
+          : await promptAccessUserScope(flags.type === 'field' || flags.type === 'object');
         if (scope === 'target') {
           if (!flagWasSupplied(parsedInteractive, flags, ['target'])) {
             prompts.push({ key: 'target', prompt: () => promptText('Access target') });

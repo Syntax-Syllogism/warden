@@ -8,6 +8,7 @@ import {
   vfPageResolver,
 } from '../../src/userAccess/resolvers/setupEntity.js';
 import { tabResolver } from '../../src/userAccess/resolvers/tab.js';
+import { recordTypeResolver } from '../../src/userAccess/resolvers/recordType.js';
 import { resolveReverseAccess } from '../../src/userAccess/reverse.js';
 import type { ValidatedAccessTarget } from '../../src/userAccess/types.js';
 
@@ -18,6 +19,7 @@ const createConn = (queryHandler: (soql: string) => QueryPage, more: Record<stri
     query: sinon.stub().callsFake(async (soql: string) => queryHandler(soql)),
     queryMore: sinon.stub().callsFake(async (url: string) => more[url]),
     describe: sinon.stub(),
+    getApiVersion: sinon.stub().returns('66.0'),
   } as never);
 
 describe('userAccess resolvers', () => {
@@ -752,5 +754,364 @@ describe('userAccess resolvers', () => {
     });
     const result = await objectResolver.resolve(conn, target);
     expect(result.rows.length).to.equal(0);
+  });
+
+  it('resolves forward record-type visibility for Profile, Permission Set, and PSG paths', async () => {
+    const conn = createConn((soql) => {
+      if (soql.includes('FROM User')) return { done: true, records: [{ ProfileId: '00eProfile' }] };
+      if (soql.includes('FROM Profile')) return { done: true, records: [{ Id: '00eProfile', Name: 'Sales' }] };
+      if (soql.includes('FROM PermissionSet ') && soql.includes('IsOwnedByProfile = true')) {
+        return {
+          done: true,
+          records: [
+            { Id: '0PSProfile', Name: 'Sales', IsOwnedByProfile: true, ProfileId: '00eProfile', Type: 'Regular' },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSet ') && soql.includes('Id IN')) {
+        return {
+          done: true,
+          records: [{ Id: '0PSDirect', Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' }],
+        };
+      }
+      if (soql.includes('FROM PermissionSetGroupComponent')) {
+        return {
+          done: true,
+          records: [
+            {
+              PermissionSetGroupId: '0PG1',
+              PermissionSetId: '0PSDirect',
+              PermissionSet: { Name: 'Business_Access', Type: 'Regular' },
+              PermissionSetGroup: { MasterLabel: 'Sales PSG' },
+            },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              Id: '0PAProfile',
+              AssigneeId: '005Profile',
+              Assignee: { Name: 'Profile User', Username: 'profile@example.com', IsActive: true },
+              PermissionSetId: '0PSProfile',
+              PermissionSet: {
+                Name: 'Sales',
+                IsOwnedByProfile: true,
+                ProfileId: '00eProfile',
+                Profile: { Name: 'Sales' },
+                Type: 'Regular',
+              },
+            },
+            {
+              Id: '0PADirect',
+              AssigneeId: '005Direct',
+              Assignee: { Name: 'Direct User', Username: 'direct@example.com', IsActive: true },
+              PermissionSetId: '0PSDirect',
+              PermissionSet: { Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' },
+            },
+            {
+              Id: '0PAPsg',
+              AssigneeId: '005Psg',
+              Assignee: { Name: 'PSG User', Username: 'psg@example.com', IsActive: true },
+              PermissionSetGroupId: '0PG1',
+              PermissionSetGroup: { MasterLabel: 'Sales PSG' },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    });
+    (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
+      list: sinon.stub().resolves([{ id: '00eProfile', fullName: 'Sales' }]),
+      read: sinon.stub().callsFake(async (type: string) =>
+        type === 'Profile'
+          ? {
+              fullName: 'Sales',
+              recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }],
+            }
+          : [
+              {
+                fullName: 'Business_Access',
+                recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
+              },
+            ]
+      ),
+    };
+    const result = await recordTypeResolver.resolve(conn, {
+      type: 'record-type',
+      targetName: 'Account.Business_Account',
+      sobjectType: 'Account',
+      recordTypeId: '0121',
+    });
+    expect(result.rows.map((row) => row.assignmentType)).to.deep.equal([
+      'Profile',
+      'PermissionSet',
+      'PermissionSetGroup',
+    ]);
+    expect(result.rows[0].access).to.deep.equal({ kind: 'record-type', visible: true, default: true });
+    expect(
+      result.rows.slice(1).every((row) => row.access.kind === 'record-type' && row.access.default === null)
+    ).to.equal(true);
+    expect(result.rows[2].viaPermissionSetId).to.equal('0PSDirect');
+  });
+
+  it('reads standard-profile metadata by API name and skips profiles absent from the listing', async () => {
+    const conn = createConn((soql) => {
+      // One standard profile whose metadata name differs from its label, plus a
+      // system profile (Automated Process) that the metadata listing omits.
+      if (soql.includes('FROM User')) {
+        return { done: true, records: [{ ProfileId: '00eStd' }, { ProfileId: '00eAuto' }] };
+      }
+      if (soql.includes('FROM Profile')) return { done: true, records: [{ Id: '00eStd', Name: 'Contract Manager' }] };
+      if (soql.includes('FROM PermissionSet ') && soql.includes('IsOwnedByProfile = true')) {
+        return {
+          done: true,
+          records: [
+            { Id: '0PSStd', Name: 'Contract Manager', IsOwnedByProfile: true, ProfileId: '00eStd', Type: 'Regular' },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              Id: '0PAStd',
+              AssigneeId: '005Std',
+              Assignee: { Name: 'Std User', Username: 'std@example.com', IsActive: true },
+              PermissionSetId: '0PSStd',
+              PermissionSet: {
+                Name: 'Contract Manager',
+                IsOwnedByProfile: true,
+                ProfileId: '00eStd',
+                Profile: { Name: 'Contract Manager' },
+                Type: 'Regular',
+              },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    });
+    const read = sinon.stub().resolves({
+      fullName: 'ContractManager',
+      recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }],
+    });
+    (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
+      // "Automated Process" (00eAuto) is intentionally absent from the listing.
+      list: sinon.stub().resolves([{ id: '00eStd', fullName: 'ContractManager' }]),
+      read,
+    };
+    const result = await recordTypeResolver.resolve(conn, {
+      type: 'record-type',
+      targetName: 'Account.Business_Account',
+      sobjectType: 'Account',
+      recordTypeId: '0121',
+    });
+    expect(result.rows.map((row) => row.assignmentType)).to.deep.equal(['Profile']);
+    // Metadata is requested by the API name, not the SOQL label.
+    expect(read.calledWith('Profile', ['ContractManager'])).to.equal(true);
+  });
+
+  it('resolves reverse record-type visibility only from the user sources', async () => {
+    const conn = createConn((soql) => {
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              PermissionSetId: '0PSProfile',
+              PermissionSet: {
+                Name: 'Sales',
+                IsOwnedByProfile: true,
+                ProfileId: '00eProfile',
+                Profile: { Name: 'Sales' },
+                Type: 'Regular',
+              },
+            },
+            { PermissionSetId: '0PSDirect', PermissionSet: { Name: 'Business_Access', Type: 'Regular' } },
+            { PermissionSetGroupId: '0PG1', PermissionSetGroup: { MasterLabel: 'Sales PSG' } },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSetGroupComponent')) {
+        return {
+          done: true,
+          records: [
+            {
+              PermissionSetGroupId: '0PG1',
+              PermissionSetId: '0PSDirect',
+              PermissionSet: { Name: 'Business_Access', Type: 'Regular' },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    });
+    (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
+      list: sinon.stub().resolves([{ id: '00eProfile', fullName: 'Sales' }]),
+      read: sinon.stub().callsFake(async (type: string, names: string[]) =>
+        type === 'Profile'
+          ? {
+              fullName: names[0],
+              recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: false }],
+            }
+          : [
+              {
+                fullName: names[0],
+                recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
+              },
+            ]
+      ),
+    };
+    const result = await resolveReverseAccess(
+      conn,
+      { Id: '005User', name: 'Reverse User', username: 'reverse@example.com' },
+      { type: 'record-type', targetName: 'Account.Business_Account', sobjectType: 'Account', recordTypeId: '0121' }
+    );
+    expect(result.rows).to.have.length(3);
+    expect(result.rows[0].access).to.deep.equal({ kind: 'record-type', visible: true, default: false });
+    expect(
+      result.rows.slice(1).every((row) => row.access.kind === 'record-type' && row.access.default === null)
+    ).to.equal(true);
+    expect(result.rows.some((row) => row.assignmentType === 'PermissionSetGroup')).to.equal(true);
+  });
+
+  it('applies record-type muting to PSG rows in forward and reverse audits', async () => {
+    const queryWithMuting = (soql: string): QueryPage => {
+      if (soql.includes('FROM User')) return { done: true, records: [{ ProfileId: '00eProfile' }] };
+      if (soql.includes('FROM Profile')) return { done: true, records: [{ Id: '00eProfile', Name: 'Sales' }] };
+      if (soql.includes('FROM PermissionSet ') && soql.includes('IsOwnedByProfile = true')) {
+        return {
+          done: true,
+          records: [
+            { Id: '0PSProfile', Name: 'Sales', IsOwnedByProfile: true, ProfileId: '00eProfile', Type: 'Regular' },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSetGroupComponent')) {
+        return {
+          done: true,
+          records: [
+            {
+              PermissionSetGroupId: '0PG1',
+              PermissionSetId: '0PSGrant',
+              PermissionSet: { Name: 'Record_Type_Grant', Type: 'Regular' },
+            },
+            {
+              // Muting permission sets are a separate object: the component's
+              // PermissionSet relationship is null and the Id is not a PermissionSet.
+              PermissionSetGroupId: '0PG1',
+              PermissionSetId: '0QMMute',
+              PermissionSet: null,
+            },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSet ') && soql.includes('Id IN')) {
+        return {
+          done: true,
+          records: [{ Id: '0PSGrant', Name: 'Record_Type_Grant', IsOwnedByProfile: false, Type: 'Regular' }],
+        };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              Id: '0PADirect',
+              AssigneeId: '005Direct',
+              Assignee: { Name: 'Direct User', Username: 'direct@example.com', IsActive: true },
+              PermissionSetId: '0PSGrant',
+              PermissionSet: { Name: 'Record_Type_Grant', Type: 'Regular' },
+            },
+            {
+              Id: '0PAPsg',
+              AssigneeId: '005Psg',
+              Assignee: { Name: 'PSG User', Username: 'psg@example.com', IsActive: true },
+              PermissionSetGroupId: '0PG1',
+              PermissionSetGroup: { MasterLabel: 'Muted PSG' },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    };
+    const metadataRead = sinon.stub().callsFake(async (type: string, names: string[]) => {
+      const fullName = names[0];
+      if (type === 'Profile') {
+        return {
+          fullName,
+          recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: false }],
+        };
+      }
+      return [
+        {
+          fullName,
+          recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
+        },
+      ];
+    });
+    const metadataList = sinon.stub().callsFake(async (queries: Array<{ type: string }>) => {
+      const type = queries[0]?.type;
+      if (type === 'Profile') return [{ id: '00eProfile', fullName: 'Sales' }];
+      if (type === 'MutingPermissionSet') return [{ id: '0QMMute', fullName: 'Record_Type_Mute' }];
+      return [];
+    });
+    const forward = await recordTypeResolver.resolve(
+      Object.assign(createConn(queryWithMuting), { metadata: { read: metadataRead, list: metadataList } }),
+      { type: 'record-type', targetName: 'Account.Business_Account', sobjectType: 'Account', recordTypeId: '0121' }
+    );
+    expect(forward.rows.map((row) => row.assignmentType)).to.deep.equal(['PermissionSet']);
+    expect(forward.rows[0].sourceId).to.equal('0PSGrant');
+
+    const reverse = await resolveReverseAccess(
+      Object.assign(
+        createConn((soql) => {
+          if (soql.includes('FROM PermissionSetAssignment')) {
+            return {
+              done: true,
+              records: [
+                {
+                  PermissionSetId: '0PSProfile',
+                  PermissionSet: {
+                    Name: 'Sales',
+                    IsOwnedByProfile: true,
+                    ProfileId: '00eProfile',
+                    Profile: { Name: 'Sales' },
+                    Type: 'Regular',
+                  },
+                },
+                { PermissionSetId: '0PSGrant', PermissionSet: { Name: 'Record_Type_Grant', Type: 'Regular' } },
+                { PermissionSetGroupId: '0PG1', PermissionSetGroup: { MasterLabel: 'Muted PSG' } },
+              ],
+            };
+          }
+          if (soql.includes('FROM PermissionSetGroupComponent')) {
+            return {
+              done: true,
+              records: [
+                {
+                  PermissionSetGroupId: '0PG1',
+                  PermissionSetId: '0PSGrant',
+                  PermissionSet: { Name: 'Record_Type_Grant', Type: 'Regular' },
+                },
+                { PermissionSetGroupId: '0PG1', PermissionSetId: '0QMMute', PermissionSet: null },
+              ],
+            };
+          }
+          if (soql.includes('FROM PermissionSet ') && soql.includes('Id IN')) {
+            return { done: true, records: [] };
+          }
+          return { done: true, records: [] };
+        }),
+        { metadata: { read: metadataRead, list: metadataList } }
+      ),
+      { Id: '005Psg', name: 'PSG User', username: 'psg@example.com' },
+      { type: 'record-type', targetName: 'Account.Business_Account', sobjectType: 'Account', recordTypeId: '0121' }
+    );
+    expect(reverse.rows.map((row) => row.assignmentType)).to.deep.equal(['Profile', 'PermissionSet']);
   });
 });

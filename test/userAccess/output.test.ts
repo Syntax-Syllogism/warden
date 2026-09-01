@@ -3,6 +3,8 @@ import {
   enabledCsvColumns,
   fieldCsvColumns,
   objectCsvColumns,
+  recordTypeCsvColumns,
+  renderRecordTypeTable,
   renderFieldTable,
   renderEnabledTable,
   renderObjectTable,
@@ -199,5 +201,35 @@ describe('userAccess output', () => {
     };
     expect(renderTabTable([tabRow])).to.include('DefaultOn');
     expect(serializeAccessCsv([tabRow], tabCsvColumns())).to.include('DefaultOn');
+  });
+
+  it('serializes and renders record-type defaults, including not applicable', () => {
+    const columns = recordTypeCsvColumns();
+    expect(columns.slice(-2)).to.deep.equal(['visible', 'default']);
+    const profileRow: UserAccessRow = {
+      userId: '005r',
+      userName: 'Rita',
+      username: 'rita@example.com',
+      targetType: 'record-type',
+      targetName: 'Account.Business_Account',
+      assignmentType: 'Profile',
+      sourceId: '00e1',
+      sourceName: 'Sales',
+      access: { kind: 'record-type', visible: true, default: false },
+    };
+    const permissionSetRow: UserAccessRow = {
+      ...profileRow,
+      assignmentType: 'PermissionSet',
+      sourceId: '0PS1',
+      sourceName: 'Business Access',
+      access: { kind: 'record-type', visible: true, default: null },
+    };
+    const csv = serializeAccessCsv([profileRow, permissionSetRow], columns);
+    expect(csv).to.include(',true,false');
+    expect(csv).to.include(',true,');
+    const rendered = renderRecordTypeTable([profileRow, permissionSetRow]);
+    expect(rendered).to.include('Default');
+    expect(rendered).to.include('no');
+    expect(rendered).to.include('n/a');
   });
 });

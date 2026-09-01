@@ -4,6 +4,7 @@ import { fieldResolver } from './field.js';
 import { objectResolver } from './object.js';
 import { apexClassResolver, customPermissionResolver, vfPageResolver } from './setupEntity.js';
 import { tabResolver } from './tab.js';
+import { recordTypeResolver } from './recordType.js';
 
 const resolvers: Record<AccessTargetType, AccessTargetResolver> = {
   field: fieldResolver,
@@ -12,6 +13,7 @@ const resolvers: Record<AccessTargetType, AccessTargetResolver> = {
   'vf-page': vfPageResolver,
   'custom-permission': customPermissionResolver,
   tab: tabResolver,
+  'record-type': recordTypeResolver,
 };
 
 export const getResolver = (type: string): AccessTargetResolver => {

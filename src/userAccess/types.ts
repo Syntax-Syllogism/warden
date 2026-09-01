@@ -1,6 +1,13 @@
 import type { Connection } from '@salesforce/core';
 
-export type AccessTargetType = 'field' | 'object' | 'apex-class' | 'vf-page' | 'custom-permission' | 'tab';
+export type AccessTargetType =
+  | 'field'
+  | 'object'
+  | 'apex-class'
+  | 'vf-page'
+  | 'custom-permission'
+  | 'tab'
+  | 'record-type';
 export type AssignmentType = 'Profile' | 'PermissionSet' | 'PermissionSetGroup';
 
 export type FieldAccess = {
@@ -29,6 +36,12 @@ export type TabAccess = {
   visibility: string;
 };
 
+export type RecordTypeAccess = {
+  kind: 'record-type';
+  visible: boolean;
+  default: boolean | null;
+};
+
 export type UserAccessRow = {
   userId: string;
   userName: string;
@@ -42,7 +55,7 @@ export type UserAccessRow = {
   sourceLabel?: string;
   viaPermissionSetId?: string;
   viaPermissionSetName?: string;
-  access: FieldAccess | ObjectAccess | EnabledAccess | TabAccess;
+  access: FieldAccess | ObjectAccess | EnabledAccess | TabAccess | RecordTypeAccess;
 };
 
 export type UserAccessStats = {
@@ -68,6 +81,7 @@ export type ValidatedAccessTarget = {
   sobjectType?: string;
   fieldApiName?: string;
   setupEntityId?: string;
+  recordTypeId?: string;
 };
 
 export type AccessTargetResolver = {
@@ -87,6 +101,12 @@ export type AccessErrorCode =
   | 'errorVisualforcePageNotFound'
   | 'errorCustomPermissionNotFound'
   | 'errorTabNotFound'
+  | 'errorRecordTypeTargetMustBeQualified'
+  | 'errorMasterRecordTypeUnsupported'
+  | 'errorRecordTypeNotFound'
+  | 'errorRecordTypeAmbiguous'
+  | 'errorRecordTypeInactive'
+  | 'errorRecordTypeMetadataReadFailed'
   | 'errorAccessQueryFailed';
 
 export class UserAccessError extends Error {

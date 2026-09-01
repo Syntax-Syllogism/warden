@@ -125,8 +125,8 @@ Audit active-user access for a permission target.
 ```
 USAGE
   $ sf warden access [--json] [--flags-dir <value>] [-o <value>] [--type
-    field|object|apex-class|vf-page|custom-permission|tab] [--target <value>] [--user <value>] [--sobject <value>]
-    [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
+    field|object|apex-class|vf-page|custom-permission|tab|record-type] [--target <value>] [--user <value>] [--sobject
+    <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
 
 FLAGS
   -i, --interactive          Prompt for missing command values, summarize them, and confirm before continuing.
@@ -138,9 +138,11 @@ FLAGS
       --sobject=<value>      In reverse user mode, report field or object access scoped to this SObject.
       --target=<value>       Target API name. Use Object.Field for field, Object for object, Apex class name for
                              apex-class, Visualforce page name for vf-page, custom permission DeveloperName for
-                             custom-permission, or tab API name for tab.
-      --type=<option>        Target type to audit: field, object, apex-class, vf-page, custom-permission, or tab.
-                             <options: field|object|apex-class|vf-page|custom-permission|tab>
+                             custom-permission, tab API name for tab, or SObject.DeveloperName for an active non-master
+                             record type.
+      --type=<option>        Target type to audit: field, object, apex-class, vf-page, custom-permission, tab, or
+                             record-type.
+                             <options: field|object|apex-class|vf-page|custom-permission|tab|record-type>
       --user=<value>         Reverse audit for one user, using field:value matching (for example
                              Username:alice@example.com).
 
@@ -183,6 +185,10 @@ EXAMPLES
 
     $ sf warden access --type tab --target Account --target-org myOrg
 
+  Record type access in human output:
+
+    $ sf warden access --type record-type --target Account.Business_Account --target-org myOrg
+
   Reverse field access for one user:
 
     $ sf warden access --user 'Username:alice@example.com' --type field --target Account.CustomField__c --target-org \
@@ -193,13 +199,18 @@ EXAMPLES
     $ sf warden access --user 'Username:alice@example.com' --type object --sobject Account --target-org myOrg \
       --output json
 
+  Reverse record type access for one user:
+
+    $ sf warden access --user 'Username:alice@example.com' --type record-type --target Account.Business_Account \
+      --target-org myOrg
+
 FLAG DESCRIPTIONS
   --api-version=<value>  Override the api version used for the org connection.
 
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -258,7 +269,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -311,7 +322,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden provision`
 
@@ -392,7 +403,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -439,7 +450,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -492,7 +503,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -565,7 +576,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -618,5 +629,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

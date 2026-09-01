@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0] - 2026-09-01
+
+### Added
+
+- Record-type visibility audit support
+
+### Fixed
+
+- Record-type audits now work correctly against production organizations
+- Record-type audits now properly respect permission set group muting
+
 ## [0.5.2] - 2026-08-31
 
 ### Fixed

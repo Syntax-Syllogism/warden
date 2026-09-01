@@ -18,6 +18,7 @@ const baseColumns = [
 export const fieldCsvColumns = (): string[] => [...baseColumns, 'read', 'edit'];
 export const enabledCsvColumns = (): string[] => [...baseColumns, 'enabled'];
 export const tabCsvColumns = (): string[] => [...baseColumns, 'visibility'];
+export const recordTypeCsvColumns = (): string[] => [...baseColumns, 'visible', 'default'];
 export const objectCsvColumns = (): string[] => [
   ...baseColumns,
   'read',
@@ -111,6 +112,21 @@ export const renderTabTable = (rows: UserAccessRow[]): string =>
         row.userName,
         row.username,
         row.access.visibility,
+        formatVia(row.assignmentType, row.sourceName, row.viaPermissionSetName),
+      ];
+    })
+  );
+
+export const renderRecordTypeTable = (rows: UserAccessRow[]): string =>
+  paddedTable(
+    ['User Name', 'Username', 'Visible', 'Default', 'Via'],
+    rows.map((row) => {
+      if (row.access.kind !== 'record-type') throw new Error('Record type table received non-record-type access');
+      return [
+        row.userName,
+        row.username,
+        row.access.visible ? 'yes' : 'no',
+        row.access.default === null ? 'n/a' : row.access.default ? 'yes' : 'no',
         formatVia(row.assignmentType, row.sourceName, row.viaPermissionSetName),
       ];
     })

@@ -1,6 +1,14 @@
 import type { Connection } from '@salesforce/core';
+import {
+  mutingPermissionSetMetadataNamesById,
+  profileMetadataNamesById,
+  readMetadataInBatches,
+  recordTypeVisibilities,
+  type MetadataType,
+  type RecordTypeVisibility,
+} from './metadata.js';
 import { combinePsgMuting, loadPsgMuting, type PsgMutingState } from './muting.js';
-import { fieldCsvColumns, enabledCsvColumns, objectCsvColumns, tabCsvColumns } from './output.js';
+import { fieldCsvColumns, enabledCsvColumns, objectCsvColumns, recordTypeCsvColumns, tabCsvColumns } from './output.js';
 import { queryAll, queryAllInChunks, soqlIn } from './soql.js';
 import { resultFor, type PermissionSetParent } from './assignees.js';
 import type {
@@ -43,6 +51,8 @@ type GrantContext = {
   permissionSetIds: string[];
   psgIds: string[];
   sourcesByPermissionSetId: Map<string, GrantSource[]>;
+  metadataNameByPermissionSetId: Map<string, { type: 'Profile' | 'PermissionSet'; fullName: string }>;
+  mutingMetadataNameByPsgId: Map<string, string>;
 };
 
 type FieldPermissionRow = {
@@ -67,6 +77,7 @@ type ObjectPermissionRow = {
 
 type SetupEntityAccessRow = { ParentId: string };
 type TabPermissionRow = { ParentId: string; Name?: string; Visibility?: string };
+type MetadataRecord = { fullName: string } & Record<string, unknown>;
 
 const truthy = (value: boolean | undefined): boolean => value === true;
 const anyFieldAccess = (access: FieldAccess): boolean => access.read || access.edit;
@@ -111,16 +122,24 @@ const permissionSetSource = (id: string, parent: PermissionSetParent | undefined
   };
 };
 
-const collectGrantContext = async (conn: Connection, userId: string): Promise<GrantContext> => {
+// eslint-disable-next-line complexity
+const collectGrantContext = async (
+  conn: Connection,
+  userId: string,
+  profileMetadataNames: Map<string, string>,
+  mutingMetadataNames: Map<string, string>
+): Promise<GrantContext> => {
   const assignments = await queryAll<PermissionSetAssignmentRow>(
     conn,
     [
-      'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.DeveloperName, PermissionSet.Label, PermissionSet.IsOwnedByProfile, PermissionSet.ProfileId, PermissionSet.Profile.Name, PermissionSet.Type, PermissionSetGroupId, PermissionSetGroup.DeveloperName, PermissionSetGroup.MasterLabel',
+      'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.Label, PermissionSet.IsOwnedByProfile, PermissionSet.ProfileId, PermissionSet.Profile.Name, PermissionSet.Type, PermissionSetGroupId, PermissionSetGroup.DeveloperName, PermissionSetGroup.MasterLabel',
       'FROM PermissionSetAssignment',
       `WHERE AssigneeId = '${userId}'`,
     ].join(' ')
   );
   const sourcesByPermissionSetId = new Map<string, GrantSource[]>();
+  const metadataNameByPermissionSetId = new Map<string, { type: 'Profile' | 'PermissionSet'; fullName: string }>();
+  const mutingMetadataNameByPsgId = new Map<string, string>();
   const psgIds = [
     ...new Set(
       assignments.flatMap((assignment) => (assignment.PermissionSetGroupId ? [assignment.PermissionSetGroupId] : []))
@@ -150,18 +169,66 @@ const collectGrantContext = async (conn: Connection, userId: string): Promise<Gr
       assignment.PermissionSetId,
       permissionSetSource(assignment.PermissionSetId, assignment.PermissionSet)
     );
+    const fullName = assignment.PermissionSet?.Name ?? assignment.PermissionSet?.DeveloperName;
+    if (
+      fullName &&
+      (assignment.PermissionSet?.Type === 'Regular' || assignment.PermissionSet?.IsOwnedByProfile === true)
+    ) {
+      const isProfile = assignment.PermissionSet?.IsOwnedByProfile === true;
+      // Standard profiles read through a Metadata API fullName that differs from
+      // their SOQL Name (for example "Contract Manager" is "ContractManager"),
+      // so translate the profile's record Id through the metadata listing.
+      const profileMetadataName = assignment.PermissionSet?.ProfileId
+        ? profileMetadataNames.get(assignment.PermissionSet.ProfileId.substring(0, 15))
+        : undefined;
+      metadataNameByPermissionSetId.set(assignment.PermissionSetId, {
+        type: isProfile ? 'Profile' : 'PermissionSet',
+        fullName: isProfile ? profileMetadataName ?? assignment.PermissionSet?.Profile?.Name ?? fullName : fullName,
+      });
+    }
   }
 
   const components = await queryAllInChunks<PermissionSetGroupComponentRow>(conn, psgIds, (chunk) =>
     [
-      'SELECT PermissionSetGroupId, PermissionSetId, PermissionSet.Name, PermissionSet.DeveloperName, PermissionSet.Label, PermissionSet.Type',
+      'SELECT PermissionSetGroupId, PermissionSetId, PermissionSet.Name, PermissionSet.Label, PermissionSet.Type',
       'FROM PermissionSetGroupComponent',
       `WHERE PermissionSetGroupId IN (${soqlIn(chunk)})`,
     ].join(' ')
   );
   const componentPermissionSetIds: string[] = [];
+  const componentPermissionSetsById = new Map<string, PermissionSetParent>();
+  const unresolvedComponentIds = [
+    ...new Set(
+      components
+        .filter(
+          (component) => !component.PermissionSet?.Type && !mutingMetadataNames.has(component.PermissionSetId.substring(0, 15))
+        )
+        .map((component) => component.PermissionSetId)
+    ),
+  ];
+  if (unresolvedComponentIds.length > 0) {
+    const resolvedComponents = await queryAllInChunks<PermissionSetParent>(conn, unresolvedComponentIds, (chunk) =>
+      [
+        'SELECT Id, Name, Label, Type, IsOwnedByProfile, ProfileId, Profile.Name',
+        'FROM PermissionSet',
+        `WHERE Id IN (${soqlIn(chunk)})`,
+      ].join(' ')
+    );
+    for (const permissionSet of resolvedComponents) componentPermissionSetsById.set(permissionSet.Id, permissionSet);
+  }
   for (const component of components) {
-    if (component.PermissionSet?.Type === 'Muting') continue;
+    // Muting permission sets are a separate object with a null PermissionSet
+    // relationship and Ids absent from PermissionSet SOQL; resolve them through
+    // the metadata listing.
+    const mutingName =
+      mutingMetadataNames.get(component.PermissionSetId.substring(0, 15)) ??
+      (component.PermissionSet?.Type === 'Muting' ? component.PermissionSet?.Name ?? undefined : undefined);
+    if (mutingName) {
+      mutingMetadataNameByPsgId.set(component.PermissionSetGroupId, mutingName);
+      continue;
+    }
+    const permissionSet = component.PermissionSet ?? componentPermissionSetsById.get(component.PermissionSetId);
+    if (permissionSet?.Type !== 'Regular' && permissionSet?.IsOwnedByProfile !== true) continue;
     componentPermissionSetIds.push(component.PermissionSetId);
     const psgName = psgNames.get(component.PermissionSetGroupId) ?? component.PermissionSetGroupId;
     addSource(sourcesByPermissionSetId, component.PermissionSetId, {
@@ -171,15 +238,34 @@ const collectGrantContext = async (conn: Connection, userId: string): Promise<Gr
       sourceApiName: psgName,
       sourceLabel: psgName,
       viaPermissionSetId: component.PermissionSetId,
-      viaPermissionSetName: component.PermissionSet?.Name ?? component.PermissionSetId,
+      viaPermissionSetName: permissionSet?.Name ?? component.PermissionSetId,
       psgId: component.PermissionSetGroupId,
     });
+    const fullName = permissionSet?.Name ?? permissionSet?.DeveloperName;
+    if (fullName) metadataNameByPermissionSetId.set(component.PermissionSetId, { type: 'PermissionSet', fullName });
   }
   return {
     permissionSetIds: [...new Set([...directPermissionSetIds, ...componentPermissionSetIds])],
     psgIds,
     sourcesByPermissionSetId,
+    metadataNameByPermissionSetId,
+    mutingMetadataNameByPsgId,
   };
+};
+
+const recordTypeMetadataFailure = (type: MetadataType, name: string, cause: unknown): UserAccessError =>
+  new UserAccessError('errorRecordTypeMetadataReadFailed', [type, name], cause);
+
+const recordTypeEntry = (
+  metadata: MetadataRecord,
+  type: MetadataType,
+  targetName: string
+): RecordTypeVisibility | undefined => {
+  const entries = recordTypeVisibilities(metadata, type).filter((entry) => entry.recordType === targetName);
+  if (entries.length > 1) {
+    throw recordTypeMetadataFailure(type, metadata.fullName, new Error(`Duplicate visibility for ${targetName}.`));
+  }
+  return entries[0];
 };
 
 const fieldMuting = async (
@@ -263,7 +349,11 @@ const resolveReverse = async (
   user: ReverseAccessUser,
   target: ValidatedAccessTarget
 ): Promise<UserAccessResult> => {
-  const context = await collectGrantContext(conn, user.Id);
+  const profileMetadataNames =
+    target.type === 'record-type' ? await profileMetadataNamesById(conn) : new Map<string, string>();
+  const mutingMetadataNames =
+    target.type === 'record-type' ? await mutingPermissionSetMetadataNamesById(conn) : new Map<string, string>();
+  const context = await collectGrantContext(conn, user.Id, profileMetadataNames, mutingMetadataNames);
   if (context.permissionSetIds.length === 0) {
     return resultFor(target.type, target.targetName, [], [], {
       sobjectType: target.sobjectType,
@@ -272,7 +362,65 @@ const resolveReverse = async (
   }
 
   const rows: UserAccessRow[] = [];
-  if (target.type === 'field') {
+  if (target.type === 'record-type') {
+    const missingNames = context.permissionSetIds.filter((id) => !context.metadataNameByPermissionSetId.has(id));
+    if (missingNames.length > 0) {
+      throw recordTypeMetadataFailure(
+        'PermissionSet',
+        missingNames.join(', '),
+        new Error('Permission Set metadata names were not discovered.')
+      );
+    }
+    const profileNames = [
+      ...new Set(
+        [...context.metadataNameByPermissionSetId.values()]
+          .filter((source) => source.type === 'Profile')
+          .map((source) => source.fullName)
+      ),
+    ];
+    const permissionSetNames = [
+      ...new Set(
+        [...context.metadataNameByPermissionSetId.values()]
+          .filter((source) => source.type === 'PermissionSet')
+          .map((source) => source.fullName)
+      ),
+    ];
+    const profiles = await readMetadataInBatches<MetadataRecord>(conn, 'Profile', profileNames);
+    const permissionSets = await readMetadataInBatches<MetadataRecord>(conn, 'PermissionSet', permissionSetNames);
+    const mutingNames = [...new Set(context.mutingMetadataNameByPsgId.values())];
+    const mutingPermissionSets = await readMetadataInBatches<MetadataRecord>(conn, 'MutingPermissionSet', mutingNames);
+    const mutedPsgIds = new Set<string>();
+    for (const [psgId, fullName] of context.mutingMetadataNameByPsgId) {
+      const metadata = mutingPermissionSets.get(fullName);
+      if (!metadata)
+        throw recordTypeMetadataFailure('MutingPermissionSet', fullName, new Error('Metadata result was missing.'));
+      const entry = recordTypeEntry(metadata, 'MutingPermissionSet', target.targetName);
+      if (entry?.visible === true) mutedPsgIds.add(psgId);
+    }
+    for (const [permissionSetId, source] of context.metadataNameByPermissionSetId) {
+      const metadata = (source.type === 'Profile' ? profiles : permissionSets).get(source.fullName);
+      if (!metadata)
+        throw recordTypeMetadataFailure(source.type, source.fullName, new Error('Metadata result was missing.'));
+      const entry = recordTypeEntry(metadata, source.type, target.targetName);
+      if (!entry?.visible) continue;
+      if (source.type === 'Profile' && typeof entry.default !== 'boolean') {
+        throw recordTypeMetadataFailure(
+          source.type,
+          source.fullName,
+          new Error('Profile record type visibility has no default value.')
+        );
+      }
+      const access = {
+        kind: 'record-type' as const,
+        visible: true,
+        default: source.type === 'Profile' ? entry.default === true : null,
+      };
+      for (const grantSource of context.sourcesByPermissionSetId.get(permissionSetId) ?? []) {
+        if (grantSource.psgId && mutedPsgIds.has(grantSource.psgId)) continue;
+        rows.push({ ...baseRow(user, 'record-type', grantSource), targetName: target.targetName, access });
+      }
+    }
+  } else if (target.type === 'field') {
     if (!target.sobjectType) throw new UserAccessError('errorInvalidTarget', [target.targetName]);
     const muting = await fieldMuting(conn, target, context.psgIds);
     const grants = await queryAllInChunks<FieldPermissionRow>(conn, context.permissionSetIds, (chunk) =>
@@ -452,5 +600,6 @@ export const reverseCsvColumns = (type: AccessTargetType): string[] => {
   if (type === 'field') return fieldCsvColumns();
   if (type === 'object') return objectCsvColumns();
   if (type === 'tab') return tabCsvColumns();
+  if (type === 'record-type') return recordTypeCsvColumns();
   return enabledCsvColumns();
 };

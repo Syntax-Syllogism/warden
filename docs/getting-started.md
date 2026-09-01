@@ -15,7 +15,7 @@ This guide gets you from zero to your first provisioning run.
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -96,6 +96,21 @@ sf warden diff --target-org myOrg \
 
 Both commands are read-only and perform no writes to the org.
 
+To audit record-type visibility, use an active non-master record type's
+qualified API name. The forward and reverse forms are:
+
+```bash
+sf warden access --target-org myOrg --type record-type \
+  --target Account.Business_Account
+sf warden access --target-org myOrg --user 'Username:alice@example.com' \
+  --type record-type --target Account.Business_Account
+```
+
+Record-type access uses Metadata API reads for connected Profiles and Permission
+Sets, so it may be slower than data-API audits and fails without partial output
+if required metadata cannot be read. Reverse record-type audits require
+`--target`; `--sobject` is not available for this target.
+
 ## Snapshot before a destructive change
 
 `strip` and `freeze` are DML operations. Capture a restorable snapshot first:
@@ -122,5 +137,5 @@ snapshot before deciding whether to run the real strip.
   confirmation behavior for all eight commands.
 * [Example definitions](command-details.md#example-usersjson) — full
   `users.json` and `personas.json` samples are included in command details.
-* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.5.2/README.md#commands) section of
+* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.6.0/README.md#commands) section of
   the README, or run any command with `--help`.
