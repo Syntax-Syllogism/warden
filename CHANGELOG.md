@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1] - 2026-09-01
+
+### Fixed
+
+- Improve error messages for record-type metadata failures by naming required permissions and surfacing the cause
+
 ## [0.6.0] - 2026-09-01
 
 ### Added

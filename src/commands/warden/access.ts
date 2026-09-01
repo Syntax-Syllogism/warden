@@ -271,7 +271,11 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
       });
       return orderedResult;
     } catch (error) {
-      if (error instanceof UserAccessError) throw new SfError(messages.getMessage(error.code, error.args));
+      if (error instanceof UserAccessError) {
+        const message = messages.getMessage(error.code, error.args);
+        const detail = error.cause instanceof Error ? error.cause.message : undefined;
+        throw new SfError(detail ? `${message} Underlying error: ${detail}` : message, 'UserAccessError', [], 1, error.cause);
+      }
       if (error instanceof SfError) throw error;
       throw new SfError(messages.getMessage('errorAccessQueryFailed', [type, flags.target ?? flags.sobject ?? '']));
     }

@@ -80,7 +80,7 @@ Record type is inactive: %s.
 
 # errorRecordTypeMetadataReadFailed
 
-Unable to read complete %s metadata for record-type access audit (%s). No partial audit result was returned. Check the authenticated user's Setup and Metadata API read permissions.
+Unable to read complete %s metadata for record-type access audit (%s). No partial audit result was returned. Record-type auditing reads every profile and permission set through the Metadata API, so the authenticated user needs org-wide metadata read access. Grant these system permissions: "API Enabled", "View Setup and Configuration", and either "Modify Metadata Through Metadata API Functions" or "Modify All Data". On large orgs a user missing "Modify All Data" (or the granular "Modify Metadata" permission) is silently served an incomplete metadata set rather than an error, which is the usual cause of this failure.
 
 # errorAccessQueryFailed
 
