@@ -7,10 +7,11 @@ describe('userAccess metadata reads', () => {
   it('short-circuits empty input and reads scalar responses', async () => {
     const read = sinon.stub().resolves({ fullName: 'Admin' });
     const conn = { metadata: { read } };
-    expect(await readMetadataInBatches(conn as never, 'Profile', [])).to.deep.equal(new Map());
+    expect(await readMetadataInBatches(conn as never, 'Profile', [])).to.deep.equal({ metadata: new Map(), missing: [] });
     expect(read.called).to.equal(false);
     const result = await readMetadataInBatches(conn as never, 'Profile', ['Admin']);
-    expect([...result.keys()]).to.deep.equal(['Admin']);
+    expect([...result.metadata.keys()]).to.deep.equal(['Admin']);
+    expect(result.missing).to.deep.equal([]);
   });
 
   it('deduplicates names, batches deterministically, and bounds concurrency', async () => {
@@ -32,17 +33,30 @@ describe('userAccess metadata reads', () => {
     expect(calls).to.have.length(11);
     expect(calls[0]).to.deep.equal(Array.from({ length: 10 }, (_, index) => `PS${index}`));
     expect(maximum).to.be.at.most(2);
-    expect(result.size).to.equal(101);
+    expect(result.metadata.size).to.equal(101);
+    expect(result.missing).to.deep.equal([]);
   });
 
-  it('maps array responses by fullName and fails closed for incomplete or malformed responses', async () => {
+  it('maps array responses by fullName and reports incomplete responses as partial', async () => {
     const read = sinon.stub().resolves([{ fullName: 'Second' }, { fullName: 'First' }]);
     const result = await readMetadataInBatches(connFor(read), 'PermissionSet', ['First', 'Second']);
-    expect([...result.keys()]).to.deep.equal(['Second', 'First']);
+    expect([...result.metadata.keys()]).to.deep.equal(['Second', 'First']);
+    expect(result.missing).to.deep.equal([]);
 
-    for (const response of [null, [{ fullName: 'Only' }], [{ name: 'Missing full name' }]]) {
+    // An incomplete-but-well-formed response fails open: return what came back
+    // and report the omitted names as missing rather than throwing.
+    for (const response of [null, [{ fullName: 'First' }]]) {
       read.resetBehavior();
       read.resolves(response);
+      // eslint-disable-next-line no-await-in-loop
+      const partial = await readMetadataInBatches(connFor(read), 'PermissionSet', ['First', 'Second']);
+      expect(partial.missing).to.include('Second');
+    }
+  });
+
+  it('fails closed for malformed or unexpected responses', async () => {
+    for (const response of [[{ fullName: 'Only' }], [{ name: 'Missing full name' }]]) {
+      const read = sinon.stub().resolves(response);
       let caught: unknown;
       try {
         // eslint-disable-next-line no-await-in-loop

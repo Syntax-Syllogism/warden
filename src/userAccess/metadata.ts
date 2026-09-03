@@ -46,12 +46,42 @@ const validateBatch = (type: MetadataType, requestedNames: string[], response: u
   return components;
 };
 
+export type MetadataReadResult<T> = { metadata: Map<string, T>; missing: string[] };
+
+/**
+ * Warning shown when a record-type audit could not read every profile,
+ * permission set, or muting permission set because the running user lacks
+ * org-wide metadata read access. The audit continues with what it could read.
+ */
+export const partialMetadataWarning = (missingNames: string[]): string => {
+  const examples = missingNames.slice(0, 5);
+  const suffix = missingNames.length > examples.length ? ', …' : '';
+  return (
+    `Partial response: ${missingNames.length} metadata component(s) could not be read through the Metadata API ` +
+    `(${examples.join(', ')}${suffix}). Affected profiles and permission sets are omitted, and any muting they define ` +
+    'is not applied, so this audit may be incomplete. Grant the running user "API Enabled", ' +
+    '"View Setup and Configuration", and either "Modify Metadata Through Metadata API Functions" or "Modify All Data" ' +
+    'for a full accounting.'
+  );
+};
+
+/**
+ * Read components in bounded batches.
+ *
+ * Fails closed for genuinely broken responses (a rejected read, a non-object
+ * response, or a malformed, unexpected, or duplicated component) — those signal
+ * a misconfiguration the caller should not paper over. It fails *open* for a
+ * merely incomplete response: on large orgs the Metadata API silently omits
+ * components the running user cannot read rather than erroring, so the omitted
+ * fullNames are returned in `missing` for the caller to report as a partial
+ * result instead of aborting the whole audit.
+ */
 export async function readMetadataInBatches<T>(
   conn: Connection,
   type: MetadataType,
   fullNames: string[],
   options: { batchSize?: number; concurrency?: number } = {}
-): Promise<Map<string, T>> {
+): Promise<MetadataReadResult<T>> {
   const batchSize = options.batchSize ?? METADATA_BATCH_SIZE;
   const concurrency = options.concurrency ?? METADATA_CONCURRENCY;
   if (!Number.isInteger(batchSize) || batchSize <= 0) throw new Error('Metadata batchSize must be greater than 0.');
@@ -59,7 +89,7 @@ export async function readMetadataInBatches<T>(
     throw new Error('Metadata concurrency must be greater than 0.');
 
   const uniqueNames = [...new Set(fullNames)];
-  if (uniqueNames.length === 0) return new Map();
+  if (uniqueNames.length === 0) return { metadata: new Map(), missing: [] };
   const batches: string[][] = [];
   for (let index = 0; index < uniqueNames.length; index += batchSize) {
     batches.push(uniqueNames.slice(index, index + batchSize));
@@ -92,15 +122,8 @@ export async function readMetadataInBatches<T>(
       result.set(component.fullName, component as T);
     }
   }
-  if (result.size !== uniqueNames.length || uniqueNames.some((name) => !result.has(name))) {
-    const missing = uniqueNames.filter((name) => !result.has(name));
-    throw metadataFailure(
-      type,
-      missing.length > 0 ? missing : uniqueNames,
-      new Error('Metadata API returned incomplete data.')
-    );
-  }
-  return result;
+  const missing = uniqueNames.filter((name) => !result.has(name));
+  return { metadata: result, missing };
 }
 
 type MetadataListing = { id?: string; fullName?: string };

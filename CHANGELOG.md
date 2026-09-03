@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.2] - 2026-09-03
+
+### Added
+
+- Record-type audits now return partial results with warnings when metadata cannot be read
+
 ## [0.6.1] - 2026-09-01
 
 ### Fixed

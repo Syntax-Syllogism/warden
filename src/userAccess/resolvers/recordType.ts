@@ -2,6 +2,7 @@ import type { Connection } from '@salesforce/core';
 import { resolveAssignees, resultFor, type PermissionSetParent } from '../assignees.js';
 import {
   mutingPermissionSetMetadataNamesById,
+  partialMetadataWarning,
   profileMetadataNamesById,
   readMetadataInBatches,
   recordTypeVisibilities,
@@ -196,34 +197,32 @@ export const recordTypeResolver: AccessTargetResolver = {
         names.push(source.fullName);
         metadataNamesByType.set(source.type, names);
       }
-      const profileMetadata = await readMetadataInBatches<Record<string, unknown> & { fullName: string }>(
-        conn,
-        'Profile',
-        [...new Set(metadataNamesByType.get('Profile') ?? [])]
-      );
-      const permissionSetMetadata = await readMetadataInBatches<Record<string, unknown> & { fullName: string }>(
-        conn,
-        'PermissionSet',
-        [...new Set(metadataNamesByType.get('PermissionSet') ?? [])]
-      );
+      const { metadata: profileMetadata, missing: missingProfileNames } = await readMetadataInBatches<
+        Record<string, unknown> & { fullName: string }
+      >(conn, 'Profile', [...new Set(metadataNamesByType.get('Profile') ?? [])]);
+      const { metadata: permissionSetMetadata, missing: missingPermissionSetNames } = await readMetadataInBatches<
+        Record<string, unknown> & { fullName: string }
+      >(conn, 'PermissionSet', [...new Set(metadataNamesByType.get('PermissionSet') ?? [])]);
       const mutingNames = [...new Set(sources.mutingMetadataNameByPsgId.values())];
-      const mutingMetadata = await readMetadataInBatches<Record<string, unknown> & { fullName: string }>(
-        conn,
-        'MutingPermissionSet',
-        mutingNames
-      );
+      const { metadata: mutingMetadata, missing: missingMutingNames } = await readMetadataInBatches<
+        Record<string, unknown> & { fullName: string }
+      >(conn, 'MutingPermissionSet', mutingNames);
       const mutedPsgIds = new Set<string>();
       for (const [psgId, fullName] of sources.mutingMetadataNameByPsgId) {
         const metadata = mutingMetadata.get(fullName);
-        if (!metadata)
-          throw metadataFailure('MutingPermissionSet', fullName, new Error('Metadata result was missing.'));
+        // Muting metadata the running user cannot read is reported as a partial
+        // result below rather than aborting; leaving the PSG unmuted may
+        // over-report access, which the warning calls out.
+        if (!metadata) continue;
         const entry = findVisibility(metadata, 'MutingPermissionSet', target.targetName);
         if (entry?.visible === true) mutedPsgIds.add(psgId);
       }
       const grantByPermissionSetId = new Map<string, RecordTypeAccess>();
       for (const [permissionSetId, source] of sources.metadataNameByPermissionSetId) {
         const metadata = (source.type === 'Profile' ? profileMetadata : permissionSetMetadata).get(source.fullName);
-        if (!metadata) throw metadataFailure(source.type, source.fullName, new Error('Metadata result was missing.'));
+        // Sources the running user cannot read are omitted from the audit and
+        // reported as a partial result below rather than aborting.
+        if (!metadata) continue;
         const entry = findVisibility(metadata, source.type, target.targetName);
         if (entry?.visible === true) grantByPermissionSetId.set(permissionSetId, grantFor(entry, source.type));
       }
@@ -235,7 +234,10 @@ export const recordTypeResolver: AccessTargetResolver = {
         sources.permissionSetById,
         (grant, context) => (context.psgId && mutedPsgIds.has(context.psgId) ? undefined : grant)
       );
-      return resultFor('record-type', target.targetName, rows, [], { sobjectType: target.sobjectType });
+      const warnings: string[] = [];
+      const missingNames = [...missingProfileNames, ...missingPermissionSetNames, ...missingMutingNames];
+      if (missingNames.length > 0) warnings.push(partialMetadataWarning(missingNames));
+      return resultFor('record-type', target.targetName, rows, warnings, { sobjectType: target.sobjectType });
     } catch (error) {
       if (error instanceof UserAccessError) throw error;
       throw new UserAccessError('errorAccessQueryFailed', [target.type, target.targetName], error);

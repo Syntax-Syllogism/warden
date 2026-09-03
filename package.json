@@ -1,7 +1,7 @@
 {
   "name": "@syntax-syllogism/warden",
   "description": "a sf cli plugin for user lifecycle administration",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",

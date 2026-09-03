@@ -1,6 +1,7 @@
 import type { Connection } from '@salesforce/core';
 import {
   mutingPermissionSetMetadataNamesById,
+  partialMetadataWarning,
   profileMetadataNamesById,
   readMetadataInBatches,
   recordTypeVisibilities,
@@ -362,6 +363,7 @@ const resolveReverse = async (
   }
 
   const rows: UserAccessRow[] = [];
+  const warnings: string[] = [];
   if (target.type === 'record-type') {
     const missingNames = context.permissionSetIds.filter((id) => !context.metadataNameByPermissionSetId.has(id));
     if (missingNames.length > 0) {
@@ -385,22 +387,36 @@ const resolveReverse = async (
           .map((source) => source.fullName)
       ),
     ];
-    const profiles = await readMetadataInBatches<MetadataRecord>(conn, 'Profile', profileNames);
-    const permissionSets = await readMetadataInBatches<MetadataRecord>(conn, 'PermissionSet', permissionSetNames);
+    const { metadata: profiles, missing: missingProfileNames } = await readMetadataInBatches<MetadataRecord>(
+      conn,
+      'Profile',
+      profileNames
+    );
+    const { metadata: permissionSets, missing: missingPermissionSetNames } = await readMetadataInBatches<MetadataRecord>(
+      conn,
+      'PermissionSet',
+      permissionSetNames
+    );
     const mutingNames = [...new Set(context.mutingMetadataNameByPsgId.values())];
-    const mutingPermissionSets = await readMetadataInBatches<MetadataRecord>(conn, 'MutingPermissionSet', mutingNames);
+    const { metadata: mutingPermissionSets, missing: missingMutingNames } = await readMetadataInBatches<MetadataRecord>(
+      conn,
+      'MutingPermissionSet',
+      mutingNames
+    );
+    const missingMetadataNames = [...missingProfileNames, ...missingPermissionSetNames, ...missingMutingNames];
+    if (missingMetadataNames.length > 0) warnings.push(partialMetadataWarning(missingMetadataNames));
     const mutedPsgIds = new Set<string>();
     for (const [psgId, fullName] of context.mutingMetadataNameByPsgId) {
       const metadata = mutingPermissionSets.get(fullName);
-      if (!metadata)
-        throw recordTypeMetadataFailure('MutingPermissionSet', fullName, new Error('Metadata result was missing.'));
+      // Metadata the running user cannot read is reported as a partial result
+      // (warning above) rather than aborting the audit.
+      if (!metadata) continue;
       const entry = recordTypeEntry(metadata, 'MutingPermissionSet', target.targetName);
       if (entry?.visible === true) mutedPsgIds.add(psgId);
     }
     for (const [permissionSetId, source] of context.metadataNameByPermissionSetId) {
       const metadata = (source.type === 'Profile' ? profiles : permissionSets).get(source.fullName);
-      if (!metadata)
-        throw recordTypeMetadataFailure(source.type, source.fullName, new Error('Metadata result was missing.'));
+      if (!metadata) continue;
       const entry = recordTypeEntry(metadata, source.type, target.targetName);
       if (!entry?.visible) continue;
       if (source.type === 'Profile' && typeof entry.default !== 'boolean') {
@@ -567,20 +583,15 @@ const resolveReverse = async (
       }
     }
   }
-  return resultFor(
-    target.type,
-    target.targetName,
-    rows,
-    target.type === 'tab'
-      ? [
-          'Profile-level tab visibility is not included because it is not exposed as a clean PermissionSetTabSetting data-API grant.',
-        ]
-      : [],
-    {
-      sobjectType: target.sobjectType,
-      fieldApiName: target.fieldApiName,
-    }
-  );
+  if (target.type === 'tab') {
+    warnings.push(
+      'Profile-level tab visibility is not included because it is not exposed as a clean PermissionSetTabSetting data-API grant.'
+    );
+  }
+  return resultFor(target.type, target.targetName, rows, warnings, {
+    sobjectType: target.sobjectType,
+    fieldApiName: target.fieldApiName,
+  });
 };
 
 export const resolveReverseAccess = async (

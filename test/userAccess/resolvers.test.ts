@@ -857,6 +857,77 @@ describe('userAccess resolvers', () => {
     expect(result.rows[2].viaPermissionSetId).to.equal('0PSDirect');
   });
 
+  it('returns a partial result with a warning when metadata reads omit sources', async () => {
+    const conn = createConn((soql) => {
+      if (soql.includes('FROM User')) return { done: true, records: [{ ProfileId: '00eProfile' }] };
+      if (soql.includes('FROM Profile')) return { done: true, records: [{ Id: '00eProfile', Name: 'Sales' }] };
+      if (soql.includes('FROM PermissionSet ') && soql.includes('IsOwnedByProfile = true')) {
+        return {
+          done: true,
+          records: [
+            { Id: '0PSProfile', Name: 'Sales', IsOwnedByProfile: true, ProfileId: '00eProfile', Type: 'Regular' },
+          ],
+        };
+      }
+      if (soql.includes('FROM PermissionSet ') && soql.includes('Id IN')) {
+        return {
+          done: true,
+          records: [{ Id: '0PSDirect', Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' }],
+        };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          done: true,
+          records: [
+            {
+              Id: '0PAProfile',
+              AssigneeId: '005Profile',
+              Assignee: { Name: 'Profile User', Username: 'profile@example.com', IsActive: true },
+              PermissionSetId: '0PSProfile',
+              PermissionSet: {
+                Name: 'Sales',
+                IsOwnedByProfile: true,
+                ProfileId: '00eProfile',
+                Profile: { Name: 'Sales' },
+                Type: 'Regular',
+              },
+            },
+            {
+              Id: '0PADirect',
+              AssigneeId: '005Direct',
+              Assignee: { Name: 'Direct User', Username: 'direct@example.com', IsActive: true },
+              PermissionSetId: '0PSDirect',
+              PermissionSet: { Name: 'Business_Access', IsOwnedByProfile: false, Type: 'Regular' },
+            },
+          ],
+        };
+      }
+      return { done: true, records: [] };
+    });
+    (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
+      list: sinon.stub().resolves([{ id: '00eProfile', fullName: 'Sales' }]),
+      // The running user can read the profile but the permission set metadata is
+      // silently omitted (large-org, insufficient perms).
+      read: sinon.stub().callsFake(async (type: string) =>
+        type === 'Profile'
+          ? { fullName: 'Sales', recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }] }
+          : []
+      ),
+    };
+    const result = await recordTypeResolver.resolve(conn, {
+      type: 'record-type',
+      targetName: 'Account.Business_Account',
+      sobjectType: 'Account',
+      recordTypeId: '0121',
+    });
+    // The readable Profile source still resolves; the unreadable PermissionSet is omitted.
+    expect(result.rows.map((row) => row.assignmentType)).to.deep.equal(['Profile']);
+    expect(result.warnings).to.have.length(1);
+    expect(result.warnings[0]).to.include('Partial response');
+    expect(result.warnings[0]).to.include('Business_Access');
+    expect(result.warnings[0]).to.include('Modify All Data');
+  });
+
   it('reads standard-profile metadata by API name and skips profiles absent from the listing', async () => {
     const conn = createConn((soql) => {
       // One standard profile whose metadata name differs from its label, plus a
