@@ -16,6 +16,10 @@ Path to a user definition JSON or CSV file.
 
 Optional path to persona definition JSON file. Omit it for profile-only provisioning.
 
+# flags.persona-source.summary
+
+Persona definition source: file or org. Defaults to file when --personas-def is supplied, otherwise org when the Warden package is detected.
+
 # flags.related-def.summary
 
 Optional path to a related-record definition JSON file. Declares named relationships a user entry selects with a `related` array. Only `phase: "after"` relationships are supported; requires a JSON `--users-def`.
@@ -35,6 +39,14 @@ Skip warning confirmation prompts.
 # flags.fail-on-insufficient-license.summary
 
 Fail after dry-run output when projected net-new users exceed user-license headroom.
+
+# flags.log-to-org.summary
+
+Write connected Warden ledger and optional reconciliation audit records when the package is installed.
+
+# flags.log-detail.summary
+
+Connected audit detail level: summary writes the Run header; full also writes one Item per provision output row.
 
 # errorInvalidJson
 

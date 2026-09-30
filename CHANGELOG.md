@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0] - 2026-09-30
+
+### Added
+
+- Org persona promotion for managing personas across organizations
+- Connected org audit writes for tracking changes to connected organizations
+
+### Fixed
+
+- Persona diff now treats omitted lists as empty
+- Persona promotion batches operations and sets parent names correctly
+- Persona source validation improvements
+- Connected org writes now preserve data fidelity
+- Connected org write validation enhancements
+- Empty metadata placeholders now treated as partial rather than malformed
+
 ## [0.6.2] - 2026-09-03
 
 ### Added

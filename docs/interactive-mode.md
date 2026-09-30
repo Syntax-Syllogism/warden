@@ -5,100 +5,67 @@ description: Use Warden's guided flag prompts to collect, review, and confirm co
 
 # Interactive mode
 
-All eight `sf warden` commands support `-i`/`--interactive`:
-`access`, `diff`, `freeze`, `provision`, `restore`, `snapshot`, `strip`, and
-`unfreeze`.
+All eight `sf warden` commands accept `-i`/`--interactive`: `access`, `diff`, `freeze`, `provision`, `restore`, `snapshot`, `strip`, and `unfreeze`.
 
-Interactive mode is a guided way to supply command flags. Values already
-provided on the command line are retained. Missing values are collected with
-text, select, confirm, or checkbox prompts as appropriate. After collection,
-Warden prints the resolved values and asks `Proceed with these values?` once.
-The command runs only after confirmation. A decline prints `Operation
-cancelled.`, returns an empty result, and performs no DML or snapshot `--out`
-file write.
+Interactive mode asks for the flags you didn't pass. Anything already on the command line is kept. Warden uses text, select, confirm, or checkbox prompts as fits each flag. When it has everything, it prints the resolved values and asks `Proceed with these values?` once. If you decline, it prints `Operation cancelled.`, returns an empty result, and makes no changes and writes no snapshot `--out` file.
 
-The confirmed values then use the same target resolution, planning, execution,
-and output paths as a flag-only invocation. Interactive mode does not change
-user matching, definition-file validation, access resolution, or output
-schemas.
+After you confirm, the command runs exactly as it would with flags only. Interactive mode doesn't change user matching, definition-file validation, access resolution, or output schemas.
 
-## Terminal requirements
+## Requirements
 
-Interactive mode requires a TTY on standard input. It cannot be combined with
-the Salesforce CLI global `--json` flag, because that mode is intended for
-machine-readable, unattended execution. Warden fails before prompting when
-either condition is not met.
+* Standard input must be a TTY.
+* You can't combine `-i` with the global `--json` flag, which is meant for unattended runs.
 
-Warden's `--output json` is a separate output-format flag. It can be selected
-interactively when its output-file requirements are satisfied; see the
-[output contract](output-contract.md) for the distinction between the two
-`json` options.
+Warden checks both before it prompts. `--output json` is a different flag and works with `-i` as long as its output-file requirements are met. See the [output contract](output-contract.md) for the difference.
 
-If a default org resolves during parsing, interactive mode uses it and shows
-the resolved org in the summary. If no org resolves, it asks for an org alias
-or username and resolves that value with the normal Salesforce authentication
-rules. To select a different org when a default exists, pass
-`--target-org` explicitly.
+If a default org resolves, interactive mode uses it and shows it in the summary. Otherwise it asks for an org alias or username. To use a different org than the default, pass `--target-org`.
 
-## Guided flows
+## What each command asks
 
-The prompts are conditional, so a command does not ask for flags that are
-irrelevant to the selected mode.
+Prompts depend on your earlier answers, so you're never asked about flags that don't apply.
 
-| Command | Guided choices and values |
+| Command | What it asks |
 | --- | --- |
-| `access` | Select a direct target audit or reverse user audit. Reverse mode then selects a target or SObject scope; `--sobject` is offered only for field and object audits, and a supplied `--sobject` likewise narrows the access-type choices to those two, and a supplied type that `--sobject` cannot use is rejected before any prompt. The access type and relevant target/user values follow. |
-| `diff` | Select a two-user comparison or a users-definition/persona comparison. The selected branch controls whether Warden asks for `--against` or definition-file, matching, format, verify, and drift options. The users-definition extension determines JSON or CSV input when possible; otherwise Warden asks for the format. Supplied flags determine the branch; contradictory branch flags fail before confirmation. |
-| `freeze`, `unfreeze` | Select one user (`field:value`) or a users-definition file, then collect the applicable matching options and `--dry-run`. The users-definition extension determines JSON or CSV input when possible; otherwise Warden asks for the format. |
-| `provision` | Collect the users-definition file, optional persona file, matching and format options, and, when JSON input is selected, an optional related-record catalog. The users-definition extension determines JSON or CSV input when possible; otherwise Warden asks for the format. Then collect fuzzy-Username, dry-run, and insufficient-license choices. |
-| `restore` | Collect the existing snapshot path and `--dry-run`. |
-| `snapshot` | Select one user or a users-definition file, collect applicable matching options, and offer a timestamped JSON path as the default for `--out`. The users-definition extension determines JSON or CSV input when possible; otherwise Warden asks for the format. |
-| `strip` | Select one user or a users-definition file, use one checkbox for the freeze/deactivate/access categories to skip, then collect an optional snapshot path and `--dry-run`. The users-definition extension determines JSON or CSV input when possible; otherwise Warden asks for the format. Supplied skip flags remain selected and are not changed by the checkbox. |
+| `access` | A target audit or a user audit. A user audit then asks for a target or an SObject scope. `--sobject` is offered only for field and object audits. If you pass `--sobject`, only those two types are offered, and any other `--type` is rejected before the first prompt. Then the access type and the target or user. |
+| `diff` | A two-user comparison or a users-definition/persona comparison. The branch decides whether Warden asks for `--against` or for definition-file, matching, format, verify, and drift options. Flags you pass pick the branch, and contradictory flags fail before the summary. |
+| `freeze`, `unfreeze` | One user (`field:value`) or a users-definition file, then the matching options and `--dry-run`. |
+| `provision` | The users-definition file, an optional persona file, matching and format options, an optional related-record catalog (JSON input only), then fuzzy-Username, dry-run, and insufficient-license choices. |
+| `restore` | The path to an existing snapshot, and `--dry-run`. |
+| `snapshot` | One user or a users-definition file, the matching options, and `--out`, with a timestamped JSON path as the default. |
+| `strip` | One user or a users-definition file, one checkbox for the freeze, deactivate, and access steps to skip, then an optional snapshot path and `--dry-run`. Skip flags you pass stay selected. |
 
-When a prompted path must already exist, Warden validates it before displaying
-the summary. `--output` and `--api-version` are also included in the
-interactive collection when they were not explicitly supplied, even though
-the output format has a static human default; a resolved `--api-version`
-default is offered as the prompt default, and a prompted value is validated by
-the same parser the flag uses. `--csv-list-delimiter` is collected only when
-the resolved users-definition input is CSV; otherwise it remains at its `;`
-default. Optional text answers can be left blank where the corresponding flag
-is optional.
+Wherever a users-definition file is asked for, Warden picks JSON or CSV from the file extension when it can, and asks otherwise.
 
-Interactive mode is stricter than the flag-only path in one place. `diff -i`
-rejects `--user`/`--against` combined with a persona-mode flag such as
-`--input-format` or `--csv-list-delimiter`, which a flag-only run silently
-ignores, because the branch has to be settled before Warden can decide what to
-prompt for.
+Other details:
 
-## Confirmation and mutating commands
+* Paths that must already exist are checked before the summary.
+* `--output` and `--api-version` are also prompted for when you didn't pass them. A resolved `--api-version` default is offered, and what you type is checked by the same parser as the flag.
+* `--csv-list-delimiter` is asked only for CSV users-definition input. Otherwise it stays `;`.
+* Optional text answers can be left blank.
 
-The summary confirmation is the single operation gate for an interactive run.
-For `freeze`, `unfreeze`, `restore`, `strip`, and `provision`, it replaces the
-normal flag-only confirmation that is controlled by `--no-prompt`; interactive
-mode does not add a second write confirmation or warning acknowledgement.
-`--dry-run` still prevents writes after confirmation.
+`diff -i` is stricter than a plain `diff` in one case. It rejects `--user` or `--against` combined with a persona-mode flag such as `--input-format` or `--csv-list-delimiter`. A plain run silently ignores those flags, but interactive mode has to settle the branch before it can decide what to ask.
 
-Without `-i`, the existing flag-only behavior and validation remain in force.
-Use `--no-prompt` or the global `--json` mode for unattended flag-only runs as
-described in the [output contract](output-contract.md).
+## Confirmation
+
+The summary confirmation is the only gate for an interactive run. For `freeze`, `unfreeze`, `restore`, `strip`, and `provision`, it replaces the normal confirmation that `--no-prompt` controls. You won't get a second prompt. `--dry-run` still stops writes after you confirm.
+
+Without `-i`, nothing changes. For unattended runs, use `--no-prompt` or the global `--json` flag, as described in the [output contract](output-contract.md).
 
 ## Examples
 
-Start a fully guided provisioning run:
+A fully guided provisioning run:
 
 ```bash
 sf warden provision -i
 ```
 
-Guide an access audit while pinning the org and audit type:
+A guided access audit with the org and type already set:
 
 ```bash
 sf warden access -i --target-org myOrg --type field
 ```
 
-Use guided input for a destructive workflow, but require a dry-run answer
-before the final summary confirmation:
+A guided strip that also asks for a dry run before the final confirmation:
 
 ```bash
 sf warden strip -i --target-org myOrg --dry-run

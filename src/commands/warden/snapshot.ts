@@ -1,18 +1,18 @@
 import { Messages } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { loadAssignmentState } from '../../userLifecycle/assignmentState.js';
+import { loadAssignmentState } from '@syntax-syllogism/warden-core';
 import {
   makeNotice,
   failedResult,
   renderLifecycleResult,
   resolvedTargetResult,
   summarizeLifecycle,
-} from '../../userLifecycle/output.js';
-import { buildSnapshotFile, writeSnapshotFile } from '../../userLifecycle/snapshotState.js';
-import { buildTargetRequests, resolveTargets } from '../../userLifecycle/targeting.js';
-import type { LifecycleResult, LifecycleUserResult } from '../../userLifecycle/types.js';
-import { renderSnapshotCsv } from '../../userShared/output.js';
-import { describeUserFields } from '../../userShared/userFields.js';
+} from '@syntax-syllogism/warden-core';
+import { buildSnapshotFile, writeSnapshotFile } from '@syntax-syllogism/warden-core';
+import { buildTargetRequests, resolveTargets } from '@syntax-syllogism/warden-core';
+import type { LifecycleResult, LifecycleUserResult } from '@syntax-syllogism/warden-core';
+import { renderSnapshotCsv } from '@syntax-syllogism/warden-core';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,

@@ -1,26 +1,22 @@
 # Contributing to warden
 
-Thank you for your interest in contributing to warden! This is an open-source
-Salesforce CLI plugin, and we welcome all kinds of contributions.
+Thanks for helping out. warden is an open-source Salesforce CLI plugin, and we welcome all kinds of contributions.
 
-## How to Contribute
+## Ways to contribute
 
-1. **Report bugs:** If you find a bug, please open an issue with a clear
-   description and steps to reproduce.
-2. **Suggest features:** Open an issue to discuss the proposal before starting
-   implementation.
-3. **Submit pull requests:**
-   - Fork the repository.
-   - Create a topic branch for your change.
-   - Write clear, documented code and tests.
+1. **Report a bug.** Open an issue with a clear description and steps to reproduce it.
+2. **Suggest a feature.** Open an issue to discuss it before you start building.
+3. **Send a pull request.**
+   - Fork the repository and create a topic branch.
+   - Write clear code and tests.
    - Run `yarn build`, `yarn test`, and `yarn lint:md`.
-   - Open a pull request with a description of the change and verification.
+   - If you changed command help, run `yarn docs:cli-reference` to regenerate `docs/cli-reference.md`.
+   - Open a pull request that describes the change and how you verified it.
 
-## Development Setup
+## Development setup
 
-See the [Getting started](docs/getting-started.md) guide for project setup and
-the [README](README.md) for the generated CLI reference.
+See [Getting started](docs/getting-started.md) for setup. The [README](README.md) has the generated CLI reference.
 
 ## Code of Conduct
 
-Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+This project follows a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By taking part, you agree to it.

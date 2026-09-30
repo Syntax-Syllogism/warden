@@ -25,9 +25,15 @@ jobs:
         with:
           node-version: 22
           cache: yarn
+          # @syntax-syllogism/docs-theme is only on GitHub Packages, and the
+          # per-repo GITHUB_TOKEN cannot read packages from another repo.
+          registry-url: https://npm.pkg.github.com
+          scope: '@syntax-syllogism'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
       - name: Build
         run: yarn build

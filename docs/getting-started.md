@@ -5,9 +5,7 @@ description: Install Warden and run your first Salesforce user lifecycle workflo
 
 # Getting started with warden
 
-`warden` is a Salesforce CLI plugin for user lifecycle administration: access
-auditing, drift diffing, provisioning, freeze/unfreeze, and snapshot/restore.
-This guide gets you from zero to your first provisioning run.
+`warden` is a Salesforce CLI plugin for managing users over their lifetime: auditing access, finding drift, provisioning, promoting personas, freezing and unfreezing, and snapshotting and restoring. This guide takes you from install to your first provisioning run.
 
 ## Install
 
@@ -15,7 +13,7 @@ This guide gets you from zero to your first provisioning run.
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -25,36 +23,20 @@ yarn build
 node ./bin/dev.js warden --help
 ```
 
-## Concepts
+## How the commands fit together
 
-warden's commands fall into three groups:
+Warden's commands fall into four groups.
 
-* **Read-only audits** — [`access`](access-audits.md) and
-  [`diff`](command-details.md#warden-diff) never write to the org. Use these
-  to answer "who can see X" or "what's different between this user and their
-  intended state" before you touch anything.
-* **State-changing lifecycle actions** — `provision`, `freeze`, `unfreeze`,
-  `strip`, and `restore` perform DML. Every one of them supports `--dry-run`
-  to preview planned changes first, and `--no-prompt` to skip the confirmation
-  prompt once you trust the plan (e.g. in CI).
-  All eight commands also support `-i`/`--interactive` for guided flag
-  collection and a resolved-values confirmation; see
-  [Interactive mode](interactive-mode.md).
-* **Portable state** — `snapshot` captures a user's active/frozen state and
-  assignments to a JSON or CSV file; the output extension selects the format
-  and `restore` accepts either one. Snapshots use developer/API names when
-  available, with Ids as a fallback, so they're portable across orgs where the
-  referenced names exist.
+* **Read-only audits.** [`access`](access-audits.md), [`diff`](command-details.md#warden-diff), and `persona diff` never write to the org. Use them to answer "who can see this?", "how does this user differ from what they should have?", and "what differs from the org's personas?" before you change anything.
+* **Lifecycle actions that change data.** `provision`, `freeze`, `unfreeze`, `strip`, and `restore` write to the org. Each supports `--dry-run` to preview the changes, and `--no-prompt` to skip the confirmation once you trust the plan (in CI, for example). All eight core commands also support `-i`/`--interactive`; see [Interactive mode](interactive-mode.md).
+* **Portable state.** `snapshot` saves a user's active/frozen state and assignments to a JSON or CSV file. The file extension picks the format, and `restore` reads either. Snapshots use developer/API names where they exist and fall back to Ids, so they work across orgs that share those names.
+* **Persona promotion.** `persona export` and `persona diff` read the org's personas; `persona import` writes them. See [Persona promotion](persona-promotion.md).
 
 ## Your first provisioning run
 
-1. Write a persona definition file describing reusable access bundles. See
-   the [persona example](command-details.md#example-personasjson) for a full
-   example.
-2. Write a user definition file listing the people to provision, each
-   referencing one or more personas by name. See the [user definition
-   example](command-details.md#example-usersjson).
-3. Preview the plan without writing anything:
+1. Write a persona file that describes your reusable access bundles. See the [persona example](command-details.md#example-personasjson).
+2. Write a user file that lists the people to provision. Each user names one or more personas. See the [user example](command-details.md#example-usersjson).
+3. Preview the plan. Nothing is written:
 
    ```bash
    sf warden provision --target-org myOrg \
@@ -62,7 +44,7 @@ warden's commands fall into three groups:
      --external-id FederationIdentifier --dry-run
    ```
 
-4. Once the plan looks right, apply it:
+4. When the plan looks right, apply it:
 
    ```bash
    sf warden provision --target-org myOrg \
@@ -70,34 +52,36 @@ warden's commands fall into three groups:
      --external-id FederationIdentifier --no-prompt
    ```
 
-For a guided run that asks for the definition files and remaining options,
-use `sf warden provision -i`. Interactive mode is terminal-only and its
-single summary confirmation replaces the normal write confirmation for that
-run.
+Prefer a guided run? `sf warden provision -i` asks for the files and remaining options. Its single summary confirmation replaces the usual write confirmation, and it only works in a terminal.
 
-For the full merge/precedence rules behind `provision` (multiple personas per
-user, assignment modes, Username/Alias defaults), see
-[Provisioning logic](command-details.md#provisioning-logic) in the command
-details doc.
+For the rules behind `provision` (several personas per user, assignment modes, Username and Alias defaults), see [Provisioning logic](command-details.md#provisioning-logic).
 
-## Auditing before you change anything
+## Promote personas through an org
 
-Before provisioning or stripping access, it's often useful to see current
-state:
+If the Warden package is installed, you can store personas in the org and use them when provisioning. Export them, check for drift, and import your changes when you're ready:
+
+```bash
+sf warden persona export --target-org myOrg --output personas.json
+sf warden persona diff --target-org myOrg --input personas.json
+sf warden persona import --target-org myOrg --input personas.json
+```
+
+Add `--prune` to `persona import` to remove components that exist in the org but aren't listed for the personas in your file. Import never deletes or deactivates a persona that is missing from the file. See [Persona promotion](persona-promotion.md) for how the source is chosen.
+
+## Audit before you change anything
 
 ```bash
 # Who can see this custom field today?
 sf warden access --target-org myOrg --type field --target Account.CustomField__c
 
-# How does each defined user's actual access compare to their personas?
+# How does each user's actual access compare to their personas?
 sf warden diff --target-org myOrg \
   --users-def ./users.json --personas-def ./personas.json
 ```
 
-Both commands are read-only and perform no writes to the org.
+Neither command writes to the org.
 
-To audit record-type visibility, use an active non-master record type's
-qualified API name. The forward and reverse forms are:
+To audit record-type visibility, use the qualified API name of an active, non-master record type:
 
 ```bash
 sf warden access --target-org myOrg --type record-type \
@@ -106,36 +90,25 @@ sf warden access --target-org myOrg --user 'Username:alice@example.com' \
   --type record-type --target Account.Business_Account
 ```
 
-Record-type access uses Metadata API reads for connected Profiles and Permission
-Sets, so it may be slower than data-API audits and fails without partial output
-if required metadata cannot be read. Reverse record-type audits require
-`--target`; `--sobject` is not available for this target.
+Record-type audits read Profile and Permission Set metadata through the Metadata API, so they can be slower than other audits. If any required metadata can't be read, the audit fails and returns no partial output. Reverse record-type audits need `--target`; `--sobject` isn't supported.
 
 ## Snapshot before a destructive change
 
-`strip` and `freeze` are DML operations. Capture a restorable snapshot first:
+`strip` and `freeze` change data. Save a snapshot first so you can restore it:
 
 ```bash
 sf warden strip --target-org myOrg --user 'Username:user@example.com' \
   --snapshot ./pre-strip.json --dry-run
 ```
 
-`--snapshot` writes the file even during `--dry-run`, so you can inspect the
-snapshot before deciding whether to run the real strip.
+`--snapshot` writes the file even with `--dry-run`, so you can inspect it before running the real strip.
 
 ## Next steps
 
-* [Command details](command-details.md) — provisioning merge logic, field
-  precedence tables, match resolution, and assignment modes.
-* [Access audits](access-audits.md) — target and reverse-user access scopes,
-  attribution, muting, and output behavior.
-* [Output contract](output-contract.md) — output formats, file destinations,
-  CSV shape, and global `--json` behavior.
-* [Lifecycle output and snapshots](lifecycle-output.md) — resolved user
-  identity, assignment labels, snapshots, and action reporting.
-* [Interactive mode](interactive-mode.md) — guided flag collection and
-  confirmation behavior for all eight commands.
-* [Example definitions](command-details.md#example-usersjson) — full
-  `users.json` and `personas.json` samples are included in command details.
-* Full CLI reference: see the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/README.md#commands) section of
-  the README, or run any command with `--help`.
+* [Command details](command-details.md): merge logic, precedence tables, and assignment modes.
+* [Connected org writes](connected-org-writes.md): the optional ledger and run log.
+* [Access audits](access-audits.md): scopes, attribution, muting, and output.
+* [Output contract](output-contract.md): formats, destinations, CSV shape, and `--json`.
+* [Lifecycle output and snapshots](lifecycle-output.md): identities, labels, snapshots, and action reports.
+* [Interactive mode](interactive-mode.md): guided prompts for all eight commands.
+* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/README.md#commands) section of the README, or `--help` on any command.

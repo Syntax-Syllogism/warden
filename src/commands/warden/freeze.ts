@@ -1,10 +1,10 @@
 import { Messages } from '@salesforce/core';
-import { renderLifecycleResult } from '../../userLifecycle/output.js';
-import { buildTargetRequests } from '../../userLifecycle/targeting.js';
-import { executeFreezeToggle, FREEZE } from '../../userLifecycle/freezeState.js';
-import type { LifecycleResult } from '../../userLifecycle/types.js';
-import { renderLifecycleCsv } from '../../userShared/output.js';
-import { describeUserFields } from '../../userShared/userFields.js';
+import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
+import { buildTargetRequests } from '@syntax-syllogism/warden-core';
+import { executeFreezeToggle, FREEZE } from '@syntax-syllogism/warden-core';
+import type { LifecycleResult } from '@syntax-syllogism/warden-core';
+import { renderLifecycleCsv } from '@syntax-syllogism/warden-core';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,

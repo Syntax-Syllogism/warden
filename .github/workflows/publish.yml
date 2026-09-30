@@ -33,6 +33,14 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: yarn
 
+      # The project .npmrc maps @syntax-syllogism to GitHub Packages for the
+      # docs-theme devDependency. Add read auth for it to the user config that
+      # setup-node created, leaving the npmjs publish auth untouched.
+      - name: Authenticate to GitHub Packages
+        run: echo "//npm.pkg.github.com/:_authToken=${PACKAGES_READ_TOKEN}" >> "$NPM_CONFIG_USERCONFIG"
+        env:
+          PACKAGES_READ_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
@@ -53,5 +61,7 @@ jobs:
       - name: Verify tarball contents
         run: node scripts/verify-pack.mjs
 
+      # The registry is pinned because the project .npmrc scope mapping would
+      # otherwise send this package to GitHub Packages.
       - name: Publish to npm
-        run: npm publish *.tgz --access public --provenance
+        run: npm publish *.tgz --access public --provenance --@syntax-syllogism:registry=https://registry.npmjs.org

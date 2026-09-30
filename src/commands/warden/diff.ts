@@ -1,15 +1,15 @@
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { detectInputFormat } from '../../userShared/csv.js';
-import { readProvisionDefinitions } from '../../userProvisioning/definitionReader.js';
-import { executePersonaDiff, executeUserToUserDiff, type UserDiffResult } from '../../userLifecycle/userDiff.js';
-import { renderUserDiffCsv, renderUserDiffHuman } from '../../userLifecycle/diffOutput.js';
+import { detectInputFormat } from '@syntax-syllogism/warden-core';
+import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
+import { executePersonaDiff, executeUserToUserDiff, type UserDiffResult } from '@syntax-syllogism/warden-core';
+import { renderUserDiffCsv, renderUserDiffHuman } from '@syntax-syllogism/warden-core';
 import {
   renderUserConformanceCsv,
   renderUserConformanceHuman,
   verifyUserDiff,
   type UserConformanceVerdict,
-} from '../../userLifecycle/conformance.js';
+} from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -42,7 +42,11 @@ import {
   promptOutputFormat,
   promptText,
 } from '../../userShared/prompting.js';
-import { WardenCommand } from '../../wardenCommand.js';
+import {
+  rethrowLegacyPersonaDefinitionError,
+  rethrowLegacyUserValueError,
+  WardenCommand,
+} from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.diff');
@@ -108,12 +112,20 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
     flags: UserDiffFlags & { 'users-def': string; 'personas-def'?: string }
   ): Promise<UserDiffResult> {
     const inputFormat = detectInputFormat(flags['users-def'], flags['input-format']);
-    const definitions =
-      inputFormat === 'json'
-        ? await readProvisionDefinitions(flags['users-def'], flags['personas-def'], {}, (path, error) =>
-            messages.getMessage('errorInvalidJson', [path, error])
-          )
-        : undefined;
+    let definitions: Awaited<ReturnType<typeof readProvisionDefinitions>> | undefined;
+    if (inputFormat === 'json') {
+      try {
+        definitions = await readProvisionDefinitions(flags['users-def'], flags['personas-def'], {}, (path, error) =>
+          messages.getMessage('errorInvalidJson', [path, error])
+        );
+      } catch (error) {
+        rethrowLegacyPersonaDefinitionError(
+          error,
+          flags['personas-def'],
+          messages.getMessage('errorInvalidPersonaDefinition')
+        );
+      }
+    }
     return executePersonaDiff({
       connection: conn,
       usersDoc: definitions?.usersDoc,
@@ -272,7 +284,7 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
             connection: conn,
             user: flags.user,
             against: flags.against as string,
-          })
+          }).catch(rethrowLegacyUserValueError)
         : await UserDiff.runPersonaMode(
             conn,
             flags as UserDiffFlags & { 'users-def': string; 'personas-def'?: string }

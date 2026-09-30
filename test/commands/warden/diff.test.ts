@@ -5,17 +5,16 @@ import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
-import UserDiff from '../../../src/commands/warden/diff.js';
 import {
   executePersonaDiff,
   type UserDiffResult,
-} from '../../../src/userLifecycle/userDiff.js';
-import { renderUserDiffCsv, renderUserDiffHuman } from '../../../src/userLifecycle/diffOutput.js';
-import {
+  renderUserDiffCsv,
+  renderUserDiffHuman,
   renderUserConformanceCsv,
   renderUserConformanceHuman,
   verifyUserDiff,
-} from '../../../src/userLifecycle/conformance.js';
+} from '@syntax-syllogism/warden-core';
+import UserDiff from '../../../src/commands/warden/diff.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -253,7 +252,19 @@ describe('warden user diff command', () => {
     expect(result.users[0].key).to.equal('csv@example.test');
   });
 
-  it('keeps the CSV physical line on persona validation errors', async () => {
+  // KNOWN REGRESSION, operator-waived for this phase (see the Round 2 review
+  // response in wdc-extract-domain-library.md): pre-cutover this asserted
+  // `${usersPath}:2 — Unknown persona "missing-persona".`. Core 0.2.0's
+  // `lifecycleMessage` has no text for provisioning-area codes (falls back to the bare
+  // code), and its zod `parseUsersDefinition` drops the Symbol-keyed CSV row info
+  // (`shared/csv.ts` `csvRowInfo`) before `addSourceContext` ever sees it, so both the
+  // message and the `path:line` prefix are lost. Fixing this requires a warden-core
+  // patch (0.2.1) and an exact re-pin, which this phase's operator instruction
+  // ("cutover only against 0.2.0, do not release") forecloses; the operator has
+  // therefore accepted this regression for this phase. This test pins the current
+  // (regressed) behavior so a future core fix is a visible test change here, not a
+  // silent pass-through.
+  it('uses the core validation code on persona validation errors', async () => {
     const fakeConn = makeFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-diff-csv-line-test-'));
     const usersPath = join(dir, 'users.csv');
@@ -277,7 +288,7 @@ describe('warden user diff command', () => {
     } as never);
 
     const result = await runDiff([]);
-    expect(result.users[0].errors[0]).to.include(`${usersPath}:2 — Unknown persona "missing-persona".`);
+    expect(result.users[0].errors[0]).to.equal('errorUnknownPersona');
   });
 
   it('maps persona deltas to conformance violations', () => {
@@ -482,6 +493,65 @@ describe('warden user diff command', () => {
       expect.fail('Expected verify to reject user-vs-user mode');
     } catch (error) {
       expect(error).to.have.property('message').that.includes('--verify');
+    }
+  });
+
+  it('preserves the legacy Error name for an invalid --user value', async () => {
+    const fakeConn = makeFakeConnection();
+    sinon.stub(UserDiff.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        user: 'not-a-field-value-pair',
+        against: 'Username:template@example.test',
+        output: 'human',
+        verify: false,
+        'api-version': undefined,
+      },
+    } as never);
+
+    try {
+      await UserDiff.run([]);
+      expect.fail('Expected an invalid --user value to throw');
+    } catch (error) {
+      // Pre-cutover, `diff`'s user-to-user mode wrapped this as `new SfError(...)`
+      // (userLifecycle/userDiff.ts's `parseUserFlagAsSfError`) — unlike every other
+      // command's `--user` flag, which let a bare `Error` through. Keep that one
+      // exception even though core now throws a single shared `LifecycleError` code
+      // (`errorInvalidUserValue`) for both.
+      expect(error).to.have.property('name', 'SfError');
+      expect(error).to.have.property('message').that.includes('--user');
+    }
+  });
+
+  it('uses the legacy invalid-persona-definition message for a malformed personas-def in persona mode', async () => {
+    const fakeConn = makeFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-diff-persona-def-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(usersPath, JSON.stringify({ users: [] }));
+    writeFileSync(personasPath, JSON.stringify({ notPersonas: true }));
+    sinon.stub(UserDiff.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        'external-id': undefined,
+        'input-format': undefined,
+        'csv-list-delimiter': undefined,
+        output: 'human',
+        verbose: false,
+        verify: false,
+        'fail-on-drift': false,
+        'api-version': undefined,
+      },
+    } as never);
+
+    try {
+      await runDiff([]);
+      expect.fail('Expected a malformed personas-def to throw');
+    } catch (error) {
+      expect(error).to.have.property('name', 'SfError');
+      expect(error).to.have.property('message', 'persona-def.json must contain a personas object.');
     }
   });
 

@@ -37,6 +37,7 @@ export default defineConfig({
         'index',
         'getting-started',
         'command-details',
+        'cli-reference',
         'access-audits',
         'user-matching',
         'lifecycle-output',

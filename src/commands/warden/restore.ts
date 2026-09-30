@@ -1,11 +1,11 @@
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { describeUserFields } from '../../userShared/userFields.js';
-import { loadAssignmentState, type AssignmentState } from '../../userLifecycle/assignmentState.js';
-import { runAssignmentCreates, runRecordUpdate } from '../../userLifecycle/dmlRunner.js';
-import { makeNotice, renderLifecycleResult, summarizeLifecycle } from '../../userLifecycle/output.js';
-import { readSnapshotFile, type UserSnapshotEntry } from '../../userLifecycle/snapshotState.js';
-import { resolveTargetField, resolveTargets } from '../../userLifecycle/targeting.js';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
+import { loadAssignmentState, type AssignmentState } from '@syntax-syllogism/warden-core';
+import { runAssignmentCreates, runRecordUpdate } from '@syntax-syllogism/warden-core';
+import { makeNotice, renderLifecycleResult, summarizeLifecycle } from '@syntax-syllogism/warden-core';
+import { readSnapshotFile, type UserSnapshotEntry } from '@syntax-syllogism/warden-core';
+import { resolveTargetField, resolveTargets } from '@syntax-syllogism/warden-core';
 import type {
   LabelBundle,
   IdentityReview,
@@ -13,9 +13,10 @@ import type {
   LifecycleUserResult,
   ResolvedTargetUser,
   TargetRequest,
-} from '../../userLifecycle/types.js';
-import { soqlIn } from '../../userShared/sfUtils.js';
-import { confirmWithTimeout } from '../../userShared/prompt.js';
+} from '@syntax-syllogism/warden-core';
+import { soqlIn } from '@syntax-syllogism/warden-core';
+import { confirmWithTimeout } from '@syntax-syllogism/warden-core';
+import { renderRestoreCsv } from '@syntax-syllogism/warden-core';
 import {
   apiVersionFlag,
   assertInteractiveAllowed,
@@ -39,7 +40,6 @@ import {
   promptOrgAlias,
   promptOutputFormat,
 } from '../../userShared/prompting.js';
-import { renderRestoreCsv } from '../../userShared/output.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import { WardenCommand } from '../../wardenCommand.js';
 

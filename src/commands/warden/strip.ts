@@ -1,9 +1,10 @@
 import { Messages } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { renderLifecycleResult } from '../../userLifecycle/output.js';
-import { executeStrip, type StripFlags } from '../../userLifecycle/stripPlan.js';
-import type { LifecycleResult } from '../../userLifecycle/types.js';
-import { renderStripCsv } from '../../userShared/output.js';
+import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
+import { executeStrip, type StripFlags } from '@syntax-syllogism/warden-core';
+import type { LifecycleResult } from '@syntax-syllogism/warden-core';
+import { renderStripCsv } from '@syntax-syllogism/warden-core';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -38,7 +39,6 @@ import {
   promptText,
   promptUserSelection,
 } from '../../userShared/prompting.js';
-import { describeUserFields } from '../../userShared/userFields.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);

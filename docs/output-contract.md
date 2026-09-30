@@ -5,104 +5,58 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 # Output contract
 
-All eight operational `warden` commands accept `--output human|csv|json` and
-`--output-file <path>`. Human output is the default. The generated flag
-reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/README.md#commands).
+All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/README.md#commands).
 
 ## Formats and destinations
 
-Use `--output csv` or `--output json` to write the selected machine-readable
-payload to stdout. Add `--output-file <path>` to write that payload to a file;
-the command keeps its normal human-readable progress, warning, and
-confirmation behavior on the console. `--output-file` has no effect with the
-default human format unless global `--json` is also enabled.
+`--output csv` or `--output json` writes the machine-readable payload to stdout. Add `--output-file <path>` to write it to a file instead. Progress, warnings, and confirmations still print to the console as usual. With the default human format, `--output-file` does nothing unless global `--json` is on.
 
-The global Salesforce CLI `--json` flag is separate from warden's
-`--output json` format:
+The Salesforce CLI's global `--json` flag is not the same as Warden's `--output json`:
 
-* `--json` alone writes the Salesforce CLI `{status,result,warnings}` envelope
-  to stdout and suppresses interactive confirmation prompts.
-* `--json --output csv --output-file <path>` or
-  `--json --output json --output-file <path>` writes the selected warden
-  payload to the file while the global envelope remains on stdout.
-* `--json --output-file <path>` without a non-human `--output` writes the
-  global envelope to both stdout and the file.
-* Combining `--json` with `--output csv` or `--output json` without
-  `--output-file` is an error.
+* `--json` alone writes the Salesforce CLI `{status,result,warnings}` envelope to stdout and suppresses confirmation prompts.
+* `--json --output csv --output-file <path>` (or `--output json`) writes the Warden payload to the file, and the envelope stays on stdout.
+* `--json --output-file <path>` with no non-human `--output` writes the envelope to both stdout and the file.
+* `--json` with `--output csv` or `--output json` and no `--output-file` is an error.
 
-Direct machine output does not suppress mutating-command confirmations. Use
-global `--json` when a non-interactive run is required.
+Direct machine output does not suppress confirmations on commands that change data. For an unattended run, use global `--json`.
 
-`-i`/`--interactive` is a separate guided input mode. It requires a standard
-input TTY and cannot be combined with global `--json`; Warden rejects that
-combination before prompting. Interactive mode's resolved-values confirmation
-is the only confirmation for that invocation, including for mutating
-commands. See [Interactive mode](interactive-mode.md) for its prompt flows.
+`-i`/`--interactive` is a separate guided mode. It needs a TTY on standard input and can't be combined with global `--json`. Warden rejects that combination before prompting. In interactive mode, the summary confirmation is the only confirmation, even for commands that change data. See [Interactive mode](interactive-mode.md).
 
 ## Exit codes
 
-Commands return `0` when they complete without per-user failures. The
-provisioning and lifecycle commands return `1` when one or more users fail.
-`access` has no per-row failure state and returns `0` unless the command
-itself cannot run. `diff` returns `1` for per-user failures and also supports
-`--fail-on-drift`, which returns `1` when any user has drift; the flag is off
-by default. `diff --verify` returns `1` when any user is non-conformant and
-uses `process.exitCode = 1` after rendering its verdicts.
+* `0`: the command finished with no per-user failures.
+* `1`: one or more users failed in `provision` or a lifecycle command, or the command itself errored (oclif also uses `1`).
+* `access` has no per-row failure, so it returns `0` unless it can't run.
+* `diff` returns `1` for per-user failures. `--fail-on-drift` (off by default) also returns `1` when any user has drift. `diff --verify` returns `1` when any user is non-conformant, by setting `process.exitCode = 1` after it renders the verdicts.
 
-These signals do not change the result payload. With global `--json`, a
-partial failure or non-conformant verify result therefore keeps `status: 0`
-in the Salesforce CLI envelope while the process exits with code `1`; verify
-mode's result remains the full verdict array. Command errors use oclif's exit
-code `1` as well.
+Exit codes don't change the result payload. With global `--json`, a partial failure or non-conformant verify result keeps `status: 0` in the Salesforce CLI envelope while the process exits with `1`. Verify mode's result is still the full verdict array.
 
 ## CSV shape
 
-CSV rows are deterministic across runs and use one shared escaping and
-serialization rule.
+CSV rows are the same on every run and share one escaping rule.
 
-* `access` retains its first eight columns (`userId`, `userName`, `username`,
-  `assignmentType`, `sourceId`, `sourceName`, `viaPermissionSetId`, and
-  `viaPermissionSetName`) and adds `targetType`, `targetName`,
-  `sourceApiName`, and `sourceLabel`, followed by target-specific access
-  columns.
-* `diff` appends `userName,username,valueApiName,valueLabel,valueType,
-  valueBefore,valueAfter` after its existing six columns.
-  `diff --verify` instead uses `key,conformant,violations`.
-* `provision` emits one row per action, related-record result, or error with
-  `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`.
-  Related rows retain these same ten columns: `action` is `related`, `detail`
-  is `<relationship> <phase> <sobject> <related-action>`, and `error` contains
-  a related-record failure when applicable. Provision JSON keeps user actions
-  unchanged and adds `users[].relatedRecords[]` for selected relationships.
-  Each entry contains `relationship`, `phase`, `sobject`, `action`, `status`,
-  and, when available, `recordId`, `detail`, and `error`. Dry-run actions use
-  `wouldCreate`, `wouldUpdate`, or `wouldSkip`; an unchanged matched row is
-  `matched`. Live actions use `created`, `updated`, `matched`, or `skipped`.
-  Provision JSON also carries `users[].matchValue`, the value looked up under
-  `matchedBy` (`null` when no lookup was issued under it, because the value
-  was absent, empty, or not a string), and `users[].matched`, whether an
-  existing user was actually found. `matchedBy` reports only that a match
-  field was configured, so it is not a substitute for `matched` on a net-new
-  user. Provision human output composes the same
-  two fields into `matched <field> = <value>` or `unmatched <field> =
-  <value>`, and bare `unmatched` when no match field was configured. The CSV
-  columns are unchanged and still carry `matchedBy` only.
-* `freeze` and `unfreeze` emit one row per user with
-  `userKey,userId,userName,username,wasFrozen,status,action,error`.
-* `restore` emits one row per action or action item with
-  `userKey,userId,userName,username,status,action,category,name,error`.
-* `strip` emits one row per action or removed item with
-  `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
-* `snapshot` emits `key,id,status,actions,skipped,warnings,errors`, one row per
-  selected user. This report CSV is separate from the JSON or CSV snapshot
-  artifact written with `--out`.
+* **`access`** keeps its first eight columns (`userId`, `userName`, `username`, `assignmentType`, `sourceId`, `sourceName`, `viaPermissionSetId`, `viaPermissionSetName`). It adds `targetType`, `targetName`, `sourceApiName`, and `sourceLabel`, then target-specific access columns.
+* **`diff`** adds `userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter` after its original six columns. `diff --verify` uses `key,conformant,violations` instead.
+* **`provision`** writes one row per action, related-record result, or error, with `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`. Details are below.
+* **`freeze` and `unfreeze`** write one row per user: `userKey,userId,userName,username,wasFrozen,status,action,error`.
+* **`restore`** writes one row per action or action item: `userKey,userId,userName,username,status,action,category,name,error`.
+* **`strip`** writes one row per action or removed item: `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
+* **`snapshot`** writes `key,id,status,actions,skipped,warnings,errors`, one row per selected user. This report is separate from the snapshot file that `--out` writes.
 
-For lifecycle commands, users with no actions still produce one row and each
-error produces its own row. Formula-like cells are prefixed with an apostrophe
-on CSV write (`=`, `+`, `-`, `@`, tab, and carriage return); this is an output
-safety measure for spreadsheet viewers and is not applied to JSON or human
-output.
+For lifecycle commands, a user with no actions still gets a row, and each error gets its own row. On CSV write, cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return get an apostrophe prefix. This protects spreadsheet viewers. It isn't applied to JSON or human output.
 
-Access statistics and warnings remain outside CSV stdout when CSV is written
-directly to stdout. When CSV is written to a file, the file contains only the
-CSV payload.
+When CSV goes to stdout, access statistics and warnings stay out of it. When CSV goes to a file, the file holds only the CSV.
+
+### Provision details
+
+**Related records.** Related rows use the same ten columns. `action` is `related`, `detail` is `<relationship> <phase> <sobject> <related-action>`, and `error` holds any related-record failure. In JSON, user actions are unchanged, and `users[].relatedRecords[]` is added for selected relationships. Each entry has `relationship`, `phase`, `sobject`, `action`, `status`, and, when available, `recordId`, `detail`, and `error`.
+
+* Dry-run actions are `wouldCreate`, `wouldUpdate`, or `wouldSkip`. An unchanged matched row is `matched`.
+* Live actions are `created`, `updated`, `matched`, or `skipped`.
+
+**Match fields.** Provision JSON also carries:
+
+* `users[].matchValue`, the value looked up under `matchedBy`. It is `null` when no lookup was made, because the value was absent, empty, or not a string.
+* `users[].matched`, whether an existing user was found.
+
+`matchedBy` only says a match field was configured, so it can't tell you whether an existing user was found. Use `matched` for that. Human output combines the two as `matched <field> = <value>` or `unmatched <field> = <value>`, and prints bare `unmatched` when no match field was set. CSV still carries only `matchedBy`.

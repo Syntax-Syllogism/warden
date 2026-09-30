@@ -5,16 +5,26 @@ description: Audit effective Salesforce user access and trace each grant to its 
 
 # Access audits
 
-`sf warden access` is a read-only audit command. It supports two directions:
+`sf warden access` is read-only. It answers two questions:
 
-* **Target audit** — `--type <type> --target <name>` reports active users who
-  can access one permission target.
-* **Reverse user audit** — `--user field:value --type <type>` reports what one
-  resolved user can access, and attributes each grant to its source.
+* **Who can access this?** `--type <type> --target <name>` lists the active users who can access one target.
+* **What can this user access?** `--user field:value --type <type>` lists what one user can access, and where each grant comes from.
 
-## Scoping
+## What you can audit
 
-Reverse audits require exactly one bounded scope:
+Target types are `field`, `object`, `apex-class`, `vf-page`, `custom-permission`, `tab`, and `record-type`. Name the target like this:
+
+| Type | `--target` |
+| --- | --- |
+| `field` | `Object.Field` |
+| `object` | the object API name |
+| `apex-class`, `vf-page`, `custom-permission` | the class, page, or permission developer name |
+| `tab` | the tab API name |
+| `record-type` | `SObject.DeveloperName` of an active, non-master record type |
+
+## Scoping a user audit
+
+A user audit needs exactly one scope: a `--target`, or an `--sobject`, not both and not neither.
 
 | Invocation | Scope |
 | --- | --- |
@@ -25,60 +35,31 @@ Reverse audits require exactly one bounded scope:
 | `--user u:x --type apex-class/vf-page/custom-permission/tab --target <name>` | One setup or tab target |
 | `--user u:x --type record-type --target Account.Business_Account` | One active, non-master record type |
 
-`--sobject` is valid only with reverse `field` and `object` audits. A reverse
-audit cannot omit both `--target` and `--sobject`, and the two scopes cannot be
-combined. The `--user` value uses the same filterable `User` field matching
-rules documented in [User matching](user-matching.md); it resolves exactly one
-user and does not request fuzzy Username matching.
+`--sobject` works only with `field` and `object` user audits. The `--user` value follows the [User matching](user-matching.md) rules and must resolve to exactly one user. It never uses fuzzy Username matching.
 
-The target-audit direction supports `field`, `object`, `apex-class`,
-`vf-page`, `custom-permission`, `tab`, and `record-type` targets. Field targets use
-`ObjectApiName.FieldApiName`; object targets use an object API name. Setup
-targets use the Apex class, Visualforce page, or custom-permission developer
-name, tab targets use the tab API name, and record-type targets require the
-qualified `SObject.DeveloperName` form for an active non-master record type.
+## Record-type audits
 
-Record-type audits read Profile and PermissionSet `recordTypeVisibilities`
-through the Metadata API, plus `MutingPermissionSet` metadata for candidate
-Permission Set Groups, only for sources connected to active users. A matching
-visible muting entry suppresses that PSG path while leaving a direct assignment
-to the component Permission Set intact. They can take longer than data-API
-audits. A metadata read failure is fail-closed: the command returns an
-actionable error and no partial result. Profile rows report
-`default: true` or `false`; Permission Set and Permission Set Group rows report
-`default: null` because those sources do not define the profile default. Reverse
-record-type audits require an explicit `--target`; `--sobject` is not supported.
+Record-type audits read `recordTypeVisibilities` on Profiles and Permission Sets through the Metadata API. They also read `MutingPermissionSet` metadata for candidate Permission Set Groups. Only sources connected to active users are read. This takes longer than a data-API audit.
+
+* If a matching muting entry hides the record type, that Permission Set Group path is suppressed. A direct assignment of the component Permission Set still counts.
+* If any metadata read fails, the command returns an error and no partial result.
+* Profile rows report `default: true` or `false`. Permission Set and Permission Set Group rows report `default: null`, because they don't define a default.
 
 ## Attribution and effective access
 
-Reverse rows represent an effective grant found through the user's profile,
-an individually assigned Permission Set, or an assigned Permission Set Group
-(PSG). PSG rows include the component Permission Set in the `via` fields.
-Rows are retained per attribution path so an access review can show how the
-same target is granted more than once.
+A user-audit row is an effective grant that comes from the user's profile, an assigned Permission Set, or an assigned Permission Set Group (PSG). PSG rows name the component Permission Set in the `via` fields. Warden keeps one row per path, so a review can see when the same target is granted more than once.
 
-Permission Set Group muting is applied before rows are emitted. A PSG's
-backing `Group` Permission Set is not treated as a direct assignment; its
-component grants are evaluated with any matching Muting Permission Sets
-subtracted. Muting can therefore remove only read/edit or individual object
-permission bits while leaving other effective access intact.
+Muting is applied before rows are emitted. A PSG's backing `Group` Permission Set isn't counted as a direct assignment. Its component grants are evaluated with matching Muting Permission Sets subtracted. Muting can remove just the read or edit bit, or one object permission, and leave the rest of the access in place.
 
-Field audits report explicit `FieldPermissions` rows. Salesforce visibility
-that is provided outside those rows is not inferred. Reverse tab audits also
-warn that profile-level tab visibility is not represented by a clean
-`PermissionSetTabSetting` data-API grant.
+Some limits to know about:
 
-The command paginates large Salesforce query results with `queryMore` until
-Salesforce indicates completion, but org/API limits still constrain very large
-audits.
+* Field audits report explicit `FieldPermissions` rows. Visibility granted some other way isn't inferred.
+* User tab audits warn that profile-level tab visibility doesn't appear as a clean `PermissionSetTabSetting` grant.
+* Large results are paged with `queryMore`, but org and API limits still apply to very large audits.
 
 ## Output
 
-Human reverse output starts with `Access for <user>`. When a reverse field
-audit uses `--sobject`, the table includes a `Target` column so each field is
-identified. CSV and JSON retain `targetType` and `targetName` for every row;
-CSV rows are sorted deterministically. See the [output contract](output-contract.md)
-for shared formats, destinations, and global `--json` behavior.
+Human output for a user audit starts with `Access for <user>`. With `--sobject`, the table adds a `Target` column so you can tell fields apart. CSV and JSON keep `targetType` and `targetName` on every row, and CSV rows are sorted so output is stable. Formats, destinations, and `--json` are covered in the [output contract](output-contract.md).
 
 ## Examples
 
@@ -87,7 +68,7 @@ for shared formats, destinations, and global `--json` behavior.
 sf warden access --target-org myOrg --type field \
   --target Account.SSN__c
 
-# What fields on Account can this user access?
+# Which Account fields can this user access?
 sf warden access --target-org myOrg --user 'Username:alice@example.com' \
   --type field --sobject Account --output csv
 
@@ -95,15 +76,15 @@ sf warden access --target-org myOrg --user 'Username:alice@example.com' \
 sf warden access --target-org myOrg --user 'FederationIdentifier:E-123' \
   --type object --target Account --output json
 
-# Does this user have access to a setup target?
+# Can this user reach a setup target?
 sf warden access --target-org myOrg --user 'Username:alice@example.com' \
   --type apex-class --target MyController
 
-# Who can select this active record type?
+# Who can select this record type?
 sf warden access --target-org myOrg --type record-type \
   --target Account.Business_Account
 
-# Which paths let one user select it?
+# How can one user select it?
 sf warden access --target-org myOrg --user 'Username:alice@example.com' \
   --type record-type --target Account.Business_Account
 ```

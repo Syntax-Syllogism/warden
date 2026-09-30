@@ -5,58 +5,33 @@ description: Resolve Salesforce users with exact fields, fuzzy Usernames, and li
 
 # User matching
 
-Warden uses one matching layer for provisioning and for lifecycle commands
-that consume `users-def.json`. It resolves existing Salesforce `User` records
-before planning writes or lifecycle actions.
+Provisioning and the lifecycle commands that read `users-def.json` share one matching layer. It finds existing Salesforce `User` records before Warden plans any write or action.
 
 ## Match fields
 
-* Match fields are Salesforce `User` fields marked `filterable` by `User`
-  describe metadata. Field names are accepted case-insensitively and resolved
-  to their canonical API names.
-* Provisioning uses `--external-id` for the default match field. The
-  provisioning command also accepts `--match-field` as an alias. A user's
-  `match` meta key overrides the command default for that row.
-* Lifecycle commands use `--external-id` as the default for `users-def.json`,
-  and the per-entry `match` key overrides it. Their `--user field:value` form
-  accepts a filterable User field (and `Id`) directly. Reverse `access` mode
-  uses the same direct `field:value` form.
-* If no match field is available, provisioning treats the row as an insert;
-  lifecycle commands report a target error. A missing match value is an error.
+* A match field is any `User` field that describe metadata marks `filterable`. Names are case-insensitive and resolved to the canonical API name.
+* **Provisioning:** `--external-id` sets the default match field, and `--match-field` is an alias. A user's own `match` key overrides it for that row.
+* **Lifecycle commands:** `--external-id` sets the default for `users-def.json`, and a per-entry `match` key overrides it. `--user field:value` takes any filterable `User` field, or `Id`, directly. User-audit mode in `access` works the same way.
+* With no match field, provisioning treats the row as a new user. A lifecycle command reports a target error. A missing match value is always an error.
 
-Exact matching is case-insensitive. A request with no matching record is
-reported as unmatched. If more than one record matches, the request is
-skipped as ambiguous; it is never silently treated as an insert or applied to
-multiple users.
+Exact matching is case-insensitive. If nothing matches, the request is reported as unmatched. If more than one record matches, it is skipped as ambiguous. Warden never treats an ambiguous match as an insert, and never applies it to several users.
 
 ## Fuzzy Username matching
 
-Fuzzy matching is opt-in and applies only when the match field is `Username`.
-The resolver looks for the base Username and for usernames with a Salesforce
-sandbox suffix, equivalent to:
+Fuzzy matching is opt-in and works only when the match field is `Username`. It finds the base Username and any Username with a Salesforce sandbox suffix, like this:
 
 ```text
 Username = base OR Username LIKE base.%
 ```
 
-The base value is compared case-insensitively after the query, and SOQL
-wildcard characters and backslashes in the base are escaped. Large batches
-are split to stay within the query-length budget.
+The base is compared case-insensitively after the query. SOQL wildcard characters and backslashes in the base are escaped. Large batches are split to stay within the query length limit.
 
-Provisioning enables fuzzy matching globally with `--fuzzy-username`. A row
-may set `"fuzzyUsername": true` in `users-def.json`; that value takes
-precedence over the global default, so `false` can opt a row out. Setting the
-key for a non-Username match field has no effect.
-
-Lifecycle commands support `fuzzyUsername: true` on entries in
-`users-def.json`. They do not expose a global `--fuzzy-username` flag, and
-the `--user field:value` forms for lifecycle commands and reverse `access` do
-not request fuzzy matching.
+* **Provisioning:** `--fuzzy-username` turns it on for every row. A row can set `"fuzzyUsername": true` in `users-def.json`, and that takes precedence, so `false` opts one row out. The key does nothing for other match fields.
+* **Lifecycle commands:** entries in `users-def.json` can set `fuzzyUsername: true`. There is no global `--fuzzy-username` flag, and `--user field:value` (also in `access`) never uses fuzzy matching.
 
 ## Examples
 
-Provision with fuzzy Username matching (the fuzzy option applies only to
-Username matching):
+Provision with fuzzy Username matching:
 
 ```json
 {
@@ -71,12 +46,10 @@ Username matching):
 }
 ```
 
-Use the same per-entry matching shape with lifecycle commands:
+Lifecycle commands use the same per-entry shape:
 
 ```bash
 sf warden freeze --users-def ./users.json --target-org mySandbox
 ```
 
-See [command details](command-details.md#warden-provision) for provisioning
-merge and precedence rules, and the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/README.md)
-for the complete flag surface.
+For provisioning merge and precedence rules, see [command details](command-details.md#warden-provision). For every flag, see the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/README.md).

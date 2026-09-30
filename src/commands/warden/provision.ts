@@ -1,9 +1,29 @@
-import { Messages, SfError } from '@salesforce/core';
+/* eslint-disable camelcase */
+import { readFileSync } from 'node:fs';
+import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { confirmWithTimeout } from '../../userShared/prompt.js';
-import { renderProvisionCsv } from '../../userShared/output.js';
-import { detectInputFormat, type InputFormat } from '../../userShared/csv.js';
+import { confirmWithTimeout } from '@syntax-syllogism/warden-core';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
+import { renderProvisionCsv } from '@syntax-syllogism/warden-core';
+import { detectInputFormat, type InputFormat } from '@syntax-syllogism/warden-core';
+import { parsePersonaDefinitions } from '@syntax-syllogism/warden-core';
+import { ProvisionUserUseCase, type ProvisionResult } from '@syntax-syllogism/warden-core';
+import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import {
+  buildLedgerRows,
+  buildProvenance,
+  buildReconciliationItems,
+  captureProvisioningWrites,
+  detectConnectedPackage,
+  saveRun,
+  updateRun,
+  bestEffortOrgWrite,
+  writeBatch,
+  WARDEN_ITEM_OBJECT,
+  WARDEN_LEDGER_OBJECT,
+  type ConnectedPackage,
+} from '../../userShared/orgWrites.js';
 import {
   apiVersionFlag,
   assertInteractiveAllowed,
@@ -32,12 +52,30 @@ import {
   promptOutputFormat,
   promptText,
 } from '../../userShared/prompting.js';
-import { ProvisionUserUseCase, type ProvisionResult } from '../../userProvisioning/provisionUserUseCase.js';
-import { readProvisionDefinitions } from '../../userProvisioning/definitionReader.js';
-import { WardenCommand } from '../../wardenCommand.js';
+import { rethrowLegacyPersonaDefinitionError, WardenCommand } from '../../wardenCommand.js';
+import { PERSONA_OBJECT, personaPackageDetected, readOrgPersonas } from '../../userShared/personas.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');
+
+type ProvisionDefinitions = Awaited<ReturnType<typeof readProvisionDefinitions>>;
+type PersonaSource = 'file' | 'org';
+
+const readPersonaDefinitionsForLedger = (personasPath: string): ProvisionDefinitions['personasDoc'] => {
+  try {
+    return parsePersonaDefinitions(JSON.parse(readFileSync(personasPath, 'utf8')));
+  } catch (error) {
+    rethrowLegacyPersonaDefinitionError(
+      error,
+      personasPath,
+      messages.getMessage('errorInvalidPersonaDefinition')
+    );
+    if (error instanceof SyntaxError) {
+      throw new SfError(messages.getMessage('errorInvalidJson', [personasPath, error.message]));
+    }
+    throw error;
+  }
+};
 
 /**
  * Report the match field alongside the value actually looked up under it.
@@ -54,8 +92,10 @@ const renderMatchProvenance = (user: ProvisionResult['users'][number]): string =
   return user.matchValue === null ? `${label} ${user.matchedBy}` : `${label} ${user.matchedBy} = ${user.matchValue}`;
 };
 
-const renderProvisionHuman = (output: ProvisionResult): string => {
+const renderProvisionHuman = (output: ProvisionResult, personaSource: string): string => {
   const lines: string[] = [];
+  lines.push(`Persona source: ${personaSource}`);
+  lines.push('');
   for (const user of output.users) {
     lines.push(`${user.key}${user.id ? ` · ${user.id}` : ''} · ${user.status}`);
     lines.push(`  ${renderMatchProvenance(user)} · personas: ${user.personas.join(', ') || '(none)'}`);
@@ -109,6 +149,10 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       exists: true,
       summary: messages.getMessage('flags.personas-def.summary'),
     }),
+    'persona-source': Flags.string({
+      options: ['file', 'org'] as const,
+      summary: messages.getMessage('flags.persona-source.summary'),
+    }),
     'related-def': Flags.file({
       exists: true,
       summary: messages.getMessage('flags.related-def.summary'),
@@ -125,6 +169,16 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     'fail-on-insufficient-license': Flags.boolean({
       default: false,
       summary: messages.getMessage('flags.fail-on-insufficient-license.summary'),
+    }),
+    'log-to-org': Flags.boolean({
+      default: false,
+      allowNo: true,
+      summary: messages.getMessage('flags.log-to-org.summary'),
+    }),
+    'log-detail': Flags.string({
+      options: ['summary', 'full'] as const,
+      default: 'summary',
+      summary: messages.getMessage('flags.log-detail.summary'),
     }),
     ...outputFlags,
     'api-version': apiVersionFlag,
@@ -203,32 +257,100 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     }
     const targetOrg = requireTargetOrg(flags['target-org']);
     const usersPath = requireFlagValue(flags['users-def'], '--users-def');
+    const logToOrg = flags['log-to-org'] === true;
+    const logDetail = flags['log-detail'] === 'full' ? 'full' : 'summary';
     const inputFormat = detectInputFormat(usersPath, flags['input-format'] as InputFormat | undefined);
     // Refuse before the connection is used, so a misconfigured invocation costs zero API calls.
     if (flags['related-def'] && inputFormat === 'csv') {
       throw new SfError(messages.getMessage('errorRelatedRequiresJson'));
     }
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const definitions =
-      inputFormat === 'json'
-        ? await readProvisionDefinitions(
-            usersPath,
-            flags['personas-def'],
-            { relatedPath: flags['related-def'] },
-            (path, error) => messages.getMessage('errorInvalidJson', [path, error])
-          )
-        : undefined;
+    const personaSource: PersonaSource =
+      (flags['persona-source'] as PersonaSource | undefined) ??
+      (flags['personas-def'] ? 'file' : (await personaPackageDetected(conn)) ? 'org' : 'file');
+    let orgPersonas: Awaited<ReturnType<typeof readOrgPersonas>> | undefined;
+    if (personaSource === 'org') orgPersonas = await readOrgPersonas(conn);
+    let definitions: Awaited<ReturnType<typeof readProvisionDefinitions>> | undefined;
+    if (inputFormat === 'json' || personaSource === 'org') {
+      try {
+        definitions = await readProvisionDefinitions(
+          usersPath,
+          personaSource === 'file' ? flags['personas-def'] : undefined,
+          {
+            relatedPath: flags['related-def'],
+            ...(inputFormat === 'csv'
+              ? { inputFormat, fieldMap: await describeUserFields(conn), csvListDelimiter: flags['csv-list-delimiter'] }
+              : {}),
+          },
+          (path, error) => messages.getMessage('errorInvalidJson', [path, error])
+        );
+      } catch (error) {
+        rethrowLegacyPersonaDefinitionError(
+          error,
+          flags['personas-def'],
+          messages.getMessage('errorInvalidPersonaDefinition')
+        );
+      }
+    }
+    const ledgerPersonasDoc =
+      orgPersonas?.document ??
+      (inputFormat === 'csv' && personaSource === 'file' && flags['personas-def']
+        ? readPersonaDefinitionsForLedger(flags['personas-def'])
+        : definitions?.personasDoc);
+    const personaSourceLabel =
+      personaSource === 'org'
+        ? `org (${PERSONA_OBJECT}, ${orgPersonas?.count ?? 0} personas)`
+        : `file${flags['personas-def'] ? ` (${flags['personas-def']})` : ' (no --personas-def)'}${
+            flags['persona-source'] ? '' : ' [default]'
+          }`;
+    // Connected writes are intentionally composed around the core use case. Core remains
+    // responsible for provisioning policy and DML; this adapter only observes successful
+    // assignment inserts and persists optional audit records.
+    let connectedPackage: ConnectedPackage = { ledgerAvailable: false, runAvailable: false };
+    let runId: string | undefined;
+    let capturedWrites: ReturnType<typeof captureProvisioningWrites> | undefined;
+    // The command contract keeps dry-run completely write-free, including optional audit sinks.
+    const connectedWritesRequested = !flags['dry-run'];
+    if (connectedWritesRequested) {
+      connectedPackage = await detectConnectedPackage(conn);
+      if (connectedPackage.ledgerAvailable) capturedWrites = captureProvisioningWrites(conn);
+    }
+    const provisioningConnection = capturedWrites?.connection ?? conn;
+    if (logToOrg && connectedPackage.runAvailable) {
+      const provenance = buildProvenance({
+        definitionPath: flags['personas-def'] ?? usersPath,
+      });
+      runId = await saveRun(
+        provisioningConnection,
+        {
+          wdn_Mode__c: flags['dry-run'] ? 'Preview' : 'Apply',
+          wdn_Scope__c: [usersPath, flags['personas-def']].filter(Boolean).join(', '),
+          wdn_Planned_Count__c: 0,
+          wdn_Applied_Count__c: 0,
+          wdn_Error_Count__c: 0,
+          wdn_Unmanaged_Count__c: 0,
+          wdn_Source_System__c: provenance.sourceSystem,
+          wdn_Cli_Version__c: provenance.cliVersion,
+          wdn_Invoking_User__c: provenance.invokingUser,
+          wdn_Ci_Job__c: provenance.ciJob,
+          wdn_Definition_Path__c: provenance.definitionPath,
+          wdn_Definition_Sha__c: provenance.definitionSha,
+        },
+        (message) => this.warn(message)
+      );
+    }
+
     const useCase = new ProvisionUserUseCase();
 
     const output = await useCase.execute({
-      connection: conn,
+      connection: provisioningConnection,
       usersDoc: definitions?.usersDoc,
-      personasDoc: definitions?.personasDoc,
-      personasSupplied: definitions?.personasSupplied,
+      personasDoc: orgPersonas?.document ?? definitions?.personasDoc,
+      personasSupplied: personaSource === 'org' ? true : definitions?.personasSupplied,
       relatedDoc: definitions?.relatedDoc,
-      usersPath: inputFormat === 'csv' ? usersPath : undefined,
-      personasPath: inputFormat === 'csv' ? flags['personas-def'] : undefined,
-      inputFormat: inputFormat === 'csv' ? inputFormat : undefined,
+      usersPath: inputFormat === 'csv' && personaSource === 'file' ? usersPath : undefined,
+      personasPath: inputFormat === 'csv' && personaSource === 'file' ? flags['personas-def'] : undefined,
+      inputFormat: inputFormat === 'csv' && personaSource === 'file' ? inputFormat : undefined,
       csvListDelimiter: flags['csv-list-delimiter'],
       externalId: flags['external-id'],
       fuzzyUsername: flags['fuzzy-username'],
@@ -239,15 +361,27 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         : undefined,
     });
 
+    await this.writeConnectedRecords({
+      connection: provisioningConnection,
+      connectedPackage,
+      capturedWrites,
+      personasDoc: ledgerPersonasDoc,
+      output,
+      runId,
+      logDetail,
+      dryRun: flags['dry-run'],
+    });
+
+    const result = { ...output, personaSource: personaSourceLabel };
     const csv = renderProvisionCsv(output);
     if (!context.jsonOutput) {
       this.warnUserFailures(output);
       this.warnLicenseShortfalls(output);
     }
     await this.emitResult(context, {
-      result: output,
+      result,
       csv,
-      human: renderProvisionHuman(output),
+      human: renderProvisionHuman(output, personaSourceLabel),
     });
     if (output.summary.failed > 0) process.exitCode = 1;
     if (flags['fail-on-insufficient-license'] && output.licenses?.some((license) => license.shortfall > 0)) {
@@ -259,7 +393,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         result: output,
       });
     }
-    return output;
+    return result;
   }
 
   private async acknowledgeWarnings(warnings: string[], noPrompt: boolean): Promise<void> {
@@ -286,6 +420,62 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     for (const license of output.licenses ?? []) {
       if (license.shortfall > 0)
         this.warn(messages.getMessage('warningInsufficientLicense', [license.licenseName, license.shortfall]));
+    }
+  }
+
+  private async writeConnectedRecords(options: {
+    connection: Connection;
+    connectedPackage: ConnectedPackage;
+    capturedWrites?: ReturnType<typeof captureProvisioningWrites>;
+    personasDoc?: ProvisionDefinitions['personasDoc'];
+    output: ProvisionResult;
+    runId?: string;
+    logDetail: 'summary' | 'full';
+    dryRun: boolean;
+  }): Promise<void> {
+    const warn = (message: string): void => {
+      this.warn(message);
+    };
+    try {
+      if (!options.dryRun && options.connectedPackage.ledgerAvailable && options.capturedWrites) {
+        const ledgerRows = buildLedgerRows({
+          grants: options.capturedWrites.state.grants,
+          result: options.output,
+          personasDoc: options.personasDoc,
+          labelsByTypeAndId: options.capturedWrites.state.labelsByTypeAndId,
+          referenceIdsByType: options.capturedWrites.state.referenceIdsByType,
+          runId: options.runId,
+        });
+        await bestEffortOrgWrite(
+          () => writeBatch(options.connection, WARDEN_LEDGER_OBJECT, ledgerRows, warn, 'ledger'),
+          warn,
+          'ledger'
+        );
+      }
+      if (!options.runId) return;
+      const items =
+        options.logDetail === 'full' ? buildReconciliationItems(options.output, options.runId) : [];
+      if (items.length > 0) {
+        await bestEffortOrgWrite(
+          () => writeBatch(options.connection, WARDEN_ITEM_OBJECT, items, warn, 'item'),
+          warn,
+          'item'
+        );
+      }
+      await updateRun(
+        options.connection,
+        options.runId,
+        {
+          wdn_Planned_Count__c: options.logDetail === 'full' ? items.length : options.output.summary.total,
+          wdn_Applied_Count__c: options.output.users.filter((user) => user.status === 'created' || user.status === 'updated').length,
+          wdn_Error_Count__c: options.output.summary.failed,
+          wdn_Unmanaged_Count__c: 0,
+        },
+        warn
+      );
+    } catch (error) {
+      // Connected records are an audit sink. They must never change provisioning's result.
+      warn(`Warden org audit write failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

@@ -1,8 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import { SfError } from '@salesforce/core';
-import type { AccessTargetType } from '../userAccess/types.js';
-import { detectInputFormat, inputFormatFromExtension, type InputFormat } from './csv.js';
+import { detectInputFormat, type AccessTargetType, type InputFormat } from '@syntax-syllogism/warden-core';
 import { apiVersionFlag } from './targetFlags.js';
 
 export const promptRuntime = { checkbox, confirm, input, select };
@@ -68,6 +67,13 @@ export const promptInputFormat = (): Promise<'json' | 'csv'> =>
       { name: 'CSV', value: 'csv' },
     ],
   });
+
+const inputFormatFromExtension = (path: string): InputFormat | undefined =>
+  path.toLowerCase().endsWith('.json')
+    ? 'json'
+    : /\.(csv|tsv)$/i.test(path)
+      ? 'csv'
+      : undefined;
 
 /** Ask only when the users-definition extension does not resolve the format. */
 export const promptInputFormatForPath = (path: unknown): Promise<InputFormat> => {

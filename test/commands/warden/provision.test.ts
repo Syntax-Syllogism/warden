@@ -5,8 +5,21 @@ import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
+import { ProvisionUserUseCase, type PersonaDefinitionsFile } from '@syntax-syllogism/warden-core';
 import UserProvision from '../../../src/commands/warden/provision.js';
-import { ProvisionUserUseCase, type ProvisionUserRequest } from '../../../src/userProvisioning/provisionUserUseCase.js';
+import { WARDEN_LEDGER_OBJECT } from '../../../src/userShared/orgWrites.js';
+import {
+  COMPONENT_PERSONA_FIELD,
+  COMPONENT_REFERENCE_FIELD,
+  COMPONENT_TYPE_FIELD,
+  PERSONA_ACTIVE_FIELD,
+  PERSONA_API_NAME_FIELD,
+  PERSONA_COMPONENT_OBJECT,
+  PERSONA_OBJECT,
+} from '../../../src/userShared/personas.js';
+
+type ProvisionUserRequest = Parameters<ProvisionUserUseCase['execute']>[0];
+type PersonaDocument = PersonaDefinitionsFile;
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -88,6 +101,77 @@ const createFakeConnection = (instanceUrl = 'https://myorg.my.salesforce.com'): 
     sobject: sinon.stub().callsFake((name: string) => sobjectMap[name] ?? sobjectMap.User),
     sobjectMap,
   };
+};
+
+const emptyProvisionResult = () => ({
+  summary: { total: 0, created: 0, updated: 0, failed: 0, warnings: 0 },
+  users: [],
+});
+
+const captureProvisionRequests = (): ProvisionUserRequest[] => {
+  const requests: ProvisionUserRequest[] = [];
+  sinon.stub(ProvisionUserUseCase.prototype, 'execute').callsFake(async (request) => {
+    requests.push(request);
+    return emptyProvisionResult();
+  });
+  return requests;
+};
+
+const stubProvisionParse = (
+  fakeConn: FakeConnection,
+  usersPath: string,
+  personasPath?: string,
+  personaSource?: 'file' | 'org'
+): void => {
+  sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+    flags: {
+      'target-org': { getConnection: () => fakeConn },
+      'users-def': usersPath,
+      'personas-def': personasPath,
+      'persona-source': personaSource,
+      'external-id': undefined,
+      'no-prompt': true,
+      'dry-run': true,
+      'api-version': undefined,
+    },
+  } as never);
+};
+
+const configureOrgPersonaQueries = (fakeConn: FakeConnection, document: PersonaDocument): void => {
+  const personaEntries = Object.entries(document.personas);
+  const ids = new Map(personaEntries.map(([name], index) => [name, `a01persona${index}`]));
+  fakeConn.query.callsFake(async (soql: string) => {
+    if (soql.includes(`FROM ${PERSONA_OBJECT}`)) {
+      return {
+        records: personaEntries.map(([name]) => ({
+          Id: ids.get(name),
+          [PERSONA_API_NAME_FIELD]: name,
+          [PERSONA_ACTIVE_FIELD]: true,
+        })),
+      };
+    }
+    if (soql.includes(`FROM ${PERSONA_COMPONENT_OBJECT}`)) {
+      const components = [
+        ['permissionSets', 'Permission Set'],
+        ['permissionSetGroups', 'Permission Set Group'],
+        ['publicGroups', 'Public Group'],
+        ['queues', 'Queue'],
+      ] as const;
+      return {
+        records: personaEntries.flatMap(([name, persona]) =>
+          components.flatMap(([field, type]) =>
+            (persona[field] ?? []).map((reference, index) => ({
+              Id: `a02component${name}${field}${index}`,
+              [COMPONENT_PERSONA_FIELD]: ids.get(name),
+              [COMPONENT_TYPE_FIELD]: type,
+              [COMPONENT_REFERENCE_FIELD]: reference,
+            }))
+          )
+        ),
+      };
+    }
+    return { records: [] };
+  });
 };
 
 const writeLicenseAwareDefinitions = (dir: string): { usersPath: string; personasPath: string } => {
@@ -402,6 +486,167 @@ describe('warden user provision command', () => {
     expect(sfCommandStubs.log.called).to.equal(false);
   });
 
+  it('defaults to the file source when a persona definition is provided', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-file-default-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    const personasDoc = { personas: { ops: { permissionSets: ['File_Read'] } } };
+    writeFileSync(usersPath, JSON.stringify({ users: [] }));
+    writeFileSync(personasPath, JSON.stringify(personasDoc));
+    const requests = captureProvisionRequests();
+    stubProvisionParse(fakeConn, usersPath, personasPath);
+
+    const result = await UserProvision.run(['--json']);
+
+    expect((result as unknown as { personaSource: string }).personaSource).to.equal(`file (${personasPath}) [default]`);
+    expect(requests[0]?.personasDoc).to.deep.equal(personasDoc);
+    expect(fakeConn.describe.called).to.equal(false);
+  });
+
+  it('defaults to active org personas when the package is detected', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-org-default-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasDoc = {
+      personas: {
+        ops: {
+          permissionSets: ['Org_Read'],
+          permissionSetGroups: ['Org_Access'],
+          publicGroups: ['Org_Team'],
+          queues: ['Org_Queue'],
+        },
+      },
+    };
+    writeFileSync(usersPath, JSON.stringify({ users: [] }));
+    fakeConn.describe.withArgs(PERSONA_OBJECT).resolves({ name: PERSONA_OBJECT });
+    configureOrgPersonaQueries(fakeConn, personasDoc);
+    const requests = captureProvisionRequests();
+    stubProvisionParse(fakeConn, usersPath);
+
+    const result = await UserProvision.run(['--json']);
+
+    expect((result as unknown as { personaSource: string }).personaSource).to.equal(
+      `org (${PERSONA_OBJECT}, 1 personas)`
+    );
+    expect(requests[0]?.personasDoc).to.deep.equal(personasDoc);
+    expect(requests[0]?.personasSupplied).to.equal(true);
+    expect(fakeConn.describe.calledWith(PERSONA_OBJECT)).to.equal(true);
+  });
+
+  it('defaults to the file source without a definition when the package is absent', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-file-fallback-test-'));
+    const usersPath = join(dir, 'users.json');
+    writeFileSync(usersPath, JSON.stringify({ users: [{ profile: 'Admin', Username: 'user@example.test' }] }));
+    const requests = captureProvisionRequests();
+    stubProvisionParse(fakeConn, usersPath);
+
+    const result = await UserProvision.run(['--json']);
+
+    expect((result as unknown as { personaSource: string }).personaSource).to.equal(
+      'file (no --personas-def) [default]'
+    );
+    expect(requests[0]?.personasDoc).to.deep.equal({ personas: {} });
+    expect(fakeConn.describe.calledWith(PERSONA_OBJECT)).to.equal(true);
+  });
+
+  it('uses an explicit org source without merging a supplied file', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-org-explicit-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    const fileDoc = { personas: { ops: { permissionSets: ['File_Read'] } } };
+    const orgDoc = {
+      personas: {
+        ops: { permissionSets: ['Org_Read'], permissionSetGroups: [], publicGroups: [], queues: [] },
+      },
+    };
+    writeFileSync(usersPath, JSON.stringify({ users: [] }));
+    writeFileSync(personasPath, JSON.stringify(fileDoc));
+    configureOrgPersonaQueries(fakeConn, orgDoc);
+    const requests = captureProvisionRequests();
+    stubProvisionParse(fakeConn, usersPath, personasPath, 'org');
+
+    const result = await UserProvision.run(['--json']);
+
+    expect((result as unknown as { personaSource: string }).personaSource).to.equal(
+      `org (${PERSONA_OBJECT}, 1 personas)`
+    );
+    expect(requests[0]?.personasDoc).to.deep.equal(orgDoc);
+    expect(requests[0]?.personasDoc).to.not.deep.equal(fileDoc);
+  });
+
+  it('uses an explicit file source without reading the org when both sources are supplied', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-file-explicit-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    const fileDoc = { personas: { ops: { permissionSets: ['File_Read'] } } };
+    writeFileSync(usersPath, JSON.stringify({ users: [] }));
+    writeFileSync(personasPath, JSON.stringify(fileDoc));
+    const requests = captureProvisionRequests();
+    stubProvisionParse(fakeConn, usersPath, personasPath, 'file');
+
+    const result = await UserProvision.run(['--json']);
+
+    expect((result as unknown as { personaSource: string }).personaSource).to.equal(`file (${personasPath})`);
+    expect(requests[0]?.personasDoc).to.deep.equal(fileDoc);
+    expect(fakeConn.query.called).to.equal(false);
+  });
+
+  it('passes equivalent file and org persona documents to the planning use case', async () => {
+    const fileConnection = createFakeConnection();
+    const orgConnection = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-source-parity-test-'));
+    const fileUsersPath = join(dir, 'file-users.json');
+    const orgUsersPath = join(dir, 'org-users.json');
+    const personasPath = join(dir, 'personas.json');
+    const personasDoc = {
+      personas: {
+        ops: {
+          permissionSets: ['Shared_Read'],
+          permissionSetGroups: ['Shared_Access'],
+          publicGroups: ['Shared_Team'],
+          queues: ['Shared_Queue'],
+        },
+      },
+    };
+    writeFileSync(fileUsersPath, JSON.stringify({ users: [] }));
+    writeFileSync(orgUsersPath, JSON.stringify({ users: [] }));
+    writeFileSync(personasPath, JSON.stringify(personasDoc));
+    configureOrgPersonaQueries(orgConnection, personasDoc);
+    const requests = captureProvisionRequests();
+    const parseStub = sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse');
+    parseStub.onFirstCall().resolves({
+      flags: {
+        'target-org': { getConnection: () => fileConnection },
+        'users-def': fileUsersPath,
+        'personas-def': personasPath,
+        'persona-source': 'file',
+        'no-prompt': true,
+        'dry-run': true,
+      },
+    } as never);
+    parseStub.onSecondCall().resolves({
+      flags: {
+        'target-org': { getConnection: () => orgConnection },
+        'users-def': orgUsersPath,
+        'persona-source': 'org',
+        'no-prompt': true,
+        'dry-run': true,
+      },
+    } as never);
+
+    await UserProvision.run(['--json']);
+    await UserProvision.run(['--json']);
+
+    expect(requests).to.have.length(2);
+    expect(requests[0]?.personasDoc).to.deep.equal(personasDoc);
+    expect(requests[1]?.personasDoc).to.deep.equal(personasDoc);
+    expect(requests[0]?.personasDoc).to.deep.equal(requests[1]?.personasDoc);
+  });
+
   it('reads a CSV users-def through the provisioning use case with an explicit override', async () => {
     const fakeConn = createFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-provision-csv-input-test-'));
@@ -430,6 +675,59 @@ describe('warden user provision command', () => {
     expect(result.summary.total).to.equal(1);
     expect(result.users[0].status).to.equal('planned');
     expect(result.users[0].errors).to.deep.equal([]);
+  });
+
+  it('writes two ledger rows for a duplicated CSV persona grant', async () => {
+    const fakeConn = createFakeConnection();
+    fakeConn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({ name: WARDEN_LEDGER_OBJECT });
+    const ledgerCreate = bulkSuccessStub('a0Gxx000000000');
+    fakeConn.sobject.withArgs(WARDEN_LEDGER_OBJECT).returns({ create: ledgerCreate });
+    const dir = mkdtempSync(join(tmpdir(), 'warden-provision-csv-ledger-test-'));
+    const usersPath = join(dir, 'users.csv');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(
+      usersPath,
+      'Username,LastName,Alias,TimeZoneSidKey,LocaleSidKey,EmailEncodingKey,LanguageLocaleKey,ProfileId,personas\n' +
+        'csv-duplicate@example.test,CSV Duplicate,csvdup,America/Los_Angeles,en_US,UTF-8,en_US,00exx0000000001AAA,first;second\n'
+    );
+    writeFileSync(
+      personasPath,
+      JSON.stringify({
+        personas: {
+          first: { profile: 'Admin', permissionSets: ['Shared'] },
+          second: { profile: 'Admin', permissionSets: ['Shared'] },
+        },
+      })
+    );
+    fakeConn.query.callsFake(async (soql: string) => {
+      if (soql.includes('FROM PermissionSet WHERE Name IN')) return { records: [{ Id: '0PSshared', Name: 'Shared' }] };
+      if (soql.includes('FROM UserLogin')) return { records: [] };
+      if (soql.includes('FROM PermissionSetAssignment')) return { records: [] };
+      if (soql.includes('FROM GroupMember')) return { records: [] };
+      return { records: [] };
+    });
+    sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        'input-format': 'csv',
+        'csv-list-delimiter': undefined,
+        'external-id': undefined,
+        'no-prompt': true,
+        'dry-run': false,
+        'fail-on-insufficient-license': false,
+        'api-version': undefined,
+      },
+    } as never);
+
+    const result = await UserProvision.run(['--json']);
+
+    expect(result.users[0].status).to.equal('created');
+    expect(ledgerCreate.calledOnce).to.equal(true);
+    const ledgerRows = ledgerCreate.firstCall.args[0] as Array<{ wdn_Target_Id__c: string }>;
+    expect(ledgerRows).to.have.length(2);
+    expect(ledgerRows.every((row) => row.wdn_Target_Id__c === '0PSshared')).to.equal(true);
   });
 
   it('produces byte-equivalent command results for equivalent CSV and JSON definitions', async () => {
@@ -473,7 +771,18 @@ describe('warden user provision command', () => {
     expect(JSON.stringify(csvResult)).to.equal(JSON.stringify(jsonResult));
   });
 
-  it('keeps the CSV physical line on provisioning validation errors', async () => {
+  // KNOWN REGRESSION, operator-waived for this phase (see the Round 2 review
+  // response in wdc-extract-domain-library.md): pre-cutover this asserted
+  // `include(\`${usersPath}:2 — Missing required fields for insert: LastName\`)`. Core
+  // 0.2.0's zod `parseUsersDefinition` drops the Symbol-keyed CSV row info
+  // (`shared/csv.ts` `csvRowInfo`) before `provisionUserUseCase.ts`'s `assembleResult`
+  // can attach it via `addSourceContext`, so the `path:line — ` prefix is lost. Fixing
+  // this requires a warden-core patch (0.2.1) and an exact re-pin, which this phase's
+  // operator instruction ("cutover only against 0.2.0, do not release") forecloses; the
+  // operator has therefore accepted this regression for this phase. This test pins the
+  // current (regressed) behavior so a future core fix is a visible test change here,
+  // not a silent pass-through.
+  it('uses the core validation message on provisioning validation errors', async () => {
     const fakeConn = createFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-provision-csv-line-test-'));
     const usersPath = join(dir, 'users.csv');
@@ -498,7 +807,7 @@ describe('warden user provision command', () => {
     } as never);
 
     const result = await UserProvision.run(['--json']);
-    expect(result.users[0].errors[0]).to.include(`${usersPath}:2 — Missing required fields for insert: LastName`);
+    expect(result.users[0].errors[0]).to.equal('Missing required fields for insert: LastName.');
   });
 
   it('prompts once when global warnings exist', async () => {
@@ -2734,7 +3043,9 @@ describe('warden user provision command', () => {
       expect(error).to.have.property('message').that.includes('first@example.test');
       expect(error).to.have.property('message').that.includes('--personas-def');
     }
-    expect(fakeConn.describe.called).to.equal(false);
+    // The documented default checks whether the org-defined persona source is available
+    // before falling back to file/profile-only behavior.
+    expect(fakeConn.describe.called).to.equal(true);
   });
 
   it('writes an after-phase related record after the User save and reports its result', async () => {

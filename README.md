@@ -2,7 +2,7 @@
 
 [![NPM](https://img.shields.io/npm/v/@syntax-syllogism/warden.svg?label=%40syntax-syllogism%2Fwarden)](https://www.npmjs.com/package/@syntax-syllogism/warden) [![Downloads/week](https://img.shields.io/npm/dw/@syntax-syllogism/warden.svg)](https://npmjs.org/package/@syntax-syllogism/warden) [![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://raw.githubusercontent.com/Syntax-Syllogism/warden/release/LICENSE)
 
-a Salesforce CLI plugin for user lifecycle administration — access auditing, drift diffing, provisioning, freeze/unfreeze, and snapshot/restore.
+A Salesforce CLI plugin for managing the lifecycle of your users. Use it to audit who has access to what, compare users against the access they should have, provision users from reusable personas, freeze and unfreeze users, and snapshot and restore their access.
 
 ## Install
 
@@ -13,98 +13,81 @@ sf plugins install @syntax-syllogism/warden@x.y.z
 ## Quick start
 
 ```bash
-# Audit active-user access for a permission target
+# Who can use this Apex class?
 sf warden access --target-org myOrg --type apex-class --target My_Apex_Class
 
-# Compare a user's current assignments against an intended persona
+# How does a user's access differ from their persona?
 sf warden diff --target-org myOrg --user 'Username:user@example.com' --personas-def ./personas.json
 
-# Snapshot a user's assignment state, then restore it later
+# Save a user's access, then restore it later
 sf warden snapshot --target-org myOrg --user 'Username:user@example.com' --out ./snapshot.json
 sf warden restore --target-org myOrg --snapshot ./snapshot.json
 
-# Freeze / unfreeze users
+# Freeze and unfreeze a user
 sf warden freeze --target-org myOrg --user 'Username:user@example.com'
 sf warden unfreeze --target-org myOrg --user 'Username:user@example.com'
 
 # Provision users from definition files
 sf warden provision --target-org myOrg --users-def ./users.json --personas-def ./personas.json
 
-# Strip access and deactivate a user (snapshotting first)
+# Strip a user's access and deactivate them (snapshot first)
 sf warden strip --target-org myOrg --user 'Username:user@example.com' --snapshot ./pre-strip.json
 ```
 
+Commands that change data (`provision`, `freeze`, `unfreeze`, `strip`, `restore`) accept `--dry-run` to preview the changes first.
+
 ## Documentation
 
-* [Getting started](docs/getting-started.md)
-* [Command details](docs/command-details.md) — provisioning merge logic, field
-  precedence tables, match resolution, and assignment modes.
-* [Access audits](docs/access-audits.md) — target and reverse-user access
-  scopes, attribution, muting, and output behavior.
-* [Output contract](docs/output-contract.md) — output formats, file
-  destinations, CSV shape, and global `--json` behavior.
-* [User matching](docs/user-matching.md) — filterable fields, fuzzy Username
-  resolution, and lifecycle targeting behavior.
-* [Lifecycle output and snapshots](docs/lifecycle-output.md) — resolved user
-  identity, assignment labels, snapshots, and action reporting.
-* [Example definitions](docs/command-details.md#example-usersjson) — sample
-  `users.json`, `users.csv`, and `personas.json` files.
+New here? Start with [Getting started](docs/getting-started.md).
+
+* [Command details](docs/command-details.md): how provisioning merges personas, and the example definition files
+* [Access audits](docs/access-audits.md): who can access a field, object, or other target, and why
+* [User matching](docs/user-matching.md): how commands find the users you name
+* [Lifecycle output and snapshots](docs/lifecycle-output.md): what freeze, strip, restore, and snapshot report
+* [Output contract](docs/output-contract.md): output formats, file destinations, and exit codes
+
+The [full documentation index](docs/README.md) lists the rest.
 
 ## Issues
 
-Please report any issues at <https://github.com/Syntax-Syllogism/warden/issues>.
+Report problems at <https://github.com/Syntax-Syllogism/warden/issues>.
 
 ## Contributing
 
-1. Please read our [Code of Conduct](CODE_OF_CONDUCT.md).
-2. Create a new issue before starting your project so that we can keep track of what you are trying to add/fix. That way, we can also offer suggestions or let you know if there is already an effort in progress.
-3. Fork this repository.
-4. [Build the plugin locally](#build).
-5. Create a _topic_ branch in your fork. Note, this step is recommended but technically not required if contributing using a fork.
-6. Edit the code in your fork.
-7. Write appropriate tests for your changes. Try to achieve at least 75% code coverage on any new code. No pull request will be accepted without unit tests.
-8. Send us a pull request when you are done. We'll review your code, suggest any needed changes, and merge it in.
+Read the [Code of Conduct](CODE_OF_CONDUCT.md) and [CONTRIBUTING.md](CONTRIBUTING.md). Open an issue before starting work so we can avoid duplicate effort. Pull requests need unit tests.
 
 ### Build
 
-To build the plugin locally, make sure to have yarn installed and run the following commands:
+You need yarn.
 
 ```bash
-# Clone the repository
 git clone git@github.com:Syntax-Syllogism/warden
-
-# Install the dependencies and compile
+cd warden
 yarn install
 yarn build
 ```
 
-To use your plugin locally, invoke the development launcher through Node:
+Run the plugin from source:
 
 ```bash
-# Run using local run file.
 node ./bin/dev.js warden freeze --help
 ```
 
-There should be no differences when running via the Salesforce CLI or using the local run file. However, it can be useful to link the plugin to do some additional testing or run your commands from anywhere on your machine.
+To run it from anywhere through the Salesforce CLI, link it:
 
 ```bash
-# Link your plugin to the sf cli
 sf plugins link .
-# To verify
-sf plugins
+sf plugins   # verify
 ```
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The command ran without per-user failures. `diff` also returns `0` when drift is present unless `--fail-on-drift` is set, and `diff --verify` returns `0` when all users conform. |
-| `1` | The command ran with one or more per-user failures, `diff --fail-on-drift` detected drift, or `diff --verify` found a non-conformant user. Command errors also use exit code `1` through oclif. |
+| `0` | No per-user failures. `diff` also returns `0` when it finds drift, unless you pass `--fail-on-drift`. `diff --verify` returns `0` when every user conforms. |
+| `1` | At least one user failed, `diff --fail-on-drift` found drift, `diff --verify` found a non-conforming user, or the command itself errored. |
 
-With global `--json`, a partial per-user failure or a non-conformant verify
-result still reports `status: 0` in the Salesforce CLI envelope while the
-process exits with code `1`. The result payload is unchanged so callers can
-inspect the per-user errors or verdicts.
+With the global `--json` flag, a partial failure or a non-conforming verify result still reports `status: 0` in the Salesforce CLI envelope, but the process exits with `1`. The result payload is unchanged, so you can inspect the per-user errors or verdicts.
 
 ## Commands
 
@@ -112,6 +95,9 @@ inspect the per-user errors or verdicts.
 * [`sf warden access`](#sf-warden-access)
 * [`sf warden diff`](#sf-warden-diff)
 * [`sf warden freeze`](#sf-warden-freeze)
+* [`sf warden persona diff`](#sf-warden-persona-diff)
+* [`sf warden persona export`](#sf-warden-persona-export)
+* [`sf warden persona import`](#sf-warden-persona-import)
 * [`sf warden provision`](#sf-warden-provision)
 * [`sf warden restore`](#sf-warden-restore)
 * [`sf warden snapshot`](#sf-warden-snapshot)
@@ -210,7 +196,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -269,7 +255,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -322,7 +308,100 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/freeze.ts)_
+
+## `sf warden persona diff`
+
+Compare a persona definitions file with org-defined personas.
+
+```
+USAGE
+  $ sf warden persona diff --input <value> [--json] [--flags-dir <value>] [-o <value>] [--api-version <value>]
+
+FLAGS
+  -o, --target-org=<value>   Target org username or alias.
+      --api-version=<value>  Override the api version used for the org connection.
+      --input=<value>        (required) Persona definitions JSON file.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Compare a persona definitions file with org-defined personas.
+
+  Reports added, removed, and changed personas without writing to the org.
+
+FLAG DESCRIPTIONS
+  --api-version=<value>  Override the api version used for the org connection.
+
+    Override the api version used for api requests made by this command
+```
+
+_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/diff.ts)_
+
+## `sf warden persona export`
+
+Export org-defined Warden personas to a JSON file.
+
+```
+USAGE
+  $ sf warden persona export --output <value> [--json] [--flags-dir <value>] [-o <value>] [--api-version <value>]
+
+FLAGS
+  -o, --target-org=<value>   Target org username or alias.
+      --api-version=<value>  Override the api version used for the org connection.
+      --output=<value>       (required) Destination personas.json file.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Export org-defined Warden personas to a JSON file.
+
+  Reads active `wdn_Persona__c` records and their components and writes the canonical personas.json format.
+
+FLAG DESCRIPTIONS
+  --api-version=<value>  Override the api version used for the org connection.
+
+    Override the api version used for api requests made by this command
+```
+
+_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/export.ts)_
+
+## `sf warden persona import`
+
+Import persona definitions into the connected org.
+
+```
+USAGE
+  $ sf warden persona import --input <value> [--json] [--flags-dir <value>] [-o <value>] [--prune] [--api-version
+  <value>]
+
+FLAGS
+  -o, --target-org=<value>   Target org username or alias.
+      --api-version=<value>  Override the api version used for the org connection.
+      --input=<value>        (required) Persona definitions JSON file.
+      --prune                Delete org components that are absent from the input file.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Import persona definitions into the connected org.
+
+  Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the
+  input file.
+
+FLAG DESCRIPTIONS
+  --api-version=<value>  Override the api version used for the org connection.
+
+    Override the api version used for api requests made by this command
+```
+
+_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/import.ts)_
 
 ## `sf warden provision`
 
@@ -331,9 +410,10 @@ Provision users from user and persona definition files.
 ```
 USAGE
   $ sf warden provision [--json] [--flags-dir <value>] [-o <value>] [--users-def <value>] [--personas-def <value>]
-    [--related-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>]
-    [--fuzzy-username] [--no-prompt] [--dry-run] [--fail-on-insufficient-license] [--output human|csv|json]
-    [--output-file <value>] [--api-version <value>] [-i]
+    [--persona-source file|org] [--related-def <value>] [--external-id <value>] [--input-format json|csv]
+    [--csv-list-delimiter <value>] [--fuzzy-username] [--no-prompt] [--dry-run] [--fail-on-insufficient-license]
+    [--log-to-org] [--log-detail summary|full] [--output human|csv|json] [--output-file <value>] [--api-version <value>]
+    [-i]
 
 FLAGS
   -i, --interactive                   Prompt for missing command values, summarize them, and confirm before continuing.
@@ -349,10 +429,18 @@ FLAGS
       --fuzzy-username                Match Username values with optional Salesforce sandbox suffixes.
       --input-format=<option>         Override users-def format detection: json or csv.
                                       <options: json|csv>
+      --log-detail=<option>           [default: summary] Connected audit detail level: summary writes the Run header;
+                                      full also writes one Item per provision output row.
+                                      <options: summary|full>
+      --[no-]log-to-org               Write connected Warden ledger and optional reconciliation audit records when the
+                                      package is installed.
       --no-prompt                     Skip warning confirmation prompts.
       --output=<option>               [default: human] Output format: human, csv, or json. Defaults to human.
                                       <options: human|csv|json>
       --output-file=<value>           Write the machine-readable output payload to this path.
+      --persona-source=<option>       Persona definition source: file or org. Defaults to file when --personas-def is
+                                      supplied, otherwise org when the Warden package is detected.
+                                      <options: file|org>
       --personas-def=<value>          Optional path to persona definition JSON file. Omit it for profile-only
                                       provisioning.
       --related-def=<value>           Optional path to a related-record definition JSON file. Declares named
@@ -403,7 +491,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -450,7 +538,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -503,7 +591,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -576,7 +664,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -629,5 +717,5 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.6.2/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->

@@ -1,10 +1,36 @@
 import { Messages, SfError } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { describeUserFields } from '../../userShared/userFields.js';
-import { parseUserFlag, resolveTargetField, resolveTargets } from '../../userLifecycle/targeting.js';
-import type { ResolvedTargetUser } from '../../userLifecycle/types.js';
-import { serializeCsv } from '../../userShared/csv.js';
-import { outputFlags } from '../../userShared/outputFlags.js';
+import { describeUserFields } from '@syntax-syllogism/warden-core';
+import { parseUserFlag, resolveTargetField, resolveTargets } from '@syntax-syllogism/warden-core';
+import type { ResolvedTargetUser } from '@syntax-syllogism/warden-core';
+import { serializeCsv } from '@syntax-syllogism/warden-core';
+import {
+  flattenAccessRow,
+  renderEnabledTable,
+  renderFieldTable,
+  renderObjectTable,
+  renderRecordTypeTable,
+  renderTabTable,
+} from '@syntax-syllogism/warden-core';
+import { getResolver } from '@syntax-syllogism/warden-core';
+import { resolveReverseAccess, reverseCsvColumns } from '@syntax-syllogism/warden-core';
+import type {
+  AccessTargetType,
+  UserAccessResult,
+  UserAccessRow,
+  ValidatedAccessTarget,
+} from '@syntax-syllogism/warden-core';
+import { UserAccessError } from '@syntax-syllogism/warden-core';
+import {
+  promptAccessMode,
+  promptAccessType,
+  promptAccessUserScope,
+  promptOptionalApiVersion,
+  promptOptionalText,
+  promptOrgAlias,
+  promptOutputFormat,
+  promptText,
+} from '../../userShared/prompting.js';
 import {
   apiVersionFlag,
   assertInteractiveAllowed,
@@ -18,33 +44,7 @@ import {
   type InteractiveParse,
   type InteractivePrompt,
 } from '../../userShared/targetFlags.js';
-import {
-  promptAccessMode,
-  promptAccessType,
-  promptAccessUserScope,
-  promptOptionalApiVersion,
-  promptOptionalText,
-  promptOrgAlias,
-  promptOutputFormat,
-  promptText,
-} from '../../userShared/prompting.js';
-import {
-  flattenAccessRow,
-  renderEnabledTable,
-  renderFieldTable,
-  renderObjectTable,
-  renderRecordTypeTable,
-  renderTabTable,
-} from '../../userAccess/output.js';
-import { getResolver } from '../../userAccess/resolvers/index.js';
-import { resolveReverseAccess, reverseCsvColumns } from '../../userAccess/reverse.js';
-import type {
-  AccessTargetType,
-  UserAccessResult,
-  UserAccessRow,
-  ValidatedAccessTarget,
-} from '../../userAccess/types.js';
-import { UserAccessError } from '../../userAccess/types.js';
+import { outputFlags } from '../../userShared/outputFlags.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);

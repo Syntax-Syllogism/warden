@@ -5,12 +5,12 @@ import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
+import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import UserFreeze from '../../../src/commands/warden/freeze.js';
 import UserRestore from '../../../src/commands/warden/restore.js';
 import UserSnapshot from '../../../src/commands/warden/snapshot.js';
 import UserStrip from '../../../src/commands/warden/strip.js';
 import UserUnfreeze from '../../../src/commands/warden/unfreeze.js';
-import type { LifecycleResult } from '../../../src/userLifecycle/types.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -133,6 +133,33 @@ describe('warden user lifecycle commands', () => {
       'matched Username = freeze@example.com · was active'
     );
     expect(process.exitCode).to.equal(undefined);
+  });
+
+  it('preserves the legacy Error name for an invalid --user value', async () => {
+    const conn = createConnection();
+    sinon.stub(UserFreeze.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        user: 'not-a-field-value-pair',
+        'users-def': undefined,
+        'external-id': undefined,
+        'no-prompt': true,
+        'dry-run': false,
+        'api-version': undefined,
+      },
+    } as never);
+
+    try {
+      await UserFreeze.run([]);
+      expect.fail('Expected an invalid --user value to throw');
+    } catch (error) {
+      // Pre-cutover this was a bare `new Error(...)` thrown from userLifecycle/targeting.ts.
+      // Unlike `diff`'s user-to-user mode, freeze/unfreeze/snapshot/strip never wrapped it
+      // as an `SfError`, even though core now throws the same `errorInvalidUserValue`
+      // `LifecycleError` code for both call sites.
+      expect(error).to.have.property('name', 'Error');
+      expect(error).to.have.property('message').that.includes('--user');
+    }
   });
 
   it('uses the interactive confirmation as the only freeze confirmation', async () => {
@@ -1061,6 +1088,9 @@ describe('warden user lifecycle commands', () => {
       expect.fail('Expected strip to be cancelled.');
     } catch (error) {
       expect(error).to.have.property('message', 'Operation cancelled.');
+      // Pre-cutover this was a bare `new SfError(...)`; keep that envelope name
+      // even though core now throws a coded `LifecycleError` under the hood.
+      expect(error).to.have.property('name', 'SfError');
     }
     expect(existsSync(snapshotPath)).to.equal(false);
     expect(conn.sobjectMap.UserLogin.update.called).to.equal(false);

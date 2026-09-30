@@ -5,6 +5,8 @@ package-lock.json
 
 # never checkin npm config
 .npmrc
+# ...except the project one: it maps the @syntax-syllogism scope (see .npmrc)
+!/.npmrc
 
 # debug logs
 npm-error.log
