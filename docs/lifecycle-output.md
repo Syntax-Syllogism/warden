@@ -5,7 +5,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 # Lifecycle output and snapshots
 
-This page describes what the lifecycle commands print and what a snapshot file contains. For flags, see the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/README.md#commands).
+This page describes what the lifecycle commands print and what a snapshot file contains. For flags, see the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/README.md#commands).
 
 ## Resolved user identity
 

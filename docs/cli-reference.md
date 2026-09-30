@@ -156,7 +156,7 @@ Reverse record type access for one user:
 sf warden access --user 'Username:alice@example.com' --type record-type --target Account.Business_Account --target-org myOrg
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -264,7 +264,7 @@ Compare one user against another:
 sf warden diff --user username:new@example.com --against username:template@example.com --target-org myOrg --output csv
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -360,7 +360,7 @@ Freeze users from a definition file without prompts:
 sf warden freeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/freeze.ts)_
 
 ## `sf warden persona diff`
 
@@ -402,7 +402,7 @@ Format output as json.
 
 Reports added, removed, and changed personas without writing to the org.
 
-_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/diff.ts)_
+_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/persona/diff.ts)_
 
 ## `sf warden persona export`
 
@@ -444,7 +444,7 @@ Format output as json.
 
 Reads active `wdn_Persona__c` records and their components and writes the canonical personas.json format.
 
-_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/export.ts)_
+_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/persona/export.ts)_
 
 ## `sf warden persona import`
 
@@ -490,7 +490,7 @@ Format output as json.
 
 Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file.
 
-_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/persona/import.ts)_
+_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/persona/import.ts)_
 
 ## `sf warden provision`
 
@@ -628,7 +628,7 @@ Match production usernames to sandbox-suffixed users:
 sf warden provision --users-def config/user-def.json --personas-def config/persona-def.json --fuzzy-username --target-org mySandbox --dry-run
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -706,7 +706,7 @@ Restore without prompts:
 sf warden restore --snapshot snapshots/user.json --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -798,7 +798,7 @@ Snapshot users from a definition file:
 sf warden snapshot --users-def config/user-def.json --external-id FederationIdentifier --out snapshots/users.json --target-org myOrg
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -938,7 +938,7 @@ Capture a restorable snapshot before stripping:
 sf warden strip --user username:someone@example.com --snapshot snapshots/user.json --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -1034,4 +1034,4 @@ Unfreeze users from a definition file without prompts:
 sf warden unfreeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/src/commands/warden/unfreeze.ts)_
