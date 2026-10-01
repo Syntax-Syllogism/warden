@@ -1,7 +1,12 @@
 import { stat } from 'node:fs/promises';
 import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import { SfError } from '@salesforce/core';
-import { detectInputFormat, type AccessTargetType, type InputFormat } from '@syntax-syllogism/warden-core';
+import {
+  LifecycleError,
+  detectInputFormat,
+  type AccessTargetType,
+  type InputFormat,
+} from '@syntax-syllogism/warden-core';
 import { apiVersionFlag } from './targetFlags.js';
 
 export const promptRuntime = { checkbox, confirm, input, select };
@@ -69,11 +74,7 @@ export const promptInputFormat = (): Promise<'json' | 'csv'> =>
   });
 
 const inputFormatFromExtension = (path: string): InputFormat | undefined =>
-  path.toLowerCase().endsWith('.json')
-    ? 'json'
-    : /\.(csv|tsv)$/i.test(path)
-      ? 'csv'
-      : undefined;
+  path.toLowerCase().endsWith('.json') ? 'json' : /\.(csv|tsv)$/i.test(path) ? 'csv' : undefined;
 
 /** Ask only when the users-definition extension does not resolve the format. */
 export const promptInputFormatForPath = (path: unknown): Promise<InputFormat> => {
@@ -160,3 +161,34 @@ export const promptStripSkips = (
       ...(disabled.includes(choice.value) ? { disabled: 'Provided on the command line' } : {}),
     })),
   });
+
+export const confirmWithTimeout = async (
+  confirmPrompt: (message: string) => Promise<boolean>,
+  message: string,
+  timeoutMs = 10_000
+): Promise<{ confirmed: boolean; timedOut: boolean }> => {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const timeoutPromise = new Promise<{ confirmed: boolean; timedOut: boolean }>((resolve) => {
+      timer = setTimeout(() => resolve({ confirmed: false, timedOut: true }), timeoutMs);
+      timer.unref();
+    });
+    return await Promise.race([confirmPrompt(message).then((confirmed) => ({ confirmed, timedOut: false })), timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
+export const confirmLifecycleWrites = async (options: {
+  required: boolean;
+  confirm: (message: string) => Promise<boolean>;
+  warn: (message: string) => void;
+  message: (key: string) => string;
+}): Promise<void> => {
+  if (!options.required) return;
+  const { confirmed, timedOut } = await confirmWithTimeout(options.confirm, options.message('promptContinue'));
+  if (!confirmed) {
+    if (timedOut) options.warn(options.message('warningPromptTimeout'));
+    throw new LifecycleError('errorPromptDeclined', options.message('errorPromptDeclined'));
+  }
+};

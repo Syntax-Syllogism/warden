@@ -17,3 +17,4 @@ Start with [Getting started](getting-started.md). Come back to the guides below 
 * [Lifecycle output and snapshots](lifecycle-output.md): resolved identities, assignment labels, snapshots, and action reports.
 * [Interactive mode](interactive-mode.md): `-i` prompts for the flags you leave out.
 * [Output contract](output-contract.md): human, CSV, and JSON output, destinations, and exit codes.
+* [CLI/core architecture](architecture.md): implementation ownership, plan/apply boundaries, and output compatibility adapters.

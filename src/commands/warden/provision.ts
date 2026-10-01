@@ -1,14 +1,14 @@
 /* eslint-disable camelcase */
-import { readFileSync } from 'node:fs';
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { confirmWithTimeout } from '@syntax-syllogism/warden-core';
 import { describeUserFields } from '@syntax-syllogism/warden-core';
-import { renderProvisionCsv } from '@syntax-syllogism/warden-core';
+import { renderProvisionCsv, renderProvisionHuman } from '@syntax-syllogism/warden-core';
 import { detectInputFormat, type InputFormat } from '@syntax-syllogism/warden-core';
-import { parsePersonaDefinitions } from '@syntax-syllogism/warden-core';
-import { ProvisionUserUseCase, type ProvisionResult } from '@syntax-syllogism/warden-core';
+import { parseUsersDefinition, DefinitionError } from '@syntax-syllogism/warden-core';
+import { provision, provisionOptionsSchema, type ProvisionResult } from '@syntax-syllogism/warden-core';
 import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
+import { confirmWithTimeout } from '../../userShared/prompting.js';
+import { applyProvisionWithLegacyOutput } from '../../userShared/useCaseOptions.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   buildLedgerRows,
@@ -60,82 +60,6 @@ const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provi
 
 type ProvisionDefinitions = Awaited<ReturnType<typeof readProvisionDefinitions>>;
 type PersonaSource = 'file' | 'org';
-
-const readPersonaDefinitionsForLedger = (personasPath: string): ProvisionDefinitions['personasDoc'] => {
-  try {
-    return parsePersonaDefinitions(JSON.parse(readFileSync(personasPath, 'utf8')));
-  } catch (error) {
-    rethrowLegacyPersonaDefinitionError(
-      error,
-      personasPath,
-      messages.getMessage('errorInvalidPersonaDefinition')
-    );
-    if (error instanceof SyntaxError) {
-      throw new SfError(messages.getMessage('errorInvalidJson', [personasPath, error.message]));
-    }
-    throw error;
-  }
-};
-
-/**
- * Report the match field alongside the value actually looked up under it.
- *
- * `user.key` is a display identity (FederationIdentifier, then Username, then Email,
- * then a synthesized `<personas>:<index>` fallback), so it is only ever the match value
- * by coincidence and must not be printed as one. `matchedBy` likewise only says a match
- * field was configured, so `matched` is what distinguishes a resolved user from a
- * net-new one.
- */
-const renderMatchProvenance = (user: ProvisionResult['users'][number]): string => {
-  if (!user.matchedBy) return 'unmatched';
-  const label = user.matched ? 'matched' : 'unmatched';
-  return user.matchValue === null ? `${label} ${user.matchedBy}` : `${label} ${user.matchedBy} = ${user.matchValue}`;
-};
-
-const renderProvisionHuman = (output: ProvisionResult, personaSource: string): string => {
-  const lines: string[] = [];
-  lines.push(`Persona source: ${personaSource}`);
-  lines.push('');
-  for (const user of output.users) {
-    lines.push(`${user.key}${user.id ? ` · ${user.id}` : ''} · ${user.status}`);
-    lines.push(`  ${renderMatchProvenance(user)} · personas: ${user.personas.join(', ') || '(none)'}`);
-    for (const action of user.actions) lines.push(`  action: ${action}`);
-    for (const related of user.relatedRecords ?? []) {
-      const recordId = related.recordId ? ` · ${related.recordId}` : '';
-      lines.push(`  related: ${related.phase} ${related.sobject} ${related.action}${recordId}`);
-      if (related.error) lines.push(`  related error: ${related.error}`);
-    }
-    for (const error of user.errors) lines.push(`  error: ${error}`);
-  }
-  lines.push('');
-  lines.push(
-    messages.getMessage('info.summary', [
-      output.summary.total,
-      output.summary.created,
-      output.summary.updated,
-      output.summary.failed,
-    ])
-  );
-  if (output.licenses) {
-    lines.push('');
-    lines.push(messages.getMessage('info.licenses.header'));
-    for (const license of output.licenses) {
-      const available = license.unlimited ? 'unlimited' : String(license.available);
-      const note = license.note ? ` (${license.note})` : '';
-      lines.push(
-        messages.getMessage('info.licenses.row', [
-          license.licenseName,
-          license.required,
-          available,
-          license.shortfall,
-          note,
-        ])
-      );
-    }
-    lines.push(messages.getMessage('info.permissionSetLicenses.notEvaluated'));
-  }
-  return lines.join('\n');
-};
 
 export default class UserProvision extends WardenCommand<ProvisionResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -270,33 +194,45 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       (flags['personas-def'] ? 'file' : (await personaPackageDetected(conn)) ? 'org' : 'file');
     let orgPersonas: Awaited<ReturnType<typeof readOrgPersonas>> | undefined;
     if (personaSource === 'org') orgPersonas = await readOrgPersonas(conn);
-    let definitions: Awaited<ReturnType<typeof readProvisionDefinitions>> | undefined;
-    if (inputFormat === 'json' || personaSource === 'org') {
-      try {
-        definitions = await readProvisionDefinitions(
-          usersPath,
-          personaSource === 'file' ? flags['personas-def'] : undefined,
-          {
-            relatedPath: flags['related-def'],
-            ...(inputFormat === 'csv'
-              ? { inputFormat, fieldMap: await describeUserFields(conn), csvListDelimiter: flags['csv-list-delimiter'] }
-              : {}),
-          },
-          (path, error) => messages.getMessage('errorInvalidJson', [path, error])
-        );
-      } catch (error) {
-        rethrowLegacyPersonaDefinitionError(
-          error,
-          flags['personas-def'],
-          messages.getMessage('errorInvalidPersonaDefinition')
+    let definitions: ProvisionDefinitions;
+    try {
+      definitions = await readProvisionDefinitions(
+        usersPath,
+        personaSource === 'file' ? flags['personas-def'] : undefined,
+        {
+          relatedPath: flags['related-def'],
+          ...(inputFormat === 'csv'
+            ? { inputFormat, fieldMap: await describeUserFields(conn), csvListDelimiter: flags['csv-list-delimiter'] }
+            : {}),
+        },
+        (path, error) => messages.getMessage('errorInvalidJson', [path, error])
+      );
+    } catch (error) {
+      return rethrowLegacyPersonaDefinitionError(
+        error,
+        flags['personas-def'],
+        messages.getMessage('errorInvalidPersonaDefinition')
+      );
+    }
+    // The legacy reader reparsed CSV rows through the schema, dropping source metadata.
+    // Keep that machine-output contract until a separate change explicitly adopts source prefixes.
+    const usersDoc = parseUsersDefinition(definitions.usersDoc);
+    definitions.usersDoc = usersDoc;
+    if (personaSource === 'file' && !definitions.personasSupplied) {
+      const users = usersDoc.users;
+      const index = users.findIndex((user) => Object.keys(user).some((key) => key.toLowerCase() === 'personas'));
+      if (index >= 0) {
+        const user = users[index] as Record<string, unknown>;
+        const identity = ['FederationIdentifier', 'Username', 'Email']
+          .map((field) => user[Object.keys(user).find((key) => key.toLowerCase() === field.toLowerCase()) ?? ''])
+          .find((value) => typeof value === 'string' && value.length > 0);
+        throw new DefinitionError(
+          'errorPersonasWithoutDefinition',
+          messages.getMessage('errorPersonasWithoutDefinition', [String(identity ?? index + 1)])
         );
       }
     }
-    const ledgerPersonasDoc =
-      orgPersonas?.document ??
-      (inputFormat === 'csv' && personaSource === 'file' && flags['personas-def']
-        ? readPersonaDefinitionsForLedger(flags['personas-def'])
-        : definitions?.personasDoc);
+    const ledgerPersonasDoc = orgPersonas?.document ?? definitions.personasDoc;
     const personaSourceLabel =
       personaSource === 'org'
         ? `org (${PERSONA_OBJECT}, ${orgPersonas?.count ?? 0} personas)`
@@ -316,6 +252,22 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
       if (connectedPackage.ledgerAvailable) capturedWrites = captureProvisioningWrites(conn);
     }
     const provisioningConnection = capturedWrites?.connection ?? conn;
+
+    const plan = await provision.plan(
+      provisioningConnection,
+      provisionOptionsSchema.parse({
+        usersDoc: definitions.usersDoc,
+        personasDoc: orgPersonas?.document ?? definitions.personasDoc,
+        personasSupplied: personaSource === 'org' ? true : definitions.personasSupplied,
+        relatedDoc: definitions.relatedDoc,
+        csvListDelimiter: flags['csv-list-delimiter'],
+        externalId: flags['external-id'],
+        fuzzyUsername: flags['fuzzy-username'],
+      })
+    );
+    if (plan.warnings.length > 0 && context.interactive) {
+      await this.acknowledgeWarnings(plan.warnings, flags['no-prompt'] || Boolean(flags.interactive));
+    }
     if (logToOrg && connectedPackage.runAvailable) {
       const provenance = buildProvenance({
         definitionPath: flags['personas-def'] ?? usersPath,
@@ -339,27 +291,9 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         (message) => this.warn(message)
       );
     }
-
-    const useCase = new ProvisionUserUseCase();
-
-    const output = await useCase.execute({
-      connection: provisioningConnection,
-      usersDoc: definitions?.usersDoc,
-      personasDoc: orgPersonas?.document ?? definitions?.personasDoc,
-      personasSupplied: personaSource === 'org' ? true : definitions?.personasSupplied,
-      relatedDoc: definitions?.relatedDoc,
-      usersPath: inputFormat === 'csv' && personaSource === 'file' ? usersPath : undefined,
-      personasPath: inputFormat === 'csv' && personaSource === 'file' ? flags['personas-def'] : undefined,
-      inputFormat: inputFormat === 'csv' && personaSource === 'file' ? inputFormat : undefined,
-      csvListDelimiter: flags['csv-list-delimiter'],
-      externalId: flags['external-id'],
-      fuzzyUsername: flags['fuzzy-username'],
-      dryRun: flags['dry-run'],
-      acknowledgeWarnings: context.interactive
-        ? (warnings): Promise<void> =>
-            this.acknowledgeWarnings(warnings, flags['no-prompt'] || Boolean(flags.interactive))
-        : undefined,
-    });
+    const output = flags['dry-run']
+      ? plan.preview
+      : await applyProvisionWithLegacyOutput(provisioningConnection, plan, messages.getMessage.bind(messages));
 
     await this.writeConnectedRecords({
       connection: provisioningConnection,
@@ -381,7 +315,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     await this.emitResult(context, {
       result,
       csv,
-      human: renderProvisionHuman(output, personaSourceLabel),
+      human: renderProvisionHuman(output, personaSourceLabel, messages.getMessage.bind(messages)),
     });
     if (output.summary.failed > 0) process.exitCode = 1;
     if (flags['fail-on-insufficient-license'] && output.licenses?.some((license) => license.shortfall > 0)) {
@@ -453,8 +387,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         );
       }
       if (!options.runId) return;
-      const items =
-        options.logDetail === 'full' ? buildReconciliationItems(options.output, options.runId) : [];
+      const items = options.logDetail === 'full' ? buildReconciliationItems(options.output, options.runId) : [];
       if (items.length > 0) {
         await bestEffortOrgWrite(
           () => writeBatch(options.connection, WARDEN_ITEM_OBJECT, items, warn, 'item'),
@@ -467,7 +400,9 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         options.runId,
         {
           wdn_Planned_Count__c: options.logDetail === 'full' ? items.length : options.output.summary.total,
-          wdn_Applied_Count__c: options.output.users.filter((user) => user.status === 'created' || user.status === 'updated').length,
+          wdn_Applied_Count__c: options.output.users.filter(
+            (user) => user.status === 'created' || user.status === 'updated'
+          ).length,
           wdn_Error_Count__c: options.output.summary.failed,
           wdn_Unmanaged_Count__c: 0,
         },

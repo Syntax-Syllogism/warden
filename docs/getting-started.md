@@ -13,7 +13,7 @@ description: Install Warden and run your first Salesforce user lifecycle workflo
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -111,4 +111,4 @@ sf warden strip --target-org myOrg --user 'Username:user@example.com' \
 * [Output contract](output-contract.md): formats, destinations, CSV shape, and `--json`.
 * [Lifecycle output and snapshots](lifecycle-output.md): identities, labels, snapshots, and action reports.
 * [Interactive mode](interactive-mode.md): guided prompts for all eight commands.
-* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/README.md#commands) section of the README, or `--help` on any command.
+* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#commands) section of the README, or `--help` on any command.

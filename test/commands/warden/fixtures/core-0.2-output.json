@@ -1,0 +1,806 @@
+{
+  "freezes a matching user and emits a human summary": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:freeze@example.com",
+            "id": "005xx0000000001AAA",
+            "name": "Freeze User",
+            "username": "freeze@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "changed",
+            "actions": [
+              {
+                "key": "frozen"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:freeze@example.com,005xx0000000001AAA,Freeze User,freeze@example.com,false,changed,frozen,"
+    }
+  ],
+  "keeps CSV source lines on unmatched and ambiguous lifecycle targets": [
+    {
+      "result": {
+        "summary": {
+          "total": 3,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 3
+        },
+        "users": [
+          {
+            "key": "<fixture>/users.csv:4",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": [
+              "<fixture>/users.csv:4 — Invalid match field \"NotAUserField\"."
+            ]
+          },
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": [
+              "<fixture>/users.csv:2 — Username=\"missing@example.com\" matched no user"
+            ]
+          },
+          {
+            "key": "Username:ambiguous@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": [
+              "<fixture>/users.csv:3 — Username=\"ambiguous@example.com\" matched multiple users"
+            ]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\n<fixture>/users.csv:4,,,,,failed,,\"<fixture>/users.csv:4 — Invalid match field \"\"NotAUserField\"\".\"\nUsername:missing@example.com,,,,,failed,,\"<fixture>/users.csv:2 — Username=\"\"missing@example.com\"\" matched no user\"\nUsername:ambiguous@example.com,,,,,failed,,\"<fixture>/users.csv:3 — Username=\"\"ambiguous@example.com\"\" matched multiple users\""
+    }
+  ],
+  "writes freeze CSV to a file while global JSON owns stdout": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:freeze-file@example.com",
+            "id": "005xx0000000005AAA",
+            "username": "freeze-file@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldFreeze"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:freeze-file@example.com,005xx0000000005AAA,,freeze-file@example.com,false,planned,wouldFreeze,"
+    }
+  ],
+  "unfreezes a matching user in dry-run without DML": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:unfreeze@example.com",
+            "id": "005xx0000000002AAA",
+            "username": "unfreeze@example.com",
+            "isActive": true,
+            "isFrozen": true,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldUnfreeze"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:unfreeze@example.com,005xx0000000002AAA,,unfreeze@example.com,true,planned,wouldUnfreeze,"
+    }
+  ],
+  "strips access with opt-outs and excludes profile-owned permission set assignments": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:strip@example.com",
+            "id": "005xx0000000003AAA",
+            "username": "strip@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldFreeze"
+              },
+              {
+                "key": "wouldRemovePermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PS1",
+                    "apiName": "Sales_Perms",
+                    "label": "Sales Permissions",
+                    "type": "PermissionSet"
+                  }
+                ]
+              },
+              {
+                "key": "wouldRemovePermissionSetGroup",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PG1",
+                    "apiName": "Sales_Group",
+                    "label": "Sales Group",
+                    "type": "PermissionSetGroup"
+                  }
+                ]
+              },
+              {
+                "key": "wouldRemovePublicGroupMember",
+                "count": 1,
+                "items": [
+                  {
+                    "apiName": "Public_Group",
+                    "label": "Public Group",
+                    "type": "PublicGroup"
+                  }
+                ]
+              },
+              {
+                "key": "wouldRemoveQueueMember",
+                "count": 1,
+                "items": [
+                  {
+                    "apiName": "Case_Queue",
+                    "label": "Case Queue",
+                    "type": "Queue"
+                  }
+                ]
+              },
+              {
+                "key": "wouldDeactivate"
+              }
+            ],
+            "skipped": [
+              {
+                "key": "skippedProfileOwnedPermissionSets",
+                "count": 1
+              },
+              {
+                "key": "skippedPermissionSetLicenses",
+                "count": 1,
+                "items": [
+                  {
+                    "type": "PermissionSetLicense"
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldFreeze,,,,\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldRemovePermissionSet,PermissionSet,0PS1,Sales_Perms,\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldRemovePermissionSetGroup,PermissionSetGroup,0PG1,Sales_Group,\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldRemovePublicGroupMember,PublicGroup,,Public_Group,\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldRemoveQueueMember,Queue,,Case_Queue,\nUsername:strip@example.com,005xx0000000003AAA,,strip@example.com,planned,wouldDeactivate,,,,"
+    }
+  ],
+  "writes a strip snapshot during dry-run without removal DML": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:strip-snapshot@example.com",
+            "id": "005xx0000000300AAA",
+            "username": "strip-snapshot@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldFreeze"
+              },
+              {
+                "key": "wouldRemovePermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PS300",
+                    "apiName": "Strip_Perms",
+                    "label": "Strip Permissions",
+                    "type": "PermissionSet"
+                  }
+                ]
+              },
+              {
+                "key": "wouldDeactivate"
+              },
+              {
+                "key": "snapshotWritten"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:strip-snapshot@example.com,005xx0000000300AAA,,strip-snapshot@example.com,planned,wouldFreeze,,,,\nUsername:strip-snapshot@example.com,005xx0000000300AAA,,strip-snapshot@example.com,planned,wouldRemovePermissionSet,PermissionSet,0PS300,Strip_Perms,\nUsername:strip-snapshot@example.com,005xx0000000300AAA,,strip-snapshot@example.com,planned,wouldDeactivate,,,,\nUsername:strip-snapshot@example.com,005xx0000000300AAA,,strip-snapshot@example.com,planned,snapshotWritten,,,,"
+    }
+  ],
+  "strips access in freeze-first, license-safe order on the real DML path": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:strip-live@example.com",
+            "id": "005xx0000000004AAA",
+            "username": "strip-live@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "changed",
+            "actions": [
+              {
+                "key": "frozen"
+              },
+              {
+                "key": "removedPermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PS10",
+                    "type": "PermissionSet"
+                  }
+                ]
+              },
+              {
+                "key": "removedPermissionSetGroup",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PG10",
+                    "type": "PermissionSetGroup"
+                  }
+                ]
+              },
+              {
+                "key": "removedPublicGroupMember",
+                "count": 1,
+                "items": [
+                  {
+                    "type": "PublicGroup"
+                  }
+                ]
+              },
+              {
+                "key": "removedQueueMember",
+                "count": 1,
+                "items": [
+                  {
+                    "type": "Queue"
+                  }
+                ]
+              },
+              {
+                "key": "removedPermissionSetLicense",
+                "count": 1,
+                "items": [
+                  {
+                    "type": "PermissionSetLicense"
+                  }
+                ]
+              },
+              {
+                "key": "deactivated"
+              }
+            ],
+            "skipped": [
+              {
+                "key": "skippedProfileOwnedPermissionSets",
+                "count": 1
+              }
+            ],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,frozen,,,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,removedPermissionSet,PermissionSet,0PS10,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,removedPermissionSetGroup,PermissionSetGroup,0PG10,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,removedPublicGroupMember,PublicGroup,,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,removedQueueMember,Queue,,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,removedPermissionSetLicense,PermissionSetLicense,,,\nUsername:strip-live@example.com,005xx0000000004AAA,,strip-live@example.com,changed,deactivated,,,,"
+    }
+  ],
+  "reports only successful strip items when delete DML is partially successful": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:partial-strip@example.com",
+            "id": "005xx0000000700AAA",
+            "username": "partial-strip@example.com",
+            "isActive": true,
+            "status": "failed",
+            "actions": [
+              {
+                "key": "removedPermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PSFirst",
+                    "apiName": "First_Perms",
+                    "label": "First Permissions",
+                    "type": "PermissionSet"
+                  }
+                ]
+              }
+            ],
+            "skipped": [
+              {
+                "key": "skippedFreeze"
+              },
+              {
+                "key": "skippedDeactivate"
+              }
+            ],
+            "warnings": [],
+            "errors": [
+              "Second removal failed"
+            ]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:partial-strip@example.com,005xx0000000700AAA,,partial-strip@example.com,failed,removedPermissionSet,PermissionSet,0PSFirst,First_Perms,\nUsername:partial-strip@example.com,005xx0000000700AAA,,partial-strip@example.com,failed,,,,,Second removal failed"
+    }
+  ],
+  "keeps failed strip targets aligned with later successes": [
+    {
+      "result": {
+        "summary": {
+          "total": 2,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": [
+              "Username=\"missing@example.com\" matched no user"
+            ]
+          },
+          {
+            "key": "Username:good@example.com",
+            "id": "005xx0000000005AAA",
+            "username": "good@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "changed",
+            "actions": [
+              {
+                "key": "frozen"
+              }
+            ],
+            "skipped": [
+              {
+                "key": "skippedDeactivate"
+              }
+            ],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:missing@example.com,,,,failed,,,,,\"Username=\"\"missing@example.com\"\" matched no user\"\nUsername:good@example.com,005xx0000000005AAA,,good@example.com,changed,frozen,,,,"
+    }
+  ],
+  "reports dry-run user-license headroom for net-new users": [
+    {
+      "result": {
+        "summary": {
+          "total": 5,
+          "created": 0,
+          "updated": 0,
+          "failed": 0,
+          "warnings": 2
+        },
+        "users": [
+          {
+            "key": "NEW-1",
+            "userName": "License",
+            "username": "admin-one@example.test",
+            "personas": [
+              "admin"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "NEW-1",
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          },
+          {
+            "key": "NEW-2",
+            "userName": "License",
+            "username": "admin-two@example.test",
+            "personas": [
+              "admin"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "NEW-2",
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          },
+          {
+            "key": "NEW-3",
+            "userName": "License",
+            "username": "standard@example.test",
+            "personas": [
+              "standard"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "NEW-3",
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          },
+          {
+            "key": "NEW-4",
+            "userName": "License",
+            "username": "inactive@example.test",
+            "personas": [
+              "inactive"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "NEW-4",
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          },
+          {
+            "key": "EXISTING",
+            "id": "005existing00001AAA",
+            "userName": "License",
+            "username": "existing@example.test",
+            "personas": [
+              "admin"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "EXISTING",
+            "matched": true,
+            "status": "planned",
+            "actions": [
+              "wouldUpdate"
+            ],
+            "errors": []
+          }
+        ],
+        "licenses": [
+          {
+            "licenseName": "Salesforce",
+            "required": 2,
+            "available": 1,
+            "unlimited": false,
+            "shortfall": 1
+          },
+          {
+            "licenseName": "Platform",
+            "required": 1,
+            "available": null,
+            "unlimited": true,
+            "shortfall": 0,
+            "note": "unlimited"
+          },
+          {
+            "licenseName": "Inactive",
+            "required": 1,
+            "available": 0,
+            "unlimited": false,
+            "shortfall": 1,
+            "note": "status Inactive"
+          }
+        ],
+        "permissionSetLicenses": {
+          "evaluated": false,
+          "note": "not evaluated"
+        },
+        "personaSource": "file (<fixture>/license-personas.json) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\nNEW-1,,License,admin-one@example.test,admin,FederationIdentifier,planned,wouldCreate,,\nNEW-1,,License,admin-one@example.test,admin,FederationIdentifier,planned,wouldActivate,,\nNEW-2,,License,admin-two@example.test,admin,FederationIdentifier,planned,wouldCreate,,\nNEW-2,,License,admin-two@example.test,admin,FederationIdentifier,planned,wouldActivate,,\nNEW-3,,License,standard@example.test,standard,FederationIdentifier,planned,wouldCreate,,\nNEW-3,,License,standard@example.test,standard,FederationIdentifier,planned,wouldActivate,,\nNEW-4,,License,inactive@example.test,inactive,FederationIdentifier,planned,wouldCreate,,\nNEW-4,,License,inactive@example.test,inactive,FederationIdentifier,planned,wouldActivate,,\nEXISTING,005existing00001AAA,License,existing@example.test,admin,FederationIdentifier,planned,wouldUpdate,,"
+    }
+  ],
+  "produces byte-equivalent command results for equivalent CSV and JSON definitions": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "created": 0,
+          "updated": 0,
+          "failed": 0,
+          "warnings": 0
+        },
+        "users": [
+          {
+            "key": "equivalent@example.test",
+            "userName": "Equivalent",
+            "username": "equivalent@example.test",
+            "personas": [],
+            "matchedBy": null,
+            "matchValue": null,
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          }
+        ],
+        "licenses": [],
+        "permissionSetLicenses": {
+          "evaluated": false,
+          "note": "not evaluated"
+        },
+        "personaSource": "file (no --personas-def) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\nequivalent@example.test,,Equivalent,equivalent@example.test,,,planned,wouldCreate,,\nequivalent@example.test,,Equivalent,equivalent@example.test,,,planned,wouldActivate,,"
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "created": 0,
+          "updated": 0,
+          "failed": 0,
+          "warnings": 0
+        },
+        "users": [
+          {
+            "key": "equivalent@example.test",
+            "userName": "Equivalent",
+            "username": "equivalent@example.test",
+            "personas": [],
+            "matchedBy": null,
+            "matchValue": null,
+            "matched": false,
+            "status": "planned",
+            "actions": [
+              "wouldCreate",
+              "wouldActivate"
+            ],
+            "errors": []
+          }
+        ],
+        "licenses": [],
+        "permissionSetLicenses": {
+          "evaluated": false,
+          "note": "not evaluated"
+        },
+        "personaSource": "file (no --personas-def) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\nequivalent@example.test,,Equivalent,equivalent@example.test,,,planned,wouldCreate,,\nequivalent@example.test,,Equivalent,equivalent@example.test,,,planned,wouldActivate,,"
+    }
+  ],
+  "uses bulk create/update arrays for user saves": [
+    {
+      "result": {
+        "summary": {
+          "total": 2,
+          "created": 1,
+          "updated": 1,
+          "failed": 0,
+          "warnings": 0
+        },
+        "users": [
+          {
+            "key": "A001",
+            "id": "005xx0000000000000000000001AAA",
+            "userName": "New User",
+            "username": "new.user@example.test",
+            "personas": [
+              "default"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "A001",
+            "matched": false,
+            "status": "created",
+            "actions": [
+              "created",
+              "activated"
+            ],
+            "errors": []
+          },
+          {
+            "key": "A002",
+            "id": "005xx0000000000000000000001AAA",
+            "userName": "Existing User",
+            "username": "existing.user@example.test",
+            "personas": [
+              "default"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": "A002",
+            "matched": true,
+            "status": "updated",
+            "actions": [
+              "updated"
+            ],
+            "errors": []
+          }
+        ],
+        "personaSource": "file (<fixture>/personas.json) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\nA001,005xx0000000000000000000001AAA,New User,new.user@example.test,default,FederationIdentifier,created,created,,\nA001,005xx0000000000000000000001AAA,New User,new.user@example.test,default,FederationIdentifier,created,activated,,\nA002,005xx0000000000000000000001AAA,Existing User,existing.user@example.test,default,FederationIdentifier,updated,updated,,"
+    }
+  ],
+  "records per-user match validation errors without stopping other users": [
+    {
+      "result": {
+        "summary": {
+          "total": 2,
+          "created": 1,
+          "updated": 0,
+          "failed": 1,
+          "warnings": 0
+        },
+        "users": [
+          {
+            "key": "default:1",
+            "userName": "Bad",
+            "personas": [
+              "default"
+            ],
+            "matchedBy": "FederationIdentifier",
+            "matchValue": null,
+            "matched": false,
+            "status": "failed",
+            "actions": [],
+            "errors": [
+              "match field FederationIdentifier must be populated on the user."
+            ]
+          },
+          {
+            "key": "insert-only@example.test",
+            "id": "005xx0000000000000000000001AAA",
+            "userName": "Good",
+            "username": "insert-only@example.test",
+            "personas": [
+              "default"
+            ],
+            "matchedBy": null,
+            "matchValue": null,
+            "matched": false,
+            "status": "created",
+            "actions": [
+              "created",
+              "activated"
+            ],
+            "errors": []
+          }
+        ],
+        "personaSource": "file (<fixture>/personas-match-invalid.json) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\ndefault:1,,Bad,,default,FederationIdentifier,failed,,,match field FederationIdentifier must be populated on the user.\ninsert-only@example.test,005xx0000000000000000000001AAA,Good,insert-only@example.test,default,,created,created,,\ninsert-only@example.test,005xx0000000000000000000001AAA,Good,insert-only@example.test,default,,created,activated,,"
+    }
+  ],
+  "reports successful assignment actions, but not failed ones, in partial DML CSV output": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "created": 0,
+          "updated": 0,
+          "failed": 1,
+          "warnings": 0
+        },
+        "users": [
+          {
+            "key": "partial@example.test",
+            "id": "005xx0000000000000000000001AAA",
+            "userName": "Partial",
+            "username": "partial@example.test",
+            "personas": [
+              "default"
+            ],
+            "matchedBy": null,
+            "matchValue": null,
+            "matched": false,
+            "status": "failed",
+            "actions": [
+              "created",
+              "activated",
+              "assignedPermissionSet"
+            ],
+            "errors": [
+              "second PSA failed"
+            ]
+          }
+        ],
+        "personaSource": "file (<fixture>/personas-psa-partial.json) [default]"
+      },
+      "csv": "userKey,userId,userName,username,personas,matchedBy,status,action,detail,error\npartial@example.test,005xx0000000000000000000001AAA,Partial,partial@example.test,default,,failed,created,,\npartial@example.test,005xx0000000000000000000001AAA,Partial,partial@example.test,default,,failed,activated,,\npartial@example.test,005xx0000000000000000000001AAA,Partial,partial@example.test,default,,failed,assignedPermissionSet,,\npartial@example.test,005xx0000000000000000000001AAA,Partial,partial@example.test,default,,failed,,,second PSA failed"
+    }
+  ]
+}

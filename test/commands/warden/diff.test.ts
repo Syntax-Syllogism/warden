@@ -1,6 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { diff } from '@syntax-syllogism/warden-core';
 import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
@@ -15,6 +16,7 @@ import {
   verifyUserDiff,
 } from '@syntax-syllogism/warden-core';
 import UserDiff from '../../../src/commands/warden/diff.js';
+import { checkLegacyOutput } from './outputParity.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -61,7 +63,10 @@ describe('warden user diff command', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
-  beforeEach(() => {
+  let verifyLegacyOutput: () => void;
+
+  beforeEach(function () {
+    verifyLegacyOutput = checkLegacyOutput(this.currentTest!.title);
     sfCommandStubs = stubSfCommandUx($$.SANDBOX);
   });
 
@@ -69,9 +74,11 @@ describe('warden user diff command', () => {
     process.exitCode = undefined;
     sinon.restore();
     $$.restore();
+    verifyLegacyOutput();
   });
 
   it('reports user-vs-persona drift and does not perform DML', async () => {
+    const runSpy = sinon.spy(diff, 'run');
     const fakeConn = makeFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-diff-test-'));
     const usersPath = join(dir, 'users.json');
@@ -201,6 +208,8 @@ describe('warden user diff command', () => {
     } as never);
 
     const result = await runDiff(['--json']);
+    expect(runSpy.calledOnce).to.equal(true);
+    expect(runSpy.firstCall.args[1]).to.include({ mode: 'persona', verify: false });
     expect(result.summary.changed).to.equal(1);
     expect(process.exitCode).to.equal(1);
     expect(result.users[0].profile.matches).to.equal(false);
@@ -219,9 +228,7 @@ describe('warden user diff command', () => {
     expect(result.users[0].assignments.queues.removes).to.deep.equal([]);
     expect(result.users[0].assignments.queues.onlyInOrg).to.include('00GQueueExtra');
     expect(
-      result.rows
-        .filter((row) => row.category === 'queues' && row.value === '00GQueueExtra')
-        .map((row) => row.kind)
+      result.rows.filter((row) => row.category === 'queues' && row.value === '00GQueueExtra').map((row) => row.kind)
     ).to.deep.equal(['onlyInOrg']);
     expect(fakeConn.sobject.called).to.equal(false);
   });
@@ -370,7 +377,9 @@ describe('warden user diff command', () => {
         'permissionSets extra (sync): ExtraPerm',
       ],
     });
-    expect(renderUserConformanceHuman(verdicts, diffLookup)).to.include('Verified 3 users: 1 conformant, 2 non-conformant.');
+    expect(renderUserConformanceHuman(verdicts, diffLookup)).to.include(
+      'Verified 3 users: 1 conformant, 2 non-conformant.'
+    );
     expect(renderUserConformanceHuman(verdicts, diffLookup)).to.include('permissionSets extra (sync): ExtraPerm');
     expect(renderUserConformanceHuman(verdicts, diffLookup)).to.not.include('AdditiveExtra');
     expect(renderUserConformanceCsv(verdicts)).to.include('key,conformant,violations');

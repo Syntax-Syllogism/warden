@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -5,7 +6,13 @@ import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { ProvisionUserUseCase, type PersonaDefinitionsFile } from '@syntax-syllogism/warden-core';
+import {
+  provision,
+  type ProvisionPlan,
+  type ProvisionOptions,
+  type PersonaDefinitionsFile,
+} from '@syntax-syllogism/warden-core';
+import { applyProvisionWithLegacyOutput } from '../../../src/userShared/useCaseOptions.js';
 import UserProvision from '../../../src/commands/warden/provision.js';
 import { WARDEN_LEDGER_OBJECT } from '../../../src/userShared/orgWrites.js';
 import {
@@ -17,8 +24,9 @@ import {
   PERSONA_COMPONENT_OBJECT,
   PERSONA_OBJECT,
 } from '../../../src/userShared/personas.js';
+import { checkLegacyOutput } from './outputParity.js';
 
-type ProvisionUserRequest = Parameters<ProvisionUserUseCase['execute']>[0];
+type ProvisionUserRequest = ProvisionOptions & { connection: unknown };
 type PersonaDocument = PersonaDefinitionsFile;
 
 type FakeConnection = {
@@ -110,9 +118,9 @@ const emptyProvisionResult = () => ({
 
 const captureProvisionRequests = (): ProvisionUserRequest[] => {
   const requests: ProvisionUserRequest[] = [];
-  sinon.stub(ProvisionUserUseCase.prototype, 'execute').callsFake(async (request) => {
-    requests.push(request);
-    return emptyProvisionResult();
+  sinon.stub(provision, 'plan').callsFake(async (connection, options) => {
+    requests.push({ ...options, connection });
+    return { preview: emptyProvisionResult(), warnings: [] } as unknown as ProvisionPlan;
   });
   return requests;
 };
@@ -282,7 +290,10 @@ describe('warden user provision command', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
-  beforeEach(() => {
+  let verifyLegacyOutput: () => void;
+
+  beforeEach(function () {
+    verifyLegacyOutput = checkLegacyOutput(this.currentTest!.title);
     sfCommandStubs = stubSfCommandUx($$.SANDBOX);
   });
 
@@ -290,6 +301,29 @@ describe('warden user provision command', () => {
     process.exitCode = undefined;
     sinon.restore();
     $$.restore();
+    verifyLegacyOutput();
+  });
+
+  it('keeps live license shortfalls out of the legacy warning summary', async () => {
+    const fakeConn = createFakeConnection();
+    const dir = mkdtempSync(join(tmpdir(), 'warden-provision-live-license-test-'));
+    const { usersPath, personasPath } = writeLicenseAwareDefinitions(dir);
+    configureLicenseAwareQueries(fakeConn);
+    sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => fakeConn },
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        'external-id': 'FederationIdentifier',
+        'no-prompt': true,
+        'dry-run': false,
+        'fail-on-insufficient-license': true,
+      },
+    } as never);
+    const result = await UserProvision.run(['--json']);
+    expect(result.summary.warnings).to.equal(0);
+    expect(result).not.to.have.property('licenses');
+    expect(fakeConn.sobjectMap.User.create.called).to.equal(true);
   });
 
   it('dry-run does not perform write operations', async () => {
@@ -450,13 +484,11 @@ describe('warden user provision command', () => {
     writeFileSync(usersPath, JSON.stringify({ users: [] }));
     writeFileSync(personasPath, JSON.stringify({ personas: {} }));
     let request: ProvisionUserRequest | undefined;
-    sinon.stub(ProvisionUserUseCase.prototype, 'execute').callsFake(async (nextRequest) => {
-      request = nextRequest;
-      return {
-        summary: { total: 0, created: 0, updated: 0, failed: 0, warnings: 0 },
-        users: [],
-      };
+    sinon.stub(provision, 'plan').callsFake(async (connection, options) => {
+      request = { ...options, connection };
+      return { preview: emptyProvisionResult(), warnings: [] } as unknown as ProvisionPlan;
     });
+    const apply = sinon.stub(provision, 'apply');
     sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
       flags: {
         'target-org': { getConnection: () => fakeConn },
@@ -477,8 +509,7 @@ describe('warden user provision command', () => {
     expect(request?.usersDoc).to.deep.equal({ users: [] });
     expect(request?.personasDoc).to.deep.equal({ personas: {} });
     expect(request?.externalId).to.equal('FederationIdentifier');
-    expect(request?.dryRun).to.equal(true);
-    expect(request?.acknowledgeWarnings).to.equal(undefined);
+    expect(apply.called).to.equal(false);
     expect(fakeConn.describe.called).to.equal(false);
     expect(fakeConn.query.called).to.equal(false);
     expect(fakeConn.sobject.called).to.equal(false);
@@ -3063,8 +3094,7 @@ describe('warden user provision command', () => {
         { name: 'User__c', createable: true, updateable: true, filterable: true, externalId: false },
       ],
     });
-    const result = await new ProvisionUserUseCase().execute({
-      connection: fakeConn as never,
+    const plan = await provision.plan(fakeConn as never, {
       usersDoc: {
         users: [
           {
@@ -3090,20 +3120,21 @@ describe('warden user provision command', () => {
             sobject: 'Employee__c',
             phase: 'after',
             match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
-            fields: { 'User__c': { from: 'user.Id' }, 'Department__c': { from: 'user.Department' } },
+            fields: { User__c: { from: 'user.Id' }, Department__c: { from: 'user.Department' } },
           },
         },
       },
-      dryRun: false,
+      fuzzyUsername: false,
     });
+    const result = await applyProvisionWithLegacyOutput(fakeConn as never, plan, (key) => key);
 
     const userCreate = fakeConn.sobjectMap.User.create;
     const [relatedPayloads] = relatedCreate.firstCall.args as [Array<Record<string, unknown>>];
     expect(relatedCreate.calledAfter(userCreate)).to.equal(true);
     expect(relatedPayloads[0]).to.deep.include({
-      'External_Id__c': 'EMP-1',
-      'Department__c': 'Operations',
-      'User__c': result.users[0].id,
+      External_Id__c: 'EMP-1',
+      Department__c: 'Operations',
+      User__c: result.users[0].id,
     });
     expect(result.users[0].relatedRecords?.[0]).to.deep.include({ action: 'created', status: 'applied' });
   });
@@ -3121,8 +3152,7 @@ describe('warden user provision command', () => {
         { name: 'User__c', createable: true, updateable: true, filterable: true, externalId: false },
       ],
     });
-    const result = await new ProvisionUserUseCase().execute({
-      connection: fakeConn as never,
+    const plan = await provision.plan(fakeConn as never, {
       usersDoc: {
         users: [
           {
@@ -3147,12 +3177,13 @@ describe('warden user provision command', () => {
             sobject: 'Employee__c',
             phase: 'after',
             match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
-            fields: { 'User__c': { from: 'user.Id' } },
+            fields: { User__c: { from: 'user.Id' } },
           },
         },
       },
-      dryRun: false,
+      fuzzyUsername: false,
     });
+    const result = await applyProvisionWithLegacyOutput(fakeConn as never, plan, (key) => key);
 
     expect(fakeConn.sobjectMap.User.create.calledOnce).to.equal(true);
     expect(result.users[0].status).to.equal('failed');

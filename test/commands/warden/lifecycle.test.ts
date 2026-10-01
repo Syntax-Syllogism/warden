@@ -11,6 +11,7 @@ import UserRestore from '../../../src/commands/warden/restore.js';
 import UserSnapshot from '../../../src/commands/warden/snapshot.js';
 import UserStrip from '../../../src/commands/warden/strip.js';
 import UserUnfreeze from '../../../src/commands/warden/unfreeze.js';
+import { checkLegacyOutput } from './outputParity.js';
 
 type FakeConnection = {
   describe: sinon.SinonStub;
@@ -83,7 +84,10 @@ describe('warden user lifecycle commands', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
-  beforeEach(() => {
+  let verifyLegacyOutput: () => void;
+
+  beforeEach(function () {
+    verifyLegacyOutput = checkLegacyOutput(this.currentTest!.title);
     sfCommandStubs = stubSfCommandUx($$.SANDBOX);
   });
 
@@ -91,6 +95,7 @@ describe('warden user lifecycle commands', () => {
     process.exitCode = undefined;
     sinon.restore();
     $$.restore();
+    verifyLegacyOutput();
   });
 
   it('freezes a matching user and emits a human summary', async () => {
@@ -1518,5 +1523,83 @@ describe('warden user lifecycle commands', () => {
     expect(result.users[1].actions.map((action) => action.key)).to.include('frozen');
     expect(sobjectMap.UserLogin.update.calledOnce).to.equal(true);
     expect(process.exitCode).to.equal(1);
+  });
+  it('preserves partial snapshot rows and absent login state', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-partial-snapshot-test-'));
+    const usersPath = join(dir, 'users.json');
+    const out = join(dir, 'snapshot.json');
+    writeFileSync(
+      usersPath,
+      JSON.stringify({
+        users: [
+          { match: 'Username', Username: 'missing@example.com' },
+          { match: 'Username', Username: 'good@example.com' },
+        ],
+      })
+    );
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) =>
+      soql.includes('FROM User WHERE')
+        ? { records: [{ Id: '005good', IsActive: true, Username: 'good@example.com' }] }
+        : { records: [] }
+    );
+    sinon.stub(UserSnapshot.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        'users-def': usersPath,
+        out,
+      },
+    } as never);
+    const result = await UserSnapshot.run(['--json']);
+    expect(result.users.map((user) => user.status)).to.deep.equal(['failed', 'unchanged']);
+    expect(result.users[1].isFrozen).to.equal(undefined);
+    expect((JSON.parse(readFileSync(out, 'utf8')) as { users: unknown[] }).users).to.have.length(1);
+  });
+
+  it('preserves restore error ordering and missing reference text', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-restore-order-test-'));
+    const snapshotPath = join(dir, 'snapshot.json');
+    const entry = {
+      userId: '005old',
+      IsActive: false,
+      IsFrozen: true,
+      permissionSets: ['Missing'],
+      permissionSetGroups: [],
+      publicGroups: [],
+      queues: [],
+      permissionSetLicenses: [],
+    };
+    writeFileSync(
+      snapshotPath,
+      JSON.stringify({
+        snapshotVersion: 1,
+        users: [
+          { ...entry, match: 'Username', matchValue: 'good@example.com' },
+          { ...entry, match: 'Unknown', matchValue: 'bad' },
+          { ...entry, match: 'Username', matchValue: 'missing@example.com' },
+        ],
+      })
+    );
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) =>
+      soql.includes('FROM User WHERE')
+        ? { records: [{ Id: '005good', IsActive: false, Username: 'good@example.com' }] }
+        : { records: [] }
+    );
+    sinon.stub(UserRestore.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        snapshot: snapshotPath,
+        'dry-run': true,
+      },
+    } as never);
+    const result = await UserRestore.run(['--json']);
+    expect(result.users.map((user) => user.key)).to.deep.equal([
+      'Unknown:bad',
+      'Username:missing@example.com',
+      'Username:good@example.com',
+    ]);
+    expect(result.users[2].warnings).to.deep.equal(['Missing PermissionSet reference "Missing"; skipping it.']);
+    expect(conn.sobjectMap.User.update.called).to.equal(false);
   });
 });

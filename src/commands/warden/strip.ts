@@ -1,10 +1,17 @@
 import { Messages } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
 import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
-import { executeStrip, type StripFlags } from '@syntax-syllogism/warden-core';
+import {
+  strip,
+  stripOptionsSchema,
+  buildSnapshotFile,
+  loadAssignmentState,
+  writeSnapshotFile,
+  makeNotice,
+} from '@syntax-syllogism/warden-core';
 import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import { renderStripCsv } from '@syntax-syllogism/warden-core';
-import { describeUserFields } from '@syntax-syllogism/warden-core';
+import { toTargetOptions, validateUserTarget } from '../../userShared/useCaseOptions.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -27,6 +34,7 @@ import {
   type InteractivePrompt,
 } from '../../userShared/targetFlags.js';
 import {
+  confirmLifecycleWrites,
   effectiveInputFormat,
   promptBoolean,
   promptExistingFile,
@@ -160,16 +168,41 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
     const targetOrg = requireTargetOrg(flags['target-org']);
     requireExactlyOne(flags, ['user', 'users-def']);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const fieldMap = await describeUserFields(conn);
-    const output = await executeStrip({
+    await validateUserTarget(conn, flags.user, (field) => messages.getMessage('errorInvalidUserMatchField', [field]));
+    const plan = await strip.plan(
       conn,
-      fieldMap,
-      flags: (flags.interactive ? { ...flags, 'no-prompt': true } : flags) as StripFlags,
-      interactive: context.interactive,
+      stripOptionsSchema.parse({
+        ...toTargetOptions(flags),
+        noFreeze: flags['no-freeze'],
+        noDeactivate: flags['no-deactivate'],
+        keepPermsets: flags['keep-permsets'],
+        keepPermsetGroups: flags['keep-permset-groups'],
+        keepPublicGroups: flags['keep-public-groups'],
+        keepQueues: flags['keep-queues'],
+        keepLicenses: flags['keep-licenses'],
+      })
+    );
+    await confirmLifecycleWrites({
+      required:
+        !flags['dry-run'] && plan.states.some((state) => state.hasDml) && !flags['no-prompt'] && context.interactive,
       message: messages.getMessage.bind(messages),
       confirm: (message) => this.confirm({ message }),
       warn: (message) => this.warn(message),
     });
+    if (flags.snapshot) {
+      const targets = plan.states.map((state) => state.target);
+      const stateMaps = await loadAssignmentState(
+        conn,
+        targets.map((target) => target.Id)
+      );
+      const file = await buildSnapshotFile(conn, targets, stateMaps, targetOrg.getUsername());
+      await writeSnapshotFile(flags.snapshot, file);
+      const users = flags['dry-run']
+        ? plan.preview.users.filter((user) => user.status !== 'failed')
+        : plan.states.map((state) => state.result);
+      for (const user of users) user.actions.push(makeNotice('snapshotWritten'));
+    }
+    const output = flags['dry-run'] ? plan.preview : await strip.apply(conn, plan);
     await this.emitResult(context, {
       result: output,
       csv: renderStripCsv(output),

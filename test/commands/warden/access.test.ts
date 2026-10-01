@@ -1,11 +1,13 @@
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { access } from '@syntax-syllogism/warden-core';
 import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import UserAccess from '../../../src/commands/warden/access.js';
+import { checkLegacyOutput } from './outputParity.js';
 
 const createConnection = (): {
   describe: sinon.SinonStub;
@@ -100,16 +102,21 @@ describe('warden user access command', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
-  beforeEach(() => {
+  let verifyLegacyOutput: () => void;
+
+  beforeEach(function () {
+    verifyLegacyOutput = checkLegacyOutput(this.currentTest!.title);
     sfCommandStubs = stubSfCommandUx($$.SANDBOX);
   });
 
   afterEach(() => {
     sinon.restore();
     $$.restore();
+    verifyLegacyOutput();
   });
 
   it('supports apex-class human output through the command', async () => {
+    const runSpy = sinon.spy(access, 'run');
     const conn = createConnection();
     conn.query.callsFake(async (soql: string) => {
       if (soql.includes('FROM ApexClass')) return { done: true, records: [{ Id: '01p1', Name: 'MyController' }] };
@@ -153,6 +160,8 @@ describe('warden user access command', () => {
       .getCalls()
       .map((call) => call.args[0] as string)
       .join('\n');
+    expect(runSpy.calledOnce).to.equal(true);
+    expect(runSpy.firstCall.args[1]).to.include({ type: 'apex-class', target: 'MyController' });
     expect(output).to.include('Apex Class: MyController');
     expect(output).to.include('Enabled');
   });
@@ -281,21 +290,19 @@ describe('warden user access command', () => {
     });
     (conn as unknown as { metadata: { read: sinon.SinonStub; list: sinon.SinonStub } }).metadata = {
       list: sinon.stub().resolves([{ id: '00eProfile', fullName: 'Sales' }]),
-      read: sinon
-        .stub()
-        .callsFake(async (type: string, names: string[]) =>
-          type === 'Profile'
-            ? {
+      read: sinon.stub().callsFake(async (type: string, names: string[]) =>
+        type === 'Profile'
+          ? {
+              fullName: names[0],
+              recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }],
+            }
+          : [
+              {
                 fullName: names[0],
-                recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true, default: true }],
-              }
-            : [
-                {
-                  fullName: names[0],
-                  recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
-                },
-              ]
-        ),
+                recordTypeVisibilities: [{ recordType: 'Account.Business_Account', visible: true }],
+              },
+            ]
+      ),
     };
     sinon.stub(UserAccess.prototype as unknown as Record<string, unknown>, 'parse').resolves({
       flags: {

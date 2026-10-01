@@ -2243,10 +2243,10 @@
   dependencies:
     unist-util-visit "^5.0.0"
 
-"@syntax-syllogism/warden-core@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@syntax-syllogism/warden-core/-/warden-core-0.2.0.tgz#1195f061b7535fe279e283d6a709c8a25840ac3e"
-  integrity sha512-J1q3JWu38dwWaX1MMprgo/J5lu6cuobjBT8EcW0ppK3dtiLB4/JJJT8Rz1CXlEjj8Hzr5GzgOCTmzOkoD6j6sg==
+"@syntax-syllogism/warden-core@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.npmjs.org/@syntax-syllogism/warden-core/-/warden-core-0.4.1.tgz"
+  integrity sha512-FsZgP5/qu2jhwDf6JwPpz/go1mupAOKKrsDFRi2799IYbs8VitVzvenm4PhjG168L0Hq855k5N92a7RQAC+cHw==
   dependencies:
     "@salesforce/core" "^8"
     zod "^4"

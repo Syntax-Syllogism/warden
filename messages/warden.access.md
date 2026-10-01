@@ -118,14 +118,6 @@ Target-audit mode requires --target.
 
 Unable to resolve the requested user.
 
-# info.noResults
-
-No active users matched this target.
-
-# info.noUserResults
-
-No access grants matched this user and scope.
-
 # examples
 
 - Field access in human output (default):

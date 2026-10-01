@@ -5,7 +5,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 # Lifecycle output and snapshots
 
-This page describes what the lifecycle commands print and what a snapshot file contains. For flags, see the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.7.1/README.md#commands).
+This page describes what the lifecycle commands print and what a snapshot file contains. For flags, see the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#commands).
 
 ## Resolved user identity
 
@@ -40,7 +40,22 @@ If Salesforce provides no name or label, the Id is shown. Human `diff` output re
 * For partial `allOrNone: false` results, itemized notices list only the assignments or removals that succeeded, and the user's result is marked failed if any DML returned an error.
 * Restore's activation and unfreeze notices follow the same rule. A failed `User` or `UserLogin` update is never reported as done.
 
+## Strip snapshots
+
+`strip --snapshot <path>` saves the resolved users' pre-strip state after any
+required confirmation and before org changes. The file is also written during
+`--dry-run`. Users that failed target resolution remain failed rows in the
+command report and are omitted from the snapshot. Only included users receive
+the `snapshotWritten` notice. Declining the write confirmation does not write
+the snapshot; a snapshot-write failure stops the command before applying strip.
+
 ## Snapshot format
+
+`snapshot` retains users that fail target resolution as failed rows in its command
+report and captures only successfully resolved users in the snapshot file. A
+partial failure exits with code `1` after writing the file. When a captured user
+has no `UserLogin`, the command report omits `isFrozen`, while the snapshot file
+records `IsFrozen: false`.
 
 `snapshot` writes a version-1 JSON file with provenance and one entry per user. Each entry has:
 

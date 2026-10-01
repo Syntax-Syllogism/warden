@@ -323,7 +323,7 @@ See [Access audits](access-audits.md) for scopes, attribution, muting, limits, a
 
 ## `warden snapshot` / `warden restore`
 
-A snapshot records each user's active/frozen state and assignments by developer/API name, never by Id, so a snapshot from one org can be restored into another. Each entry can also record the resolved `name`, `username`, `email`, `profile`, and `role` for review. Profile and role appear by name when known, or by Id otherwise. `restore` never applies them.
+A snapshot records each user's active/frozen state and assignments by developer/API name, falling back to Id when a name is unavailable. Names make assignments portable across orgs that share them; fallback Ids are org-specific. Each entry can also record the resolved `name`, `username`, `email`, `profile`, and `role` for review. Profile and role appear by name when known, or by Id otherwise. `restore` never applies them.
 
 `restore` finds users again by the snapshot's match key, reactivates and unfreezes them, and only **adds** missing assignments. It never removes access a user already has. If you want a rollback point before something destructive, use `--snapshot` on `strip` and `restore` later. You don't need a separate `snapshot` step.
 

@@ -1,10 +1,9 @@
 import { Messages } from '@salesforce/core';
 import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
-import { buildTargetRequests } from '@syntax-syllogism/warden-core';
-import { executeFreezeToggle, FREEZE } from '@syntax-syllogism/warden-core';
+import { freeze, freezeOptionsSchema, summarizeLifecycle } from '@syntax-syllogism/warden-core';
 import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import { renderLifecycleCsv } from '@syntax-syllogism/warden-core';
-import { describeUserFields } from '@syntax-syllogism/warden-core';
+import { toTargetOptions, validateUserTarget } from '../../userShared/useCaseOptions.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -27,6 +26,7 @@ import {
   type InteractivePrompt,
 } from '../../userShared/targetFlags.js';
 import {
+  confirmLifecycleWrites,
   effectiveInputFormat,
   promptBoolean,
   promptExistingFile,
@@ -116,25 +116,17 @@ export default class UserFreeze extends WardenCommand<LifecycleResult> {
     const targetOrg = requireTargetOrg(flags['target-org']);
     requireExactlyOne(flags, ['user', 'users-def']);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const fieldMap = await describeUserFields(conn);
-
-    const { requests, errors: requestErrors } = await buildTargetRequests(flags, fieldMap, {
-      invalidUserMatchField: (field) => messages.getMessage('errorInvalidUserMatchField', [field]),
-      invalidJson: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
-    });
-    const output = await executeFreezeToggle({
-      conn,
-      fieldMap,
-      requests,
-      requestErrors,
-      direction: FREEZE,
-      dryRun: flags['dry-run'],
-      noPrompt: flags.interactive ? true : flags['no-prompt'],
-      interactive: context.interactive,
+    await validateUserTarget(conn, flags.user, (field) => messages.getMessage('errorInvalidUserMatchField', [field]));
+    const plan = await freeze.plan(conn, freezeOptionsSchema.parse(toTargetOptions(flags)));
+    await confirmLifecycleWrites({
+      required: !flags['dry-run'] && plan.updates.length > 0 && !flags['no-prompt'] && context.interactive,
       message: messages.getMessage.bind(messages),
       confirm: (message) => this.confirm({ message }),
       warn: (message) => this.warn(message),
     });
+    const output = flags['dry-run']
+      ? { summary: summarizeLifecycle(plan.users), users: plan.users }
+      : await freeze.apply(conn, plan);
     const csv = renderLifecycleCsv(output);
     await this.emitResult(context, {
       result: output,

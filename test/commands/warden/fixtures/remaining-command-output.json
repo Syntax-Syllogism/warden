@@ -1,0 +1,2421 @@
+{
+  "uses the interactive confirmation as the only freeze confirmation": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:interactive-freeze@example.com",
+            "id": "005xx0000000002AAA",
+            "name": "Interactive Freeze User",
+            "username": "interactive-freeze@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "changed",
+            "actions": [
+              {
+                "key": "frozen"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:interactive-freeze@example.com,005xx0000000002AAA,Interactive Freeze User,interactive-freeze@example.com,false,changed,frozen,"
+    }
+  ],
+  "reads users-def CSV through every lifecycle command with an explicit format override": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["<fixture>/users.json:2 \u2014 Username=\"missing@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:missing@example.com,,,,,failed,,\"<fixture>/users.json:2 \u2014 Username=\"\"missing@example.com\"\" matched no user\""
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["<fixture>/users.json:2 \u2014 Username=\"missing@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:missing@example.com,,,,,failed,,\"<fixture>/users.json:2 \u2014 Username=\"\"missing@example.com\"\" matched no user\""
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["<fixture>/users.json:2 \u2014 Username=\"missing@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,itemId,itemApiName,error\nUsername:missing@example.com,,,,failed,,,,,\"<fixture>/users.json:2 \u2014 Username=\"\"missing@example.com\"\" matched no user\""
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["<fixture>/users.json:2 \u2014 Username=\"missing@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "key,id,status,actions,skipped,warnings,errors\nUsername:missing@example.com,,failed,,,,\"<fixture>/users.json:2 \u2014 Username=\"\"missing@example.com\"\" matched no user\""
+    }
+  ],
+  "sets exit code 1 when freeze, unfreeze, or snapshot cannot resolve a target": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing-freeze@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Username=\"missing-freeze@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:missing-freeze@example.com,,,,,failed,,\"Username=\"\"missing-freeze@example.com\"\" matched no user\""
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing-unfreeze@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Username=\"missing-unfreeze@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:missing-unfreeze@example.com,,,,,failed,,\"Username=\"\"missing-unfreeze@example.com\"\" matched no user\""
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing-snapshot@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Username=\"missing-snapshot@example.com\" matched no user"]
+          }
+        ]
+      },
+      "csv": "key,id,status,actions,skipped,warnings,errors\nUsername:missing-snapshot@example.com,,failed,,,,\"Username=\"\"missing-snapshot@example.com\"\" matched no user\""
+    }
+  ],
+  "keeps confirmation enabled for direct CSV output": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:freeze-csv@example.com",
+            "id": "005xx0000000004AAA",
+            "username": "freeze-csv@example.com",
+            "isActive": true,
+            "isFrozen": false,
+            "status": "changed",
+            "actions": [
+              {
+                "key": "frozen"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,wasFrozen,status,action,error\nUsername:freeze-csv@example.com,005xx0000000004AAA,,freeze-csv@example.com,false,changed,frozen,"
+    }
+  ],
+  "snapshots assignment state with portable names and excludes profile-owned permission sets": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 1,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:snapshot@example.com",
+            "id": "005xx0000000100AAA",
+            "username": "snapshot@example.com",
+            "isActive": true,
+            "isFrozen": true,
+            "status": "unchanged",
+            "actions": [
+              {
+                "key": "snapshotWritten"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "key,id,status,actions,skipped,warnings,errors\nUsername:snapshot@example.com,005xx0000000100AAA,unchanged,snapshotWritten,,,"
+    }
+  ],
+  "restores only missing snapshot assignments and skips DML in dry-run": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:restore@example.com",
+            "id": "005xx0000000200AAA",
+            "name": "Resolved User",
+            "username": "restore@example.com",
+            "isActive": false,
+            "isFrozen": true,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldActivate"
+              },
+              {
+                "key": "wouldUnfreeze"
+              },
+              {
+                "key": "wouldAssignPermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PSMissing",
+                    "apiName": "Missing_Perms",
+                    "type": "PermissionSet"
+                  }
+                ]
+              },
+              {
+                "key": "wouldAssignPermissionSetGroup",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PGMissing",
+                    "apiName": "Missing_Group",
+                    "type": "PermissionSetGroup"
+                  }
+                ]
+              },
+              {
+                "key": "wouldAddPublicGroupMember",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "00GMissingPublic",
+                    "apiName": "Missing_Public",
+                    "type": "PublicGroup"
+                  }
+                ]
+              },
+              {
+                "key": "wouldAddQueueMember",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "00GMissingQueue",
+                    "apiName": "Missing_Queue",
+                    "type": "Queue"
+                  }
+                ]
+              },
+              {
+                "key": "wouldAssignPermissionSetLicense",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PLicMissing",
+                    "apiName": "MissingLicense",
+                    "type": "PermissionSetLicense"
+                  }
+                ]
+              }
+            ],
+            "skipped": [],
+            "warnings": [
+              "Snapshot name \"Snapshot User\" differs from org \"Resolved User\".",
+              "Snapshot profile \"Old Profile\" differs from org \"New Profile\"."
+            ],
+            "errors": [],
+            "identityReview": {
+              "snapshot": {
+                "name": "Snapshot User",
+                "username": "restore@example.com",
+                "email": "restore@example.com",
+                "profile": "Old Profile",
+                "role": "Support"
+              },
+              "org": {
+                "name": "Resolved User",
+                "username": "restore@example.com",
+                "email": "restore@example.com",
+                "profile": "New Profile",
+                "role": "Support",
+                "userId": "005xx0000000200AAA"
+              },
+              "match": {
+                "field": "Username",
+                "value": "restore@example.com"
+              }
+            }
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldActivate,,,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldUnfreeze,,,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldAssignPermissionSet,PermissionSet,Missing_Perms,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldAssignPermissionSetGroup,PermissionSetGroup,Missing_Group,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldAddPublicGroupMember,PublicGroup,Missing_Public,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldAddQueueMember,Queue,Missing_Queue,\nUsername:restore@example.com,005xx0000000200AAA,Resolved User,restore@example.com,planned,wouldAssignPermissionSetLicense,PermissionSetLicense,MissingLicense,"
+    }
+  ],
+  "reports only successful restore items when assignment DML is partially successful": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:partial-restore@example.com",
+            "id": "005xx0000000600AAA",
+            "username": "partial-restore@example.com",
+            "isActive": true,
+            "status": "failed",
+            "actions": [
+              {
+                "key": "assignedPermissionSet",
+                "count": 1,
+                "items": [
+                  {
+                    "id": "0PSFirst",
+                    "apiName": "First_Perms",
+                    "type": "PermissionSet"
+                  }
+                ]
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Second assignment failed"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUsername:partial-restore@example.com,005xx0000000600AAA,,partial-restore@example.com,failed,assignedPermissionSet,PermissionSet,First_Perms,\nUsername:partial-restore@example.com,005xx0000000600AAA,,partial-restore@example.com,failed,,,,Second assignment failed"
+    }
+  ],
+  "reports restore activation and unfreeze only when their DML succeeds": [
+    {
+      "result": {
+        "summary": {
+          "total": 2,
+          "changed": 0,
+          "unchanged": 0,
+          "failed": 2
+        },
+        "users": [
+          {
+            "key": "Username:failed-activation@example.com",
+            "id": "005user1",
+            "name": "Failed Activation",
+            "username": "failed-activation@example.com",
+            "isActive": false,
+            "isFrozen": true,
+            "status": "failed",
+            "actions": [
+              {
+                "key": "unfrozen"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Activation failed"]
+          },
+          {
+            "key": "Username:failed-unfreeze@example.com",
+            "id": "005user2",
+            "name": "Failed Unfreeze",
+            "username": "failed-unfreeze@example.com",
+            "isActive": true,
+            "isFrozen": true,
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Unfreeze failed"]
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUsername:failed-activation@example.com,005user1,Failed Activation,failed-activation@example.com,failed,unfrozen,,,\nUsername:failed-activation@example.com,005user1,Failed Activation,failed-activation@example.com,failed,,,,Activation failed\nUsername:failed-unfreeze@example.com,005user2,Failed Unfreeze,failed-unfreeze@example.com,failed,,,,Unfreeze failed"
+    }
+  ],
+  "round-trips snapshot output into restore dry-run planning": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 1,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:roundtrip@example.com",
+            "id": "005xx0000000400AAA",
+            "username": "roundtrip@example.com",
+            "isActive": false,
+            "isFrozen": true,
+            "status": "unchanged",
+            "actions": [
+              {
+                "key": "snapshotWritten"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "key,id,status,actions,skipped,warnings,errors\nUsername:roundtrip@example.com,005xx0000000400AAA,unchanged,snapshotWritten,,,"
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:roundtrip@example.com",
+            "id": "005xx0000000400AAA",
+            "username": "roundtrip@example.com",
+            "isActive": false,
+            "isFrozen": true,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldActivate"
+              },
+              {
+                "key": "wouldUnfreeze"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": [],
+            "identityReview": {
+              "snapshot": {
+                "username": "roundtrip@example.com"
+              },
+              "org": {
+                "username": "roundtrip@example.com",
+                "userId": "005xx0000000400AAA"
+              },
+              "match": {
+                "field": "Username",
+                "value": "roundtrip@example.com"
+              }
+            }
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUsername:roundtrip@example.com,005xx0000000400AAA,,roundtrip@example.com,planned,wouldActivate,,,\nUsername:roundtrip@example.com,005xx0000000400AAA,,roundtrip@example.com,planned,wouldUnfreeze,,,"
+    }
+  ],
+  "warns and skips missing restore references while continuing the batch": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "changed": 0,
+          "unchanged": 1,
+          "failed": 0
+        },
+        "users": [
+          {
+            "key": "Username:missing-ref@example.com",
+            "id": "005xx0000000500AAA",
+            "username": "missing-ref@example.com",
+            "isActive": true,
+            "status": "unchanged",
+            "actions": [],
+            "skipped": [],
+            "warnings": ["Missing PermissionSet reference \"Missing_Perms\"; skipping it."],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUsername:missing-ref@example.com,005xx0000000500AAA,,missing-ref@example.com,unchanged,,,,"
+    }
+  ],
+  "supports apex-class human output through the command": [
+    {
+      "result": {
+        "targetType": "apex-class",
+        "targetName": "MyController",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "apex-class",
+            "targetName": "MyController",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Controller Access",
+            "sourceApiName": "Controller Access",
+            "sourceLabel": "Controller Access",
+            "access": {
+              "kind": "enabled",
+              "enabled": true
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,enabled\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Controller Access,,,apex-class,MyController,Controller Access,Controller Access,true"
+    }
+  ],
+  "serializes apex-class access in csv output": [
+    {
+      "result": {
+        "targetType": "apex-class",
+        "targetName": "MyController",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "apex-class",
+            "targetName": "MyController",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Setup Access",
+            "sourceApiName": "Setup Access",
+            "sourceLabel": "Setup Access",
+            "access": {
+              "kind": "enabled",
+              "enabled": true
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,enabled\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Setup Access,,,apex-class,MyController,Setup Access,Setup Access,true"
+    }
+  ],
+  "serializes vf-page access in json output": [
+    {
+      "result": {
+        "targetType": "vf-page",
+        "targetName": "MyPage",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "vf-page",
+            "targetName": "MyPage",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Setup Access",
+            "sourceApiName": "Setup Access",
+            "sourceLabel": "Setup Access",
+            "access": {
+              "kind": "enabled",
+              "enabled": true
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,enabled\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Setup Access,,,vf-page,MyPage,Setup Access,Setup Access,true"
+    }
+  ],
+  "serializes custom-permission access in csv output": [
+    {
+      "result": {
+        "targetType": "custom-permission",
+        "targetName": "Can_Edit_Accounts",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "custom-permission",
+            "targetName": "Can_Edit_Accounts",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Setup Access",
+            "sourceApiName": "Setup Access",
+            "sourceLabel": "Setup Access",
+            "access": {
+              "kind": "enabled",
+              "enabled": true
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,enabled\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Setup Access,,,custom-permission,Can_Edit_Accounts,Setup Access,Setup Access,true"
+    }
+  ],
+  "renders tab access in human output": [
+    {
+      "result": {
+        "targetType": "tab",
+        "targetName": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "tab",
+            "targetName": "Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Tab Access",
+            "sourceApiName": "Tab Access",
+            "sourceLabel": "Tab Access",
+            "access": {
+              "kind": "tab",
+              "visibility": "DefaultOn"
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": [
+          "Profile-level tab visibility is not included because it is not exposed as a clean PermissionSetTabSetting data-API grant."
+        ]
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,visibility\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Tab Access,,,tab,Account,Tab Access,Tab Access,DefaultOn"
+    }
+  ],
+  "accepts record-type and renders metadata-backed access": [
+    {
+      "result": {
+        "targetType": "record-type",
+        "targetName": "Account.Business_Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "record-type",
+            "targetName": "Account.Business_Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Business_Access",
+            "sourceApiName": "Business_Access",
+            "sourceLabel": "Business_Access",
+            "access": {
+              "kind": "record-type",
+              "visible": true,
+              "default": null
+            }
+          },
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "record-type",
+            "targetName": "Account.Business_Account",
+            "assignmentType": "Profile",
+            "sourceId": "00eProfile",
+            "sourceName": "Sales",
+            "sourceApiName": "Sales",
+            "sourceLabel": "Sales",
+            "access": {
+              "kind": "record-type",
+              "visible": true,
+              "default": true
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 1,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,visible,default\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Business_Access,,,record-type,Account.Business_Account,Business_Access,Business_Access,true,\n0051,Jane Smith,jane@example.com,Profile,00eProfile,Sales,,,record-type,Account.Business_Account,Sales,Sales,true,true"
+    }
+  ],
+  "defaults to human output when output flag is omitted": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "object",
+            "targetName": "Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,object,Account,Account Readers,Account Readers,true,false,false,false,false,false"
+    }
+  ],
+  "writes csv only in csv mode": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "writes a single CSV file while keeping human output on stdout": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "writes the warden CSV file while returning the global JSON result": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "writes the global JSON envelope when only output-file is supplied": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "emits byte-identical CSV for repeated runs": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    },
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "targetName": "Account.CustomField__c",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "returns stable json payload in json mode": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "object",
+            "targetName": "Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll\n0051,Jane Smith,jane@example.com,PermissionSet,0PS1,Account Readers,,,object,Account,Account Readers,Account Readers,true,false,false,false,false,false"
+    }
+  ],
+  "prints no-results line for empty result sets": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [],
+        "stats": {
+          "totalActiveUsersWithAccess": 0,
+          "profileGrants": 0,
+          "permissionSetGrants": 0,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll"
+    }
+  ],
+  "sorts human table rows by user name": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Amy User",
+            "username": "amy@example.com",
+            "targetType": "object",
+            "targetName": "Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          },
+          {
+            "userId": "0052",
+            "userName": "Zed User",
+            "username": "zed@example.com",
+            "targetType": "object",
+            "targetName": "Account",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PS1",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 2,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll\n0051,Amy User,amy@example.com,PermissionSet,0PS1,Account Readers,,,object,Account,Account Readers,Account Readers,true,false,false,false,false,false\n0052,Zed User,zed@example.com,PermissionSet,0PS1,Account Readers,,,object,Account,Account Readers,Account Readers,true,false,false,false,false,false"
+    }
+  ],
+  "audits one user in reverse and suppresses muted PSG field access": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account.CustomField__c",
+        "sobjectType": "Account",
+        "fieldApiName": "CustomField__c",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "targetName": "Account.CustomField__c",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Account Readers,,,field,Account.CustomField__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "supports reverse object access scoped by SObject and JSON output": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "object",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "targetName": "Account",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Account Readers,,,object,Account,Account Readers,Account Readers,true,false,false,false,false,false"
+    }
+  ],
+  "shows field targets and sorts them in reverse SObject human output": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "targetName": "Account.A__c",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          },
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "targetName": "Account.B__c",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Account Readers,,,field,Account.A__c,Account Readers,Account Readers,true,false\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Account Readers,,,field,Account.B__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "serializes reverse field SObject scope as CSV": [
+    {
+      "result": {
+        "targetType": "field",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "field",
+            "assignmentType": "PermissionSet",
+            "sourceId": "0PSDirect",
+            "sourceName": "Account Readers",
+            "sourceApiName": "Account Readers",
+            "sourceLabel": "Account Readers",
+            "targetName": "Account.A__c",
+            "access": {
+              "kind": "field",
+              "read": true,
+              "edit": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 1,
+          "permissionSetGroupGrants": 0
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,edit\n0051,Jane Smith,jane@example.com,PermissionSet,0PSDirect,Account Readers,,,field,Account.A__c,Account Readers,Account Readers,true,false"
+    }
+  ],
+  "sorts reverse PSG rows by ids when display labels collide": [
+    {
+      "result": {
+        "targetType": "object",
+        "targetName": "Account",
+        "sobjectType": "Account",
+        "rows": [
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "object",
+            "assignmentType": "PermissionSetGroup",
+            "sourceId": "0PG1",
+            "sourceName": "Sales Ops",
+            "sourceApiName": "Sales Ops",
+            "sourceLabel": "Sales Ops",
+            "viaPermissionSetId": "0PS1",
+            "viaPermissionSetName": "Account Reader",
+            "targetName": "Account",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          },
+          {
+            "userId": "0051",
+            "userName": "Jane Smith",
+            "username": "jane@example.com",
+            "targetType": "object",
+            "assignmentType": "PermissionSetGroup",
+            "sourceId": "0PG2",
+            "sourceName": "Sales Ops",
+            "sourceApiName": "Sales Ops",
+            "sourceLabel": "Sales Ops",
+            "viaPermissionSetId": "0PS2",
+            "viaPermissionSetName": "Account Reader",
+            "targetName": "Account",
+            "access": {
+              "kind": "object",
+              "read": true,
+              "create": false,
+              "edit": false,
+              "delete": false,
+              "viewAll": false,
+              "modifyAll": false
+            }
+          }
+        ],
+        "stats": {
+          "totalActiveUsersWithAccess": 1,
+          "profileGrants": 0,
+          "permissionSetGrants": 0,
+          "permissionSetGroupGrants": 2
+        },
+        "warnings": []
+      },
+      "csv": "userId,userName,username,assignmentType,sourceId,sourceName,viaPermissionSetId,viaPermissionSetName,targetType,targetName,sourceApiName,sourceLabel,read,create,edit,delete,viewAll,modifyAll\n0051,Jane Smith,jane@example.com,PermissionSetGroup,0PG1,Sales Ops,0PS1,Account Reader,object,Account,Sales Ops,Sales Ops,true,false,false,false,false,false\n0051,Jane Smith,jane@example.com,PermissionSetGroup,0PG2,Sales Ops,0PS2,Account Reader,object,Account,Sales Ops,Sales Ops,true,false,false,false,false,false"
+    }
+  ],
+  "reports user-vs-persona drift and does not perform DML": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 1,
+          "wouldCreate": 0,
+          "failed": 0,
+          "changed": 1
+        },
+        "users": [
+          {
+            "key": "A001",
+            "id": "005User00000001",
+            "personas": ["support"],
+            "matchedBy": "FederationIdentifier",
+            "status": "compared",
+            "profile": {
+              "current": "00eProfileCurrent",
+              "intended": "00eProfileTarget1",
+              "matches": false
+            },
+            "role": {
+              "current": "00ERoleTarget001",
+              "intended": "00ERoleTarget001",
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": ["0PSPermAdd0002"],
+                "removes": ["0PSPermRemove"],
+                "inBoth": ["0PSPermKeep0001"],
+                "onlyInOrg": [],
+                "mode": "sync"
+              },
+              "permissionSetGroups": {
+                "adds": ["0PGGroupAdd0001"],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": ["00GPublicKeep01"],
+                "onlyInOrg": [],
+                "mode": "sync"
+              },
+              "queues": {
+                "adds": ["00GQueueAdd0002"],
+                "removes": [],
+                "inBoth": ["00GQueueKeep001"],
+                "onlyInOrg": ["00GQueueExtra"],
+                "mode": "additive"
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "permissionSets",
+            "kind": "add",
+            "value": "0PSPermAdd0002",
+            "mode": "sync"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "permissionSets",
+            "kind": "remove",
+            "value": "0PSPermRemove",
+            "mode": "sync"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "permissionSets",
+            "kind": "inBoth",
+            "value": "0PSPermKeep0001",
+            "mode": "sync"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "permissionSetGroups",
+            "kind": "add",
+            "value": "0PGGroupAdd0001",
+            "mode": "additive"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "publicGroups",
+            "kind": "inBoth",
+            "value": "00GPublicKeep01",
+            "mode": "sync"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "queues",
+            "kind": "add",
+            "value": "00GQueueAdd0002",
+            "mode": "additive"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "queues",
+            "kind": "inBoth",
+            "value": "00GQueueKeep001",
+            "mode": "additive"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "queues",
+            "kind": "onlyInOrg",
+            "value": "00GQueueExtra",
+            "mode": "additive"
+          },
+          {
+            "userKey": "A001",
+            "userId": "005User00000001",
+            "userName": "",
+            "username": "",
+            "category": "profile",
+            "kind": "profile",
+            "value": "00eProfileCurrent -> 00eProfileTarget1",
+            "valueBefore": "00eProfileCurrent",
+            "valueAfter": "00eProfileTarget1"
+          }
+        ],
+        "warnings": [],
+        "labels": {
+          "00eProfileTarget1": {
+            "id": "00eProfileTarget1",
+            "apiName": "Support Profile",
+            "label": "Support Profile",
+            "type": "Profile"
+          },
+          "00ERoleTarget001": {
+            "id": "00ERoleTarget001",
+            "apiName": "SupportRole",
+            "label": "00ERoleTarget001",
+            "type": "UserRole"
+          },
+          "0PSPermKeep0001": {
+            "id": "0PSPermKeep0001",
+            "apiName": "Current_Perms",
+            "type": "PermissionSet",
+            "label": "Current Permissions"
+          },
+          "0PSPermAdd0002": {
+            "id": "0PSPermAdd0002",
+            "apiName": "AddPerm",
+            "type": "PermissionSet"
+          },
+          "0PGGroupAdd0001": {
+            "id": "0PGGroupAdd0001",
+            "apiName": "AddGroup",
+            "type": "PermissionSetGroup"
+          },
+          "00GPublicKeep01": {
+            "id": "00GPublicKeep01",
+            "apiName": "KeepPublic",
+            "type": "PublicGroup"
+          },
+          "00GQueueKeep001": {
+            "id": "00GQueueKeep001",
+            "apiName": "KeepQueue",
+            "type": "Queue"
+          },
+          "00GQueueAdd0002": {
+            "id": "00GQueueAdd0002",
+            "apiName": "AddQueue",
+            "type": "Queue"
+          },
+          "0PSPermRemove": {
+            "id": "0PSPermRemove",
+            "apiName": "Shared_Perms",
+            "label": "Shared Permissions",
+            "type": "PermissionSet"
+          },
+          "00GQueueExtra": {
+            "id": "00GQueueExtra",
+            "type": "Queue"
+          },
+          "00eProfileCurrent": {
+            "id": "00eProfileCurrent",
+            "label": "00eProfileCurrent",
+            "type": "Profile"
+          }
+        }
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nA001,005User00000001,permissionSets,add,0PSPermAdd0002,sync,,,AddPerm,,PermissionSet,,\nA001,005User00000001,permissionSets,remove,0PSPermRemove,sync,,,Shared_Perms,Shared Permissions,PermissionSet,,\nA001,005User00000001,permissionSets,inBoth,0PSPermKeep0001,sync,,,Current_Perms,Current Permissions,PermissionSet,,\nA001,005User00000001,permissionSetGroups,add,0PGGroupAdd0001,additive,,,AddGroup,,PermissionSetGroup,,\nA001,005User00000001,publicGroups,inBoth,00GPublicKeep01,sync,,,KeepPublic,,PublicGroup,,\nA001,005User00000001,queues,add,00GQueueAdd0002,additive,,,AddQueue,,Queue,,\nA001,005User00000001,queues,inBoth,00GQueueKeep001,additive,,,KeepQueue,,Queue,,\nA001,005User00000001,queues,onlyInOrg,00GQueueExtra,additive,,,,,Queue,,\nA001,005User00000001,profile,profile,00eProfileCurrent -> 00eProfileTarget1,,,,Support Profile,Support Profile,Profile,00eProfileCurrent,00eProfileTarget1"
+    }
+  ],
+  "reads a CSV users-def through diff with an explicit format override": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 0,
+          "wouldCreate": 1,
+          "failed": 0,
+          "changed": 0
+        },
+        "users": [
+          {
+            "key": "csv@example.test",
+            "userName": "",
+            "username": "csv@example.test",
+            "personas": [],
+            "matchedBy": null,
+            "status": "would-create",
+            "profile": {
+              "current": null,
+              "intended": null,
+              "matches": true
+            },
+            "role": {
+              "current": null,
+              "intended": null,
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [],
+        "warnings": [],
+        "labels": {}
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter"
+    }
+  ],
+  "uses the core validation code on persona validation errors": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 0,
+          "wouldCreate": 0,
+          "failed": 1,
+          "changed": 0
+        },
+        "users": [
+          {
+            "key": "csv@example.test",
+            "userName": "",
+            "username": "csv@example.test",
+            "personas": ["missing-persona"],
+            "matchedBy": null,
+            "status": "failed",
+            "profile": {
+              "matches": true
+            },
+            "role": {
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              }
+            },
+            "errors": ["errorUnknownPersona"]
+          }
+        ],
+        "rows": [
+          {
+            "userName": "",
+            "username": "csv@example.test",
+            "userKey": "csv@example.test",
+            "userId": "",
+            "category": "error",
+            "kind": "error",
+            "value": "errorUnknownPersona"
+          }
+        ],
+        "warnings": [],
+        "labels": {}
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\ncsv@example.test,,error,error,errorUnknownPersona,,,csv@example.test,,,,,"
+    }
+  ],
+  "returns verify verdicts and sets a non-zero exit for a missing user": [
+    {
+      "result": [
+        {
+          "key": "A004",
+          "conformant": false,
+          "violations": ["user not found"]
+        }
+      ],
+      "csv": "key,conformant,violations\nA004,false,user not found"
+    }
+  ],
+  "emits failed-user verdicts for direct and global JSON output": [
+    {
+      "result": [
+        {
+          "key": "A006",
+          "conformant": false,
+          "violations": ["error: errorNoPersonas"]
+        }
+      ],
+      "csv": "key,conformant,violations\nA006,false,error: errorNoPersonas"
+    },
+    {
+      "result": [
+        {
+          "key": "A006",
+          "conformant": false,
+          "violations": ["error: errorNoPersonas"]
+        }
+      ],
+      "csv": "key,conformant,violations\nA006,false,error: errorNoPersonas"
+    }
+  ],
+  "keeps a zero exit for conformant verify results": [
+    {
+      "result": [
+        {
+          "key": "A005",
+          "conformant": true,
+          "violations": []
+        }
+      ],
+      "csv": "key,conformant,violations\nA005,true,"
+    }
+  ],
+  "supports users-def without personas-def for profile and role drift": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 0,
+          "wouldCreate": 1,
+          "failed": 0,
+          "changed": 1
+        },
+        "users": [
+          {
+            "key": "PROFILE-001",
+            "userName": "Profile",
+            "personas": [],
+            "matchedBy": "FederationIdentifier",
+            "status": "would-create",
+            "profile": {
+              "current": null,
+              "intended": "00eProfileTarget1",
+              "matches": false
+            },
+            "role": {
+              "current": null,
+              "intended": null,
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [
+          {
+            "userKey": "PROFILE-001",
+            "userId": "",
+            "userName": "Profile",
+            "username": "",
+            "category": "profile",
+            "kind": "profile",
+            "value": " -> 00eProfileTarget1",
+            "valueBefore": "",
+            "valueAfter": "00eProfileTarget1"
+          }
+        ],
+        "warnings": [],
+        "labels": {
+          "00eProfileTarget1": {
+            "id": "00eProfileTarget1",
+            "apiName": "Admin",
+            "label": "Admin",
+            "type": "Profile"
+          }
+        }
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nPROFILE-001,,profile,profile, -> 00eProfileTarget1,,Profile,,Admin,Admin,Profile,,00eProfileTarget1"
+    }
+  ],
+  "supports profile-only verify mode": [
+    {
+      "result": [
+        {
+          "key": "PROFILE-VERIFY",
+          "conformant": false,
+          "violations": ["user not found"]
+        }
+      ],
+      "csv": "key,conformant,violations\nPROFILE-VERIFY,false,user not found"
+    }
+  ],
+  "does not report profile or role drift when the persona does not manage them": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 1,
+          "wouldCreate": 0,
+          "failed": 0,
+          "changed": 0
+        },
+        "users": [
+          {
+            "key": "A002",
+            "id": "005User00000002",
+            "personas": ["support"],
+            "matchedBy": "FederationIdentifier",
+            "status": "compared",
+            "profile": {
+              "current": "00eCurrentProfile",
+              "intended": null,
+              "matches": true
+            },
+            "role": {
+              "current": "00ECurrentRole",
+              "intended": null,
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": [],
+                "removes": [],
+                "inBoth": ["0PSPermKeep0001"],
+                "onlyInOrg": [],
+                "mode": "sync"
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": [],
+                "mode": "additive"
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [
+          {
+            "userKey": "A002",
+            "userId": "005User00000002",
+            "userName": "",
+            "username": "",
+            "category": "permissionSets",
+            "kind": "inBoth",
+            "value": "0PSPermKeep0001",
+            "mode": "sync"
+          }
+        ],
+        "warnings": [],
+        "labels": {
+          "0PSPermKeep0001": {
+            "id": "0PSPermKeep0001",
+            "apiName": "Target_Perms",
+            "type": "PermissionSet",
+            "label": "Target Permissions"
+          },
+          "00eCurrentProfile": {
+            "id": "00eCurrentProfile",
+            "label": "00eCurrentProfile",
+            "type": "Profile"
+          },
+          "00ECurrentRole": {
+            "id": "00ECurrentRole",
+            "label": "00ECurrentRole",
+            "type": "UserRole"
+          }
+        }
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nA002,005User00000002,permissionSets,inBoth,0PSPermKeep0001,sync,,,Target_Perms,Target Permissions,PermissionSet,,"
+    }
+  ],
+  "does not invent assignment modes for failed persona users": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 0,
+          "wouldCreate": 0,
+          "failed": 1,
+          "changed": 0
+        },
+        "users": [
+          {
+            "key": "A003",
+            "userName": "User",
+            "personas": [],
+            "matchedBy": null,
+            "status": "failed",
+            "profile": {
+              "matches": true
+            },
+            "role": {
+              "matches": true
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              }
+            },
+            "errors": ["errorNoPersonas"]
+          }
+        ],
+        "rows": [
+          {
+            "userName": "User",
+            "username": "",
+            "userKey": "A003",
+            "userId": "",
+            "category": "error",
+            "kind": "error",
+            "value": "errorNoPersonas"
+          }
+        ],
+        "warnings": ["PermissionSet reference \"KeepPerm\" was not found."],
+        "labels": {}
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nA003,,error,error,errorNoPersonas,,User,,,,,,"
+    }
+  ],
+  "reports user-vs-user effective assignment delta": [
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 1,
+          "wouldCreate": 0,
+          "failed": 0,
+          "changed": 1
+        },
+        "users": [
+          {
+            "key": "Username:new@example.test",
+            "id": "005NewUser00001",
+            "username": "new@example.test",
+            "matchedBy": "Username",
+            "status": "compared",
+            "profile": {
+              "current": "00eCurrent",
+              "intended": "00eTemplate",
+              "matches": false
+            },
+            "role": {
+              "current": null,
+              "intended": "00ETemplateRole",
+              "matches": false
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": ["0PSTarget"],
+                "removes": ["0PSCurrent"],
+                "inBoth": ["0PSShared"],
+                "onlyInOrg": []
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "add",
+            "value": "0PSTarget"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "remove",
+            "value": "0PSCurrent"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "inBoth",
+            "value": "0PSShared"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "profile",
+            "kind": "profile",
+            "value": "00eCurrent -> 00eTemplate",
+            "valueBefore": "00eCurrent",
+            "valueAfter": "00eTemplate"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "role",
+            "kind": "role",
+            "value": " -> 00ETemplateRole",
+            "valueBefore": "",
+            "valueAfter": "00ETemplateRole"
+          }
+        ],
+        "warnings": [],
+        "labels": {
+          "0PSCurrent": {
+            "id": "0PSCurrent",
+            "apiName": "Current_Perms",
+            "label": "Current Permissions",
+            "type": "PermissionSet"
+          },
+          "0PSShared": {
+            "id": "0PSShared",
+            "apiName": "Shared_Perms",
+            "label": "Shared Permissions",
+            "type": "PermissionSet"
+          },
+          "0PSTarget": {
+            "id": "0PSTarget",
+            "apiName": "Target_Perms",
+            "label": "Target Permissions",
+            "type": "PermissionSet"
+          },
+          "00eCurrent": {
+            "id": "00eCurrent",
+            "label": "00eCurrent",
+            "type": "Profile"
+          },
+          "00eTemplate": {
+            "id": "00eTemplate",
+            "label": "00eTemplate",
+            "type": "Profile"
+          },
+          "00ETemplateRole": {
+            "id": "00ETemplateRole",
+            "label": "00ETemplateRole",
+            "type": "UserRole"
+          }
+        }
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nUsername:new@example.test,005NewUser00001,permissionSets,add,0PSTarget,,,new@example.test,Target_Perms,Target Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,permissionSets,remove,0PSCurrent,,,new@example.test,Current_Perms,Current Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,permissionSets,inBoth,0PSShared,,,new@example.test,Shared_Perms,Shared Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,profile,profile,00eCurrent -> 00eTemplate,,,new@example.test,,00eTemplate,Profile,00eCurrent,00eTemplate\nUsername:new@example.test,005NewUser00001,role,role, -> 00ETemplateRole,,,new@example.test,,00ETemplateRole,UserRole,,00ETemplateRole"
+    },
+    {
+      "result": {
+        "summary": {
+          "total": 1,
+          "compared": 1,
+          "wouldCreate": 0,
+          "failed": 0,
+          "changed": 1
+        },
+        "users": [
+          {
+            "key": "Username:new@example.test",
+            "id": "005NewUser00001",
+            "username": "new@example.test",
+            "matchedBy": "Username",
+            "status": "compared",
+            "profile": {
+              "current": "00eCurrent",
+              "intended": "00eTemplate",
+              "matches": false
+            },
+            "role": {
+              "current": null,
+              "intended": "00ETemplateRole",
+              "matches": false
+            },
+            "assignments": {
+              "permissionSets": {
+                "adds": ["0PSTarget"],
+                "removes": ["0PSCurrent"],
+                "inBoth": ["0PSShared"],
+                "onlyInOrg": []
+              },
+              "permissionSetGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "publicGroups": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              },
+              "queues": {
+                "adds": [],
+                "removes": [],
+                "inBoth": [],
+                "onlyInOrg": []
+              }
+            },
+            "errors": []
+          }
+        ],
+        "rows": [
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "add",
+            "value": "0PSTarget"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "remove",
+            "value": "0PSCurrent"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "permissionSets",
+            "kind": "inBoth",
+            "value": "0PSShared"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "profile",
+            "kind": "profile",
+            "value": "00eCurrent -> 00eTemplate",
+            "valueBefore": "00eCurrent",
+            "valueAfter": "00eTemplate"
+          },
+          {
+            "userKey": "Username:new@example.test",
+            "userId": "005NewUser00001",
+            "userName": "",
+            "username": "new@example.test",
+            "category": "role",
+            "kind": "role",
+            "value": " -> 00ETemplateRole",
+            "valueBefore": "",
+            "valueAfter": "00ETemplateRole"
+          }
+        ],
+        "warnings": [],
+        "labels": {
+          "0PSCurrent": {
+            "id": "0PSCurrent",
+            "apiName": "Current_Perms",
+            "label": "Current Permissions",
+            "type": "PermissionSet"
+          },
+          "0PSShared": {
+            "id": "0PSShared",
+            "apiName": "Shared_Perms",
+            "label": "Shared Permissions",
+            "type": "PermissionSet"
+          },
+          "0PSTarget": {
+            "id": "0PSTarget",
+            "apiName": "Target_Perms",
+            "label": "Target Permissions",
+            "type": "PermissionSet"
+          },
+          "00eCurrent": {
+            "id": "00eCurrent",
+            "label": "00eCurrent",
+            "type": "Profile"
+          },
+          "00eTemplate": {
+            "id": "00eTemplate",
+            "label": "00eTemplate",
+            "type": "Profile"
+          },
+          "00ETemplateRole": {
+            "id": "00ETemplateRole",
+            "label": "00ETemplateRole",
+            "type": "UserRole"
+          }
+        }
+      },
+      "csv": "userKey,userId,category,kind,value,mode,userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter\nUsername:new@example.test,005NewUser00001,permissionSets,add,0PSTarget,,,new@example.test,Target_Perms,Target Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,permissionSets,remove,0PSCurrent,,,new@example.test,Current_Perms,Current Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,permissionSets,inBoth,0PSShared,,,new@example.test,Shared_Perms,Shared Permissions,PermissionSet,,\nUsername:new@example.test,005NewUser00001,profile,profile,00eCurrent -> 00eTemplate,,,new@example.test,,00eTemplate,Profile,00eCurrent,00eTemplate\nUsername:new@example.test,005NewUser00001,role,role, -> 00ETemplateRole,,,new@example.test,,00ETemplateRole,UserRole,,00ETemplateRole"
+    }
+  ],
+  "preserves partial snapshot rows and absent login state": [
+    {
+      "result": {
+        "summary": {
+          "total": 2,
+          "changed": 0,
+          "unchanged": 1,
+          "failed": 1
+        },
+        "users": [
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Username=\"missing@example.com\" matched no user"]
+          },
+          {
+            "key": "Username:good@example.com",
+            "id": "005good",
+            "username": "good@example.com",
+            "isActive": true,
+            "status": "unchanged",
+            "actions": [
+              {
+                "key": "snapshotWritten"
+              }
+            ],
+            "skipped": [],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "key,id,status,actions,skipped,warnings,errors\nUsername:missing@example.com,,failed,,,,\"Username=\"\"missing@example.com\"\" matched no user\"\nUsername:good@example.com,005good,unchanged,snapshotWritten,,,"
+    }
+  ],
+  "preserves restore error ordering and missing reference text": [
+    {
+      "result": {
+        "summary": {
+          "total": 3,
+          "changed": 1,
+          "unchanged": 0,
+          "failed": 2
+        },
+        "users": [
+          {
+            "key": "Unknown:bad",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Invalid user match field \"Unknown\"."]
+          },
+          {
+            "key": "Username:missing@example.com",
+            "status": "failed",
+            "actions": [],
+            "skipped": [],
+            "warnings": [],
+            "errors": ["Username=\"missing@example.com\" matched no user"]
+          },
+          {
+            "key": "Username:good@example.com",
+            "id": "005good",
+            "username": "good@example.com",
+            "isActive": false,
+            "status": "planned",
+            "actions": [
+              {
+                "key": "wouldActivate"
+              }
+            ],
+            "skipped": [],
+            "warnings": ["Missing PermissionSet reference \"Missing\"; skipping it."],
+            "errors": []
+          }
+        ]
+      },
+      "csv": "userKey,userId,userName,username,status,action,category,name,error\nUnknown:bad,,,,failed,,,,\"Invalid user match field \"\"Unknown\"\".\"\nUsername:missing@example.com,,,,failed,,,,\"Username=\"\"missing@example.com\"\" matched no user\"\nUsername:good@example.com,005good,,good@example.com,planned,wouldActivate,,,"
+    }
+  ]
+}

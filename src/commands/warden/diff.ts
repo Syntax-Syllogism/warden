@@ -2,12 +2,11 @@ import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
 import { detectInputFormat } from '@syntax-syllogism/warden-core';
 import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
-import { executePersonaDiff, executeUserToUserDiff, type UserDiffResult } from '@syntax-syllogism/warden-core';
+import { diff, type UserDiffResult } from '@syntax-syllogism/warden-core';
 import { renderUserDiffCsv, renderUserDiffHuman } from '@syntax-syllogism/warden-core';
 import {
   renderUserConformanceCsv,
   renderUserConformanceHuman,
-  verifyUserDiff,
   type UserConformanceVerdict,
 } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
@@ -110,7 +109,7 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
   private static async runPersonaMode(
     conn: Connection,
     flags: UserDiffFlags & { 'users-def': string; 'personas-def'?: string }
-  ): Promise<UserDiffResult> {
+  ): Promise<UserDiffCommandResult> {
     const inputFormat = detectInputFormat(flags['users-def'], flags['input-format']);
     let definitions: Awaited<ReturnType<typeof readProvisionDefinitions>> | undefined;
     if (inputFormat === 'json') {
@@ -126,11 +125,11 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
         );
       }
     }
-    return executePersonaDiff({
-      connection: conn,
+    return diff.run(conn, {
+      mode: 'persona',
+      verify: Boolean(flags.verify),
       usersDoc: definitions?.usersDoc,
-      personasDoc: definitions?.personasDoc,
-      personasSupplied: definitions?.personasSupplied,
+      personasDoc: definitions?.personasSupplied ? definitions.personasDoc : undefined,
       usersPath: inputFormat === 'csv' ? flags['users-def'] : undefined,
       personasPath: inputFormat === 'csv' ? flags['personas-def'] : undefined,
       inputFormat: inputFormat === 'csv' ? inputFormat : undefined,
@@ -280,19 +279,22 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
     const diffResult =
       typeof flags.user === 'string'
-        ? await executeUserToUserDiff({
-            connection: conn,
-            user: flags.user,
-            against: flags.against as string,
-          }).catch(rethrowLegacyUserValueError)
+        ? await diff
+            .run(conn, {
+              mode: 'user',
+              verify: false,
+              user: flags.user,
+              against: flags.against as string,
+            })
+            .catch(rethrowLegacyUserValueError)
         : await UserDiff.runPersonaMode(
             conn,
             flags as UserDiffFlags & { 'users-def': string; 'personas-def'?: string }
           );
 
-    if (flags.verify) {
+    if (Array.isArray(diffResult)) {
       const lookup = messages.getMessage.bind(messages);
-      const verdicts = verifyUserDiff(diffResult, lookup);
+      const verdicts = diffResult;
       await this.emitResult(context, {
         result: verdicts,
         csv: renderUserConformanceCsv(verdicts),
@@ -302,15 +304,16 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
       return verdicts;
     }
 
-    const csv = renderUserDiffCsv(diffResult);
+    const comparison = diffResult;
+    const csv = renderUserDiffCsv(comparison);
     await this.emitResult(context, {
-      result: diffResult,
+      result: comparison,
       csv,
-      human: renderUserDiffHuman(diffResult, messages.getMessage.bind(messages), { verbose: flags.verbose }),
+      human: renderUserDiffHuman(comparison, messages.getMessage.bind(messages), { verbose: flags.verbose }),
     });
-    if (diffResult.summary.failed > 0 || (flags['fail-on-drift'] && diffResult.summary.changed > 0)) {
+    if (comparison.summary.failed > 0 || (flags['fail-on-drift'] && comparison.summary.changed > 0)) {
       process.exitCode = 1;
     }
-    return diffResult;
+    return comparison;
   }
 }

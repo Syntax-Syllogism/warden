@@ -73,7 +73,7 @@ AGENTS.md
 CLAUDE.md
 .claude/
 .agents/
-loop.config.mjs
+*loop.config.mjs
 
 # private release tooling — only runs on the private master branch
 bin/publish.sh

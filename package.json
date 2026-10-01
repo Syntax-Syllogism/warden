@@ -1,7 +1,7 @@
 {
   "name": "@syntax-syllogism/warden",
   "description": "a sf cli plugin for user lifecycle administration",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
     "@oclif/core": "^4",
     "@salesforce/core": "^8",
     "@salesforce/sf-plugins-core": "^12",
-    "@syntax-syllogism/warden-core": "0.2.0",
+    "@syntax-syllogism/warden-core": "0.4.1",
     "eta": "^4.1.0",
     "pluralize": "^8.0.0"
   },

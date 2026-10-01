@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] - 2026-10-01
+
+### Changed
+
+- Updated to warden-core 0.4.1. Freeze, unfreeze, strip, provision, and restore
+  now use its plan/apply APIs, and snapshot, access, and diff use its run APIs.
+  JSON and CSV output is unchanged.
+- Commands that write to the org still ask for confirmation before writing.
+  Connected-org provisioning now waits for warnings to be confirmed before it
+  writes its logs.
+- Provision and access human-readable output now comes from warden-core's
+  renderers. The wording is unchanged.
+
 ## [0.7.1] - 2026-09-30
 
 ### Changed

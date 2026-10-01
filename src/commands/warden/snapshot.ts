@@ -8,7 +8,7 @@ import {
   resolvedTargetResult,
   summarizeLifecycle,
 } from '@syntax-syllogism/warden-core';
-import { buildSnapshotFile, writeSnapshotFile } from '@syntax-syllogism/warden-core';
+import { snapshot, writeSnapshotFile } from '@syntax-syllogism/warden-core';
 import { buildTargetRequests, resolveTargets } from '@syntax-syllogism/warden-core';
 import type { LifecycleResult, LifecycleUserResult } from '@syntax-syllogism/warden-core';
 import { renderSnapshotCsv } from '@syntax-syllogism/warden-core';
@@ -140,7 +140,11 @@ export default class UserSnapshot extends WardenCommand<LifecycleResult> {
     const out = typeof flags.out === 'string' && flags.out.length > 0 ? flags.out : defaultOut();
     await writeSnapshotFile(
       out,
-      await buildSnapshotFile(conn, targets, state, getOrgProvenance(flags as SnapshotFlags))
+      await snapshot.run(conn, {
+        // Core rejects partial selections, so capture only the CLI's resolved targets.
+        usersDoc: { users: targets.map((target) => ({ match: target.field, [target.field]: target.value })) },
+        org: getOrgProvenance(flags as SnapshotFlags),
+      })
     );
 
     const users: LifecycleUserResult[] = requestErrors.concat(resolutionErrors).map(failedResult);

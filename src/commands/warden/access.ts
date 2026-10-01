@@ -4,22 +4,10 @@ import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { parseUserFlag, resolveTargetField, resolveTargets } from '@syntax-syllogism/warden-core';
 import type { ResolvedTargetUser } from '@syntax-syllogism/warden-core';
 import { serializeCsv } from '@syntax-syllogism/warden-core';
-import {
-  flattenAccessRow,
-  renderEnabledTable,
-  renderFieldTable,
-  renderObjectTable,
-  renderRecordTypeTable,
-  renderTabTable,
-} from '@syntax-syllogism/warden-core';
+import { flattenAccessRow, renderAccessResult } from '@syntax-syllogism/warden-core';
 import { getResolver } from '@syntax-syllogism/warden-core';
-import { resolveReverseAccess, reverseCsvColumns } from '@syntax-syllogism/warden-core';
-import type {
-  AccessTargetType,
-  UserAccessResult,
-  UserAccessRow,
-  ValidatedAccessTarget,
-} from '@syntax-syllogism/warden-core';
+import { access, reverseCsvColumns } from '@syntax-syllogism/warden-core';
+import type { AccessTargetType, UserAccessResult, UserAccessRow } from '@syntax-syllogism/warden-core';
 import { UserAccessError } from '@syntax-syllogism/warden-core';
 import {
   promptAccessMode,
@@ -63,49 +51,6 @@ const stableOrder = (rows: UserAccessRow[]): UserAccessRow[] =>
       a.sourceId.localeCompare(b.sourceId) ||
       (a.viaPermissionSetId ?? '').localeCompare(b.viaPermissionSetId ?? '')
   );
-
-const targetLabels: Record<AccessTargetType, string> = {
-  field: 'Field',
-  object: 'Object',
-  'apex-class': 'Apex Class',
-  'vf-page': 'Visualforce Page',
-  'custom-permission': 'Custom Permission',
-  tab: 'Tab',
-  'record-type': 'Record Type',
-};
-
-const renderHuman = (result: UserAccessResult, userLabel?: string): string => {
-  const sortedRows = stableOrder(result.rows);
-  const lines = userLabel
-    ? [
-        `Access for ${userLabel}: ${result.targetName}`,
-        `Accessible grants: ${sortedRows.length}`,
-        `Profiles: ${result.stats.profileGrants} | Permission Sets: ${result.stats.permissionSetGrants} | Permission Set Groups: ${result.stats.permissionSetGroupGrants}`,
-      ]
-    : [
-        `${targetLabels[result.targetType]}: ${result.targetName}`,
-        `Active users with access: ${result.stats.totalActiveUsersWithAccess}`,
-        `Profiles: ${result.stats.profileGrants} | Permission Sets: ${result.stats.permissionSetGrants} | Permission Set Groups: ${result.stats.permissionSetGroupGrants}`,
-      ];
-  if (result.warnings.length > 0) {
-    lines.push('');
-    for (const warning of result.warnings) lines.push(`Warning: ${warning}`);
-  }
-  if (sortedRows.length > 0) {
-    lines.push('');
-    if (result.targetType === 'field') {
-      const showFieldTarget = Boolean(userLabel && !result.fieldApiName);
-      lines.push(renderFieldTable(sortedRows, showFieldTarget));
-    } else if (result.targetType === 'object') lines.push(renderObjectTable(sortedRows));
-    else if (result.targetType === 'tab') lines.push(renderTabTable(sortedRows));
-    else if (result.targetType === 'record-type') lines.push(renderRecordTypeTable(sortedRows));
-    else lines.push(renderEnabledTable(sortedRows));
-  } else if (result.warnings.length === 0) {
-    lines.push('');
-    lines.push(messages.getMessage(userLabel ? 'info.noUserResults' : 'info.noResults'));
-  }
-  return lines.join('\n');
-};
 
 export default class UserAccess extends WardenCommand<UserAccessResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -213,15 +158,13 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
       if (userMode && !hasTarget && !hasSobject) throw new SfError(messages.getMessage('errorUserModeRequiresScope'));
 
       const resolver = getResolver(type);
-      let validatedTarget: ValidatedAccessTarget;
       if (hasTarget) {
-        validatedTarget = await resolver.validateTarget(conn, flags.target as string);
+        await resolver.validateTarget(conn, flags.target as string);
       } else {
         if (type !== 'field' && type !== 'object') {
           throw new SfError(messages.getMessage('errorSobjectUnsupported', [type]));
         }
-        const objectTarget = await getResolver('object').validateTarget(conn, flags.sobject as string);
-        validatedTarget = { ...objectTarget, type };
+        await getResolver('object').validateTarget(conn, flags.sobject as string);
       }
 
       let user: ResolvedTargetUser | undefined;
@@ -245,13 +188,7 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
         if (!user) throw new SfError(messages.getMessage('errorUserResolutionFailed'));
       }
 
-      const result = user
-        ? await resolveReverseAccess(
-            conn,
-            { Id: user.Id, name: user.name ?? user.Id, username: user.username ?? '' },
-            validatedTarget
-          )
-        : await resolver.resolve(conn, validatedTarget);
+      const result = await access.run(conn, { type, target: flags.target, user: flags.user, sobject: flags.sobject });
       const orderedResult = { ...result, rows: stableOrder(result.rows) };
       const columns = user ? reverseCsvColumns(result.targetType) : resolver.csvColumns();
       const csv = serializeCsv(
@@ -267,14 +204,20 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
       await this.emitResult(context, {
         result: orderedResult,
         csv,
-        human: renderHuman(orderedResult, user?.name),
+        human: renderAccessResult(orderedResult, user?.name),
       });
       return orderedResult;
     } catch (error) {
       if (error instanceof UserAccessError) {
         const message = messages.getMessage(error.code, error.args);
         const detail = error.cause instanceof Error ? error.cause.message : undefined;
-        throw new SfError(detail ? `${message} Underlying error: ${detail}` : message, 'UserAccessError', [], 1, error.cause);
+        throw new SfError(
+          detail ? `${message} Underlying error: ${detail}` : message,
+          'UserAccessError',
+          [],
+          1,
+          error.cause
+        );
       }
       if (error instanceof SfError) throw error;
       throw new SfError(messages.getMessage('errorAccessQueryFailed', [type, flags.target ?? flags.sobject ?? '']));

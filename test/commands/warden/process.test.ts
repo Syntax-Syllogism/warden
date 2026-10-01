@@ -10,7 +10,14 @@ describe('warden process-level output', () => {
     const repoRoot = process.cwd();
     const child = spawnSync(
       process.execPath,
-      ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', join(repoRoot, 'bin/dev.js'), 'warden', '--help'],
+      [
+        '--loader',
+        'ts-node/esm',
+        '--no-warnings=ExperimentalWarning',
+        join(repoRoot, 'bin/dev.js'),
+        'warden',
+        '--help',
+      ],
       {
         cwd: repoRoot,
         encoding: 'utf8',
@@ -46,7 +53,7 @@ describe('warden process-level output', () => {
       preloadPath,
       `
 import UserProvision from ${JSON.stringify(provisionCommand)};
-import { ProvisionUserUseCase } from ${JSON.stringify(provisionUseCase)};
+import { provision } from ${JSON.stringify(provisionUseCase)};
 
 UserProvision.prototype.parse = async () => ({
   flags: {
@@ -63,7 +70,8 @@ UserProvision.prototype.parse = async () => ({
   },
 });
 UserProvision.prototype.jsonEnabled = () => true;
-ProvisionUserUseCase.prototype.execute = async () => ({
+provision.plan = async () => ({ warnings: [], plans: [], validationResults: [], licenses: [] });
+provision.apply = async () => ({
   summary: { total: 1, created: 0, updated: 0, failed: 1, warnings: 0 },
   users: [{
     key: 'Username:failed@example.com',
@@ -235,7 +243,16 @@ UserProvision.prototype.jsonEnabled = () => true;
 
     const child = spawnSync(
       process.execPath,
-      ['--loader', 'ts-node/esm', '--import', preloadPath, join(repoRoot, 'bin/dev.js'), 'warden', 'provision', '--json'],
+      [
+        '--loader',
+        'ts-node/esm',
+        '--import',
+        preloadPath,
+        join(repoRoot, 'bin/dev.js'),
+        'warden',
+        'provision',
+        '--json',
+      ],
       {
         cwd: repoRoot,
         encoding: 'utf8',
@@ -290,7 +307,16 @@ UserProvision.prototype.jsonEnabled = () => true;
 
     const child = spawnSync(
       process.execPath,
-      ['--loader', 'ts-node/esm', '--import', preloadPath, join(repoRoot, 'bin/dev.js'), 'warden', 'provision', '--json'],
+      [
+        '--loader',
+        'ts-node/esm',
+        '--import',
+        preloadPath,
+        join(repoRoot, 'bin/dev.js'),
+        'warden',
+        'provision',
+        '--json',
+      ],
       {
         cwd: repoRoot,
         encoding: 'utf8',
@@ -345,7 +371,16 @@ UserProvision.prototype.jsonEnabled = () => true;
 
     const child = spawnSync(
       process.execPath,
-      ['--loader', 'ts-node/esm', '--import', preloadPath, join(repoRoot, 'bin/dev.js'), 'warden', 'provision', '--json'],
+      [
+        '--loader',
+        'ts-node/esm',
+        '--import',
+        preloadPath,
+        join(repoRoot, 'bin/dev.js'),
+        'warden',
+        'provision',
+        '--json',
+      ],
       {
         cwd: repoRoot,
         encoding: 'utf8',
