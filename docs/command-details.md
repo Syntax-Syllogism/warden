@@ -233,53 +233,18 @@ Larger samples: [users.json](examples/users.json), [personas.json](examples/pers
 
 #### Related records (`--related-def`)
 
-`--related-def` takes a JSON catalog of reusable relationships. A JSON user picks catalog entries by name in a `related` array. That key is metadata only and is never sent to the User API. CSV user definitions can't select relationships, so CSV input with `--related-def` is an error.
+See [Related-record provisioning](related-records.md) for JSON catalog and user
+selection, before/after phases, matching and modes, context lookups, Contact and
+Person Account linking, warning confirmation, and partial-failure behavior.
 
-The catalog needs a `relationships` object. Each name a user selects must exist in it and appear only once in that user's `related` array:
-
-```json
-{
-  "users": [
-    {
-      "related": ["employee"],
-      "FederationIdentifier": "E-9981"
-    }
-  ]
-}
-```
-
-```json
-{
-  "relationships": {
-    "employee": {
-      "sobject": "Employee__c",
-      "phase": "after",
-      "match": {
-        "field": "External_Person_Id__c",
-        "from": "user.FederationIdentifier"
-      },
-      "fields": {
-        "Department__c": { "from": "user.Department" },
-        "Employment_Status__c": { "value": "Active" },
-        "User__c": { "from": "user.Id" }
-      }
-    }
-  }
-}
-```
-
-How it works:
-
-* Only `phase: "after"` is supported. Warden saves the User first, then creates or updates the related record, and can set a lookup from `{ "from": "user.Id" }`. Before-phase provisioning of external users is planned for v2.
-* Matching uses a unique or External-ID, filterable field on the related object, filled from a non-Id User field. Zero matches create a record, one match updates it, and several matches fail that user. Two users that resolve to the same match value also fail, before any DML.
-* Every relationship needs a non-empty `sobject`, `phase`, `match`, and `fields`.
-* A field source is exactly `{ "from": "user.<UserField>" }` or `{ "value": <literal> }`. `{ "from": "user.Id" }` is fine for a field, but never for `match.from`. A User-field source must name a real User field and resolve to a non-empty value.
-* `mode` defaults to `setIfEmpty`, which keeps populated values on a matched record. Only literal `null` and `""` count as empty. Set `mode: "sync"` to overwrite every configured field. On create, both modes write all configured fields and always write the match field.
-* A configured record type is applied only on create. Warden never changes the record type of a matched record, and a matched record with a different configured record type fails that user. An `Account` relationship must declare an available Person Account record type.
-
-Before planning, Warden checks each selected relationship's target object, field access, match metadata, and record type. A relationship that fails these checks is reported as a warning and skipped, after the command's single warning confirmation. `--no-prompt` and non-interactive JSON runs skip it automatically.
-
-Related DML is batched by sObject, at most 200 records per batch. Dry runs validate, match, and show the plan without any DML. In a live run, if a related record fails to save, the User that was already saved stays, and that user's result is marked failed. Human output prints one `related:` line per result. JSON and CSV shapes are in the [output contract](output-contract.md).
+`--cleanup-on-failure` opts in to best-effort deletion of related records created
+in this run for users whose final provisioning status is failed. Cleanup deletes
+after records before before records. It never deletes matched or updated records,
+before records linked to a successfully saved User, or the User itself. Without
+the flag, created records survive failures and may be orphaned. With `--dry-run`,
+the flag has no effect and prints a warning; the preview performs no writes.
+Deletion outcomes appear as `deleted` or `deleteFailed` related-record results;
+records retained because of a saved User link are reported as `skipped` with a reason.
 
 ## Org-defined personas and promotion
 

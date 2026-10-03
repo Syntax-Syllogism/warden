@@ -22,7 +22,7 @@ Persona definition source: file or org. Defaults to file when --personas-def is 
 
 # flags.related-def.summary
 
-Optional path to a related-record definition JSON file. Declares named relationships a user entry selects with a `related` array. Only `phase: "after"` relationships are supported; requires a JSON `--users-def`.
+Optional path to a related-record definition JSON file. Declares named relationships a user entry selects with a `related` array. Supports `phase: "before"` and `"after"`, before-phase User linking, and per-user context sources; requires a JSON `--users-def`.
 
 # flags.external-id.summary
 
@@ -39,6 +39,18 @@ Skip warning confirmation prompts.
 # flags.fail-on-insufficient-license.summary
 
 Fail after dry-run output when projected net-new users exceed user-license headroom.
+
+# flags.cleanup-on-failure.summary
+
+Delete related records created in this run for failed users, where safe.
+
+# flags.cleanup-on-failure.description
+
+Opt in to best-effort cleanup after provisioning fails. Deletes only related records created for that user in this run, in reverse phase order. Keeps matched or updated records and before records linked to a successfully saved User. Never deletes or reverts the User. Has no effect with --dry-run.
+
+# warning.cleanupIgnoredInDryRun
+
+--cleanup-on-failure has no effect with --dry-run: no records are created or deleted.
 
 # flags.log-to-org.summary
 

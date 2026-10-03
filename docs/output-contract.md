@@ -5,7 +5,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 # Output contract
 
-All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#commands).
+All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#commands).
 
 ## Formats and destinations
 
@@ -49,10 +49,10 @@ When CSV goes to stdout, access statistics and warnings stay out of it. When CSV
 
 ### Provision details
 
-**Related records.** Related rows use the same ten columns. `action` is `related`, `detail` is `<relationship> <phase> <sobject> <related-action>`, and `error` holds any related-record failure. In JSON, user actions are unchanged, and `users[].relatedRecords[]` is added for selected relationships. Each entry has `relationship`, `phase`, `sobject`, `action`, `status`, and, when available, `recordId`, `detail`, and `error`.
+**Related records.** Related rows use the same ten columns. `action` is `related`, `detail` is `<relationship> <phase> <sobject> <related-action>`, and `error` holds any related-record failure. In JSON, user actions are unchanged, and `users[].relatedRecords[]` is added for selected relationships. Each entry has `relationship`, `phase` (`before` or `after`), `sobject`, `action`, `status`, and, when available, `recordId`, `detail`, and `error`. `createdInThisRun` is internal and never appears in public output. Before-phase entries use the same action/status values and CSV columns as after-phase entries. Dry runs report planned entries for both phases. A before-phase failure reports its real related-record error and prevents the User save. If the related record succeeds but the User save fails, the result retains the applied before entry and its record Id; that record remains in the org and may be orphaned unless `--cleanup-on-failure` is enabled. Cleanup appends `deleted` (status `applied`) or `deleteFailed` (status `failed`, with the deletion error) entries to the same array. A before record retained because a successfully saved User links to it is reported as `skipped` with an explanatory `detail`. CSV uses the same header and includes the new actions in `detail`; `users[].actions` and the summary fields are unchanged.
 
 * Dry-run actions are `wouldCreate`, `wouldUpdate`, or `wouldSkip`. An unchanged matched row is `matched`.
-* Live actions are `created`, `updated`, `matched`, or `skipped`.
+* Live actions are `created`, `updated`, `matched`, or `skipped`, plus `deleted` and `deleteFailed` when cleanup is enabled.
 
 **Match fields.** Provision JSON also carries:
 

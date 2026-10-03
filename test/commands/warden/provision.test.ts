@@ -8,13 +8,14 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import {
   provision,
+  renderProvisionHuman,
   type ProvisionPlan,
   type ProvisionOptions,
   type PersonaDefinitionsFile,
 } from '@syntax-syllogism/warden-core';
 import { applyProvisionWithLegacyOutput } from '../../../src/userShared/useCaseOptions.js';
 import UserProvision from '../../../src/commands/warden/provision.js';
-import { WARDEN_LEDGER_OBJECT } from '../../../src/userShared/orgWrites.js';
+import { WARDEN_ITEM_OBJECT, WARDEN_LEDGER_OBJECT, WARDEN_RUN_OBJECT } from '../../../src/userShared/orgWrites.js';
 import {
   COMPONENT_PERSONA_FIELD,
   COMPONENT_REFERENCE_FIELD,
@@ -3189,5 +3190,365 @@ describe('warden user provision command', () => {
     expect(result.users[0].status).to.equal('failed');
     expect(result.users[0].id).to.be.a('string');
     expect(result.users[0].relatedRecords?.[0]).to.deep.include({ action: 'skipped', status: 'failed' });
+  });
+
+  describe('related-record v2 command integration', () => {
+    const user = (key: string) => ({
+      FederationIdentifier: key,
+      ProfileId: '00exx0000000001AAA',
+      Username: `${key}@example.test`,
+      LastName: 'External',
+      Alias: 'extern',
+      TimeZoneSidKey: 'America/Los_Angeles',
+      LocaleSidKey: 'en_US',
+      EmailEncodingKey: 'UTF-8',
+      LanguageLocaleKey: 'en_US',
+      related: ['contact'],
+    });
+
+    const payloads = (create: sinon.SinonStub): Array<Record<string, unknown>> =>
+      create.firstCall.args[0] as Array<Record<string, unknown>>;
+
+    const setup = (sobject = 'Contact') => {
+      const conn = createFakeConnection();
+      const userDescribe = conn.describe() as Promise<{ fields: Array<Record<string, unknown>> }>;
+      conn.describe.withArgs('User').callsFake(async () => {
+        const description = await userDescribe;
+        return {
+          fields: [...description.fields, { name: 'ContactId', createable: true, updateable: true }],
+        };
+      });
+      conn.describe.withArgs(sobject).resolves({
+        fields: [
+          { name: 'Id', readable: true },
+          { name: 'External_Id__c', createable: true, updateable: true, filterable: true, externalId: true },
+          { name: 'LastName', createable: true, updateable: true },
+          { name: 'AccountId', createable: true, updateable: true },
+          { name: 'PersonContactId', readable: true },
+        ],
+        recordTypeInfos: [{ recordTypeId: '012person', name: 'Person', available: true, isPersonType: true }],
+      });
+      conn.sobjectMap[sobject] = {
+        create: bulkSuccessStub('a01xx000000000'),
+        update: bulkSuccessStub('a01xx000000000'),
+        delete: sinon.stub(),
+      };
+      conn.query.callsFake(async (soql: string) => {
+        if (soql.includes('FROM Profile')) {
+          return { records: [{ Id: '00exx0000000001AAA', Name: 'Admin', UserLicense: { Name: 'Salesforce' } }] };
+        }
+        if (soql.includes('FROM RecordType')) {
+          return {
+            records: [
+              { Id: '012person', Name: 'Person', DeveloperName: 'Person', SobjectType: 'Account', IsPersonType: true },
+            ],
+          };
+        }
+        return { records: [] };
+      });
+      return conn;
+    };
+
+    const catalog = (sobject = 'Contact') => ({
+      relationships: {
+        contact: {
+          sobject,
+          phase: 'before',
+          ...(sobject === 'Account' ? { recordType: { developerName: 'Person' } } : {}),
+          match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
+          fields: { LastName: { from: 'user.LastName' } },
+          linkUser: { userField: 'ContactId', fromRelatedField: sobject === 'Account' ? 'PersonContactId' : 'Id' },
+        },
+      },
+    });
+
+    const runCommand = async (
+      conn: FakeConnection,
+      users: Array<Record<string, unknown>>,
+      relatedDoc: unknown = catalog(),
+      dryRun = false,
+      extraFlags: Record<string, unknown> = {}
+    ) => {
+      const dir = mkdtempSync(join(tmpdir(), 'warden-related-v2-'));
+      const usersPath = join(dir, 'users.json');
+      const relatedPath = join(dir, 'related.json');
+      writeFileSync(usersPath, JSON.stringify({ users }));
+      writeFileSync(relatedPath, JSON.stringify(relatedDoc));
+      sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+        flags: {
+          'target-org': { getConnection: () => conn },
+          'users-def': usersPath,
+          'related-def': relatedDoc ? relatedPath : undefined,
+          'no-prompt': true,
+          'dry-run': dryRun,
+          'fuzzy-username': false,
+          ...extraFlags,
+        },
+      } as never);
+      return UserProvision.run([]);
+    };
+
+    it('creates and links a Contact before saving the User and displays the license warning without prompting', async () => {
+      const conn = setup();
+      const confirm = sinon.stub(UserProvision.prototype as unknown as { confirm: () => Promise<boolean> }, 'confirm');
+      const result = await runCommand(conn, [user('CONTACT-1')]);
+      expect(result.users[0].status).to.equal('created');
+      expect(conn.sobjectMap.Contact.create.calledBefore(conn.sobjectMap.User.create)).to.equal(true);
+      expect(conn.sobjectMap.Contact.create.firstCall.args[1]).to.deep.equal({ allOrNone: false });
+      expect(payloads(conn.sobjectMap.User.create)[0].ContactId).to.equal(result.users[0].relatedRecords?.[0].recordId);
+      expect(result.users[0].relatedRecords?.[0]).to.deep.include({
+        phase: 'before',
+        action: 'created',
+        status: 'applied',
+      });
+      expect(sfCommandStubs.warn.args.flat().join(' ')).to.include('Salesforce');
+      expect(confirm.called).to.equal(false);
+    });
+
+    it('reads a created Person Account contact Id between Account and User saves', async () => {
+      const conn = setup('Account');
+      conn.query
+        .withArgs(sinon.match((soql: string) => soql.includes('PersonContactId') && soql.includes('WHERE Id IN')))
+        .resolves({
+          records: [{ Id: makeSuccessResults([{}], 'a01xx000000000')[0].id, PersonContactId: '003person' }],
+        });
+      const result = await runCommand(conn, [user('PERSON-1')], catalog('Account'));
+      expect(result.users[0].status).to.equal('created');
+      const read = conn.query
+        .getCalls()
+        .find(
+          (call) =>
+            (call.args[0] as string).includes('WHERE Id IN') && (call.args[0] as string).includes('PersonContactId')
+        );
+      expect(read).not.to.equal(undefined);
+      expect(conn.sobjectMap.Account.create.firstCall.calledBefore(read!)).to.equal(true);
+      expect(read!.calledBefore(conn.sobjectMap.User.create.firstCall)).to.equal(true);
+      expect(payloads(conn.sobjectMap.User.create)[0].ContactId).to.equal('003person');
+      expect(payloads(conn.sobjectMap.Account.create)[0]).not.to.have.property('PersonContactId');
+    });
+
+    it('batches shared context lookups and excludes metadata from User saves', async () => {
+      const conn = setup();
+      conn.describe
+        .withArgs('Account')
+        .resolves({ fields: [{ name: 'External_Id__c', readable: true, filterable: true, externalId: true }] });
+      conn.query
+        .withArgs(sinon.match((soql: string) => soql.includes('FROM Account')))
+        .resolves({ records: [{ Id: '001parent', External_Id__c: 'PARENT' }] });
+      const doc = catalog();
+      const fields = doc.relationships.contact.fields as Record<string, unknown>;
+      fields.AccountId = { from: 'context.account' };
+      const users = ['LOOKUP-1', 'LOOKUP-2'].map((key) => ({
+        ...user(key),
+        relatedContext: {
+          account: { lookup: { sobject: 'Account', field: 'External_Id__c', value: { value: 'PARENT' } } },
+        },
+      }));
+      const result = await runCommand(conn, users, doc);
+      expect(result.summary.created).to.equal(2);
+      expect(conn.query.getCalls().filter((call) => (call.args[0] as string).includes('FROM Account'))).to.have.length(
+        1
+      );
+      expect(
+        payloads(conn.sobjectMap.Contact.create).map((row: Record<string, unknown>) => row.AccountId)
+      ).to.deep.equal(['001parent', '001parent']);
+      for (const row of payloads(conn.sobjectMap.User.create)) {
+        expect(row).not.to.have.property('related');
+        expect(row).not.to.have.property('relatedContext');
+      }
+    });
+
+    it('omits only the user whose before record fails from the bulk User save', async () => {
+      const conn = setup();
+      conn.sobjectMap.Contact.create.callsFake(async (items: unknown) => {
+        const results: unknown[] = makeSuccessResults(items, 'a01xx000000000');
+        results[1] = { success: false, errors: [{ message: 'Contact rejected' }] };
+        return results;
+      });
+      const result = await runCommand(conn, ['OK-1', 'FAIL', 'OK-3'].map(user));
+      expect(result.summary).to.include({ created: 2, failed: 1 });
+      expect(
+        payloads(conn.sobjectMap.User.create).map((row: Record<string, unknown>) => row.FederationIdentifier)
+      ).to.deep.equal(['OK-1', 'OK-3']);
+      const failed = result.users.find((row) => row.status === 'failed');
+      expect(failed?.relatedRecords?.[0]).to.include({ phase: 'before', status: 'failed' });
+      expect(failed?.relatedRecords?.[0].error).to.include('Contact rejected');
+      expect(failed?.errors).to.deep.equal([failed?.relatedRecords?.[0].error]);
+    });
+
+    it('previews before records and resolves context lookups without DML', async () => {
+      const conn = setup();
+      conn.describe.withArgs('Account').resolves({
+        fields: [{ name: 'External_Id__c', readable: true, filterable: true, externalId: true }],
+      });
+      conn.query
+        .withArgs(sinon.match((soql: string) => soql.includes('FROM Account')))
+        .resolves({ records: [{ Id: '001parent', External_Id__c: 'PARENT' }] });
+      const doc = catalog();
+      (doc.relationships.contact.fields as Record<string, unknown>).AccountId = { from: 'context.account' };
+      const result = await runCommand(
+        conn,
+        [
+          {
+            ...user('PREVIEW'),
+            relatedContext: {
+              account: { lookup: { sobject: 'Account', field: 'External_Id__c', value: { value: 'PARENT' } } },
+            },
+          },
+        ],
+        doc,
+        true
+      );
+      expect(conn.sobject.called).to.equal(false);
+      expect(conn.query.getCalls().filter((call) => (call.args[0] as string).includes('FROM Account'))).to.have.length(
+        1
+      );
+      expect(result.users[0].relatedRecords?.[0]).to.include({
+        phase: 'before',
+        action: 'wouldCreate',
+        status: 'planned',
+      });
+    });
+
+    it('preserves the created before record when the User save fails', async () => {
+      const conn = setup();
+      conn.sobjectMap.User.create.resolves([{ success: false, errors: [{ message: 'User rejected' }] }]);
+      const result = await runCommand(conn, [user('ORPHAN')]);
+      expect(result.users[0].status).to.equal('failed');
+      expect(result.users[0].relatedRecords?.[0]).to.include({ phase: 'before', action: 'created', status: 'applied' });
+      expect(result.users[0].relatedRecords?.[0].recordId).to.be.a('string');
+      expect(conn.sobjectMap.Contact.delete.called).to.equal(false);
+    });
+
+    it('defaults cleanup to false', () => {
+      expect(UserProvision.flags['cleanup-on-failure'].default).to.equal(false);
+    });
+
+    for (const deleteFails of [false, true]) {
+      it(`reports ${
+        deleteFails ? 'failed' : 'successful'
+      } cleanup in CSV and full org logs after a User save failure`, async () => {
+        const conn = setup();
+        conn.sobjectMap.User.create.resolves([{ success: false, errors: [{ message: 'User rejected' }] }]);
+        conn.sobjectMap.Contact.delete.resolves([
+          deleteFails ? { success: false, errors: [{ message: 'Delete blocked' }] } : { success: true, errors: [] },
+        ]);
+        conn.describe.withArgs(WARDEN_RUN_OBJECT).resolves({ name: WARDEN_RUN_OBJECT });
+        for (const object of [WARDEN_RUN_OBJECT, WARDEN_ITEM_OBJECT]) {
+          conn.sobjectMap[object] = {
+            create: bulkSuccessStub('a09xx000000000'),
+            update: bulkSuccessStub('a09xx000000000'),
+            delete: sinon.stub(),
+          };
+        }
+        const dir = mkdtempSync(join(tmpdir(), 'warden-cleanup-output-'));
+        const outputFile = join(dir, 'result.csv');
+        const result = await runCommand(conn, [user('CLEANUP')], catalog(), false, {
+          'cleanup-on-failure': true,
+          'log-to-org': true,
+          'log-detail': 'full',
+          output: 'csv',
+          'output-file': outputFile,
+        });
+        const related = result.users[0].relatedRecords!;
+        const action = deleteFails ? 'deleteFailed' : 'deleted';
+        expect(related.map((row) => row.action)).to.deep.equal(['created', action]);
+        expect(related[1]).to.include({ recordId: related[0].recordId, status: deleteFails ? 'failed' : 'applied' });
+        expect(conn.sobjectMap.Contact.delete.firstCall.args).to.deep.equal([
+          [related[0].recordId],
+          { allOrNone: false },
+        ]);
+        expect(result.summary).to.include({ total: 1, created: 0, updated: 0, failed: 1 });
+        expect(result.users[0].errors.join(' ')).to.include('User rejected');
+        expect(conn.sobjectMap.User.delete.called).to.equal(false);
+        expect(JSON.stringify(result)).not.to.include('createdInThisRun');
+        const csv = readFileSync(outputFile, 'utf8');
+        expect(csv.split('\n')[0]).to.equal(provisionCsvHeader);
+        expect(csv).to.include(`contact before Contact ${action}`);
+        expect(renderProvisionHuman(result)).to.include(`before Contact ${action}`);
+        const item = payloads(conn.sobjectMap[WARDEN_ITEM_OBJECT].create).find(
+          (row) => row.wdn_Detail__c === `contact before Contact ${action}`
+        );
+        expect(item).to.include({ wdn_Action__c: 'related', wdn_Category__c: 'Contact' });
+        if (deleteFails) {
+          expect(related[1].error).to.include('Delete blocked');
+          expect(csv).to.include('Delete blocked');
+          expect(renderProvisionHuman(result)).to.include('Delete blocked');
+          expect(item?.wdn_Error__c).to.include('Delete blocked');
+        }
+      });
+    }
+
+    it('keeps a Contact linked to a saved User when an after relationship fails', async () => {
+      const conn = setup();
+      conn.describe.withArgs('Employee__c').resolves({
+        fields: [
+          { name: 'External_Id__c', createable: true, updateable: true, filterable: true, externalId: true },
+          { name: 'User__c', createable: true, updateable: true },
+        ],
+      });
+      conn.sobjectMap.Employee__c = {
+        create: sinon.stub().resolves([{ success: false, errors: [{ message: 'Employee rejected' }] }]),
+        update: sinon.stub(),
+        delete: sinon.stub(),
+      };
+      const doc = {
+        relationships: {
+          ...catalog().relationships,
+          employee: {
+            sobject: 'Employee__c',
+            phase: 'after',
+            match: { field: 'External_Id__c', from: 'user.FederationIdentifier' },
+            fields: { User__c: { from: 'user.Id' } },
+          },
+        },
+      };
+      const result = await runCommand(conn, [{ ...user('LINKED'), related: ['contact', 'employee'] }], doc, false, {
+        'cleanup-on-failure': true,
+      });
+      expect(result.users[0].status).to.equal('failed');
+      const retained = result.users[0].relatedRecords?.find(
+        (row) => row.relationship === 'contact' && row.action === 'skipped'
+      );
+      expect(retained).to.include({ status: 'skipped' });
+      expect(retained?.detail).to.include('User');
+      expect(payloads(conn.sobjectMap.User.create)[0].ContactId).to.equal(retained?.recordId);
+      expect(conn.sobjectMap.Contact.delete.called).to.equal(false);
+      expect(conn.sobjectMap.Employee__c.delete.called).to.equal(false);
+      expect(conn.sobjectMap.User.delete.called).to.equal(false);
+    });
+
+    it('warns that cleanup has no effect in a dry run and performs no DML', async () => {
+      const conn = setup();
+      const result = await runCommand(conn, [user('PREVIEW-CLEANUP')], catalog(), true, {
+        'cleanup-on-failure': true,
+      });
+      expect(result.users[0].relatedRecords?.[0]).to.include({ action: 'wouldCreate', status: 'planned' });
+      expect(conn.sobject.called).to.equal(false);
+      expect(sfCommandStubs.warn.args.flat().join(' ')).to.include('--cleanup-on-failure has no effect with --dry-run');
+    });
+
+    it('fails only a user with a missing referenced context key', async () => {
+      const conn = setup();
+      const doc = catalog();
+      (doc.relationships.contact.fields as Record<string, unknown>).AccountId = { from: 'context.account' };
+      const result = await runCommand(
+        conn,
+        [user('MISSING'), { ...user('PRESENT'), relatedContext: { account: '001parent' } }],
+        doc
+      );
+      expect(result.summary).to.include({ created: 1, failed: 1 });
+      expect(payloads(conn.sobjectMap.User.create)).to.have.length(1);
+      expect(payloads(conn.sobjectMap.User.create)[0].FederationIdentifier).to.equal('PRESENT');
+    });
+
+    it('ignores unused context without a related catalog', async () => {
+      const conn = setup();
+      const { related, ...input } = user('UNUSED');
+      void related;
+      const result = await runCommand(conn, [{ ...input, relatedContext: { account: '001parent' } }], null);
+      expect(result.summary.created).to.equal(1);
+      expect(payloads(conn.sobjectMap.User.create)[0]).not.to.have.property('relatedContext');
+    });
   });
 });

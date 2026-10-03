@@ -13,7 +13,7 @@ description: Install Warden and run your first Salesforce user lifecycle workflo
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -106,9 +106,10 @@ sf warden strip --target-org myOrg --user 'Username:user@example.com' \
 ## Next steps
 
 * [Command details](command-details.md): merge logic, precedence tables, and assignment modes.
+* [Related-record provisioning](related-records.md): before/after records, context lookups, and User linking.
 * [Connected org writes](connected-org-writes.md): the optional ledger and run log.
 * [Access audits](access-audits.md): scopes, attribution, muting, and output.
 * [Output contract](output-contract.md): formats, destinations, CSV shape, and `--json`.
 * [Lifecycle output and snapshots](lifecycle-output.md): identities, labels, snapshots, and action reports.
 * [Interactive mode](interactive-mode.md): guided prompts for all eight commands.
-* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md#commands) section of the README, or `--help` on any command.
+* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#commands) section of the README, or `--help` on any command.

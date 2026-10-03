@@ -1,7 +1,7 @@
 {
   "name": "@syntax-syllogism/warden",
   "description": "a sf cli plugin for user lifecycle administration",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
     "@oclif/core": "^4",
     "@salesforce/core": "^8",
     "@salesforce/sf-plugins-core": "^12",
-    "@syntax-syllogism/warden-core": "0.4.1",
+    "@syntax-syllogism/warden-core": "0.5.0",
     "eta": "^4.1.0",
     "pluralize": "^8.0.0"
   },
@@ -31,9 +31,17 @@
     "husky": "^9.1.7",
     "lint-staged": "15",
     "markdownlint-cli2": "^0.22.1",
-    "oclif": "^4.14.0",
+    "oclif": "^4.24.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "resolutions": {
+    "**/mocha/js-yaml": "^4.3.2",
+    "**/mocha/minimatch": "^5.1.8",
+    "**/mocha/serialize-javascript": "^7.0.3",
+    "**/@typescript-eslint/typescript-estree/minimatch": "^9.0.7",
+    "**/markdownlint-cli2/js-yaml": "^4.3.2",
+    "**/markdownlint-cli2/smol-toml": "^1.7.1"
   },
   "engines": {
     "node": ">=18.0.0"

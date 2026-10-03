@@ -90,6 +90,11 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     'fuzzy-username': Flags.boolean({ default: false, summary: messages.getMessage('flags.fuzzy-username.summary') }),
     'no-prompt': Flags.boolean({ default: false, summary: messages.getMessage('flags.no-prompt.summary') }),
     'dry-run': dryRunFlag,
+    'cleanup-on-failure': Flags.boolean({
+      default: false,
+      summary: messages.getMessage('flags.cleanup-on-failure.summary'),
+      description: messages.getMessage('flags.cleanup-on-failure.description'),
+    }),
     'fail-on-insufficient-license': Flags.boolean({
       default: false,
       summary: messages.getMessage('flags.fail-on-insufficient-license.summary'),
@@ -253,6 +258,9 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     }
     const provisioningConnection = capturedWrites?.connection ?? conn;
 
+    if (flags['dry-run'] && flags['cleanup-on-failure']) {
+      this.warn(messages.getMessage('warning.cleanupIgnoredInDryRun'));
+    }
     const plan = await provision.plan(
       provisioningConnection,
       provisionOptionsSchema.parse({
@@ -263,6 +271,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
         csvListDelimiter: flags['csv-list-delimiter'],
         externalId: flags['external-id'],
         fuzzyUsername: flags['fuzzy-username'],
+        cleanupOnFailure: flags['cleanup-on-failure'],
       })
     );
     if (plan.warnings.length > 0 && context.interactive) {

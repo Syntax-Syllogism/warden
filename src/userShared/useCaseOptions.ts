@@ -53,7 +53,7 @@ export const applyProvisionWithLegacyOutput = async (
       .filter((related) => related.status === 'failed' && related.error)
       .map((related) => related.error!);
     if (relatedErrors.length > 0) {
-      user.errors.unshift(...relatedErrors);
+      user.errors.unshift(...relatedErrors.filter((error) => !user.errors.includes(error)));
       user.status = 'failed';
     }
     const userPlan = ordered[index];

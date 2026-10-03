@@ -9,6 +9,7 @@ Start with [Getting started](getting-started.md). Come back to the guides below 
 
 * [Getting started](getting-started.md): install Warden and run your first audit or provisioning plan.
 * [Command details](command-details.md): how provisioning merges personas, field precedence, assignment modes, and dry runs.
+* [Related-record provisioning](related-records.md): catalogs, before/after phases, context lookups, and User linking.
 * [CLI reference](cli-reference.md): every command with its usage, flags, and examples.
 * [Persona promotion](persona-promotion.md): keep personas in an org, and move them with export, import, and diff.
 * [Connected org writes](connected-org-writes.md): the optional provisioning ledger and run log in orgs with the Warden package.

@@ -52,4 +52,4 @@ Lifecycle commands use the same per-entry shape:
 sf warden freeze --users-def ./users.json --target-org mySandbox
 ```
 
-For provisioning merge and precedence rules, see [command details](command-details.md#warden-provision). For every flag, see the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.8.0/README.md).
+For provisioning merge and precedence rules, see [command details](command-details.md#warden-provision). For every flag, see the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md).

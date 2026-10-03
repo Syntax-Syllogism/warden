@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0] - 2026-10-02
+
+### Added
+
+- Related-record v2 provisioning
+- Optional cleanup of related records during provisioning
+
+### Security
+
+- Resolved critical and high security vulnerabilities in dependencies
+
 ## [0.8.0] - 2026-10-01
 
 ### Changed

@@ -42,6 +42,10 @@ Other details:
 * `--output` and `--api-version` are also prompted for when you didn't pass them. A resolved `--api-version` default is offered, and what you type is checked by the same parser as the flag.
 * `--csv-list-delimiter` is asked only for CSV users-definition input. Otherwise it stays `;`.
 * Optional text answers can be left blank.
+* `provision -i` does not prompt for cleanup on failure. Pass
+  `--cleanup-on-failure` explicitly to enable it; otherwise it stays off. See
+  [Related-record cleanup](related-records.md#cleanup-on-failure) for eligibility
+  and retained-record rules.
 
 `diff -i` is stricter than a plain `diff` in one case. It rejects `--user` or `--against` combined with a persona-mode flag such as `--input-format` or `--csv-list-delimiter`. A plain run silently ignores those flags, but interactive mode has to settle the branch before it can decide what to ask.
 

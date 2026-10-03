@@ -5,7 +5,7 @@ description: Understand Warden's command layer, core use cases, and compatibilit
 
 # CLI/core architecture
 
-Warden pins `@syntax-syllogism/warden-core` exactly to `0.4.1` in `package.json`
+Warden pins `@syntax-syllogism/warden-core` exactly to `0.5.0` in `package.json`
 and `yarn.lock`. Core owns access resolution, provisioning rules, lifecycle
 operations, user matching, related-record synchronization, and definition parsing.
 The plugin owns oclif commands and flags, Salesforce CLI messages, prompts,
@@ -35,7 +35,7 @@ It also validates single-user match fields before planning so an unknown field
 keeps the existing Salesforce CLI error envelope.
 
 Its `applyProvisionWithLegacyOutput` adapter preserves the CLI's live JSON/CSV
-contract where core 0.4.1's apply result differs: related-record failures also
+contract: related-record failures also
 mark the user failed and populate user errors, cross-reference failures retain
 candidate diagnostics, and live summary warning counts exclude license
 shortfalls. Dry-run license reporting remains in the core preview; see
