@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TestContext } from '@salesforce/core/testSetup';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
+import { diff as coreDiff } from '@syntax-syllogism/warden-core';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import UserAccess from '../../src/commands/warden/access.js';
@@ -11,7 +12,7 @@ import PersonaDiffCommand from '../../src/commands/warden/persona/diff.js';
 import PersonaExport from '../../src/commands/warden/persona/export.js';
 import UserSnapshot from '../../src/commands/warden/snapshot.js';
 import type { CliTable, OperationModule } from '../../src/sfd/contract.js';
-import operations from '../../src/sfd/operations.js';
+import operations, { diffFailureCount } from '../../src/sfd/operations.js';
 
 const expectedCliOptions: Record<string, string[]> = {
   'warden.access': ['type', 'target', 'user', 'sobject'],
@@ -25,6 +26,7 @@ const expectedCliOptions: Record<string, string[]> = {
     'csvListDelimiter',
     'verbose',
     'verify',
+    'failOnDrift',
   ],
   'warden.snapshot': ['user', 'usersDef', 'externalId', 'inputFormat', 'csvListDelimiter', 'out'],
   'warden.persona-diff': ['input'],
@@ -44,12 +46,33 @@ const expectedCliOptions: Record<string, string[]> = {
   'warden.restore': ['snapshot'],
   'warden.freeze': ['user', 'usersDef', 'externalId', 'inputFormat', 'csvListDelimiter'],
   'warden.unfreeze': ['user', 'usersDef', 'externalId', 'inputFormat', 'csvListDelimiter'],
+  'warden.strip': [
+    'user',
+    'usersDef',
+    'externalId',
+    'inputFormat',
+    'csvListDelimiter',
+    'noFreeze',
+    'noDeactivate',
+    'personas',
+    'allPersonas',
+    'personasDef',
+    'personaSource',
+    'freeze',
+    'deactivate',
+    'keepPermsets',
+    'keepPermsetGroups',
+    'keepLicenses',
+    'keepPublicGroups',
+    'keepQueues',
+    'snapshot',
+  ],
   'warden.persona-import': ['input', 'prune'],
 };
 
 const assertConformance = (module: OperationModule): void => {
   expect(module.apiVersion).to.equal(0);
-  expect(module.operations).to.have.length(10);
+  expect(module.operations).to.have.length(11);
 
   const ids = new Set<string>();
   for (const candidate of module.operations) {
@@ -101,13 +124,22 @@ const operation = (
   };
 };
 
-const context = (cwd: string, preserveAbsolutePaths = false) => ({
-  signal: new AbortController().signal,
-  onProgress: () => undefined,
-  notice: () => undefined,
-  resolvePath: (path: string) => (preserveAbsolutePaths ? path : join(cwd, path)),
-  org: { username: 'warden-dev@example.test', apiVersion: '66.0', type: 'scratch' as const },
-});
+const context = (cwd: string, preserveAbsolutePaths = false) => {
+  let failures: number | undefined;
+  return {
+    signal: new AbortController().signal,
+    onProgress: () => undefined,
+    notice: () => undefined,
+    reportFailures: (count: number): void => {
+      failures = count;
+    },
+    get _failures(): number | undefined {
+      return failures;
+    },
+    resolvePath: (path: string) => (preserveAbsolutePaths ? path : join(cwd, path)),
+    org: { username: 'warden-dev@example.test', apiVersion: '66.0', type: 'scratch' as const },
+  };
+};
 
 const connection = () => ({
   describe: sinon.stub().resolves({
@@ -152,12 +184,61 @@ describe('sfd warden operations', () => {
 
   it('conforms to the committed runtime contract and CLI table', () => {
     const cli = JSON.parse(readFileSync(new URL('../../cli.json', import.meta.url), 'utf8')) as CliTable;
+    const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      sfd: { requires: { sfd: string } };
+    };
 
     assertConformance(operations);
     assertCliTable(cli, operations);
+    expect(manifest.sfd.requires.sfd).to.equal('>=0.7.0');
+    const diffOperation = operations.operations.find((candidate) => candidate.descriptor.id === 'warden.diff');
+    expect(diffOperation?.descriptor.optionsSchema.safeParse({ failOnDrift: true }).success).to.equal(true);
     for (const candidate of operations.operations) {
       expect(candidate.descriptor.optionsSchema.safeParse({ unexpected: true }).success).to.equal(false);
     }
+  });
+
+  it('counts comparison failures, requested drift, and nonconformant verdicts', () => {
+    const comparison = (failed: number, changed: number) => ({ summary: { failed, changed } } as never);
+    const verdicts = (conformant: boolean[]) => conformant.map((value) => ({ conformant: value })) as never;
+
+    expect(diffFailureCount(comparison(0, 2), false)).to.equal(0);
+    expect(diffFailureCount(comparison(0, 2), true)).to.equal(2);
+    expect(diffFailureCount(comparison(1, 2), false)).to.equal(1);
+    expect(diffFailureCount(verdicts([true, false]), false)).to.equal(1);
+    expect(diffFailureCount(verdicts([true, false]), true)).to.equal(1);
+  });
+
+  it('reports diff failures through the operation context', async () => {
+    const run = sinon.stub(coreDiff, 'run');
+    const comparison = (failed: number, changed: number) => ({ summary: { failed, changed } } as never);
+    const verdicts = (conformant: boolean[]) => conformant.map((value) => ({ conformant: value })) as never;
+    const options = { user: 'Username:alice@example.test', against: 'Username:bob@example.test' };
+    const reportFailures = async (request: object, expectedFailures: number): Promise<void> => {
+      const ctx = context(tmpdir());
+
+      await operation('warden.diff').run(connection(), request, ctx);
+
+      expect(Reflect.get(ctx, '_failures')).to.equal(expectedFailures);
+    };
+
+    run
+      .onFirstCall()
+      .resolves(comparison(1, 0))
+      .onSecondCall()
+      .resolves(comparison(0, 2))
+      .onThirdCall()
+      .resolves(comparison(0, 2))
+      .onCall(3)
+      .resolves(verdicts([true, true]))
+      .onCall(4)
+      .resolves(verdicts([true, false]));
+
+    await reportFailures({ ...options, failOnDrift: false }, 1);
+    await reportFailures({ ...options, failOnDrift: false }, 0);
+    await reportFailures({ ...options, failOnDrift: true }, 2);
+    await reportFailures({ usersDef: 'users.csv', inputFormat: 'csv', verify: true, failOnDrift: true }, 0);
+    await reportFailures({ usersDef: 'users.csv', inputFormat: 'csv', verify: true, failOnDrift: true }, 1);
   });
 
   it('matches access command JSON', async () => {
@@ -219,6 +300,35 @@ describe('sfd warden operations', () => {
     );
 
     expect(runtime).to.deep.equal(command);
+  });
+
+  it('reports snapshot user failures and clears the count for a clean snapshot', async () => {
+    const failedContext = context(tmpdir());
+
+    await operation('warden.snapshot').run(
+      connection(),
+      { user: 'Username:missing@example.test', out: 'snapshot.json' },
+      failedContext
+    );
+
+    expect(Reflect.get(failedContext, '_failures')).to.equal(1);
+
+    const cleanConnection = connection();
+    cleanConnection.query.callsFake(async (soql: string) => ({
+      done: true,
+      records: soql.includes('FROM User')
+        ? [{ Id: '005000000000001', IsActive: true, Name: 'Alice', Username: 'alice@example.test' }]
+        : [],
+    }));
+    const cleanContext = context(tmpdir());
+
+    await operation('warden.snapshot').run(
+      cleanConnection,
+      { user: 'Username:alice@example.test', out: 'clean-snapshot.json' },
+      cleanContext
+    );
+
+    expect(Reflect.get(cleanContext, '_failures')).to.equal(0);
   });
 
   it('writes snapshot files like the command for nested and CSV outputs', async () => {

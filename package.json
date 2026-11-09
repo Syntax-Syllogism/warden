@@ -1,7 +1,7 @@
 {
   "name": "@syntax-syllogism/warden",
   "description": "a sf cli plugin for user lifecycle administration",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
@@ -88,7 +88,10 @@
   "sfd": {
     "apiVersion": 0,
     "operations": "./lib/sfd/operations.js",
-    "cli": "./cli.json"
+    "cli": "./cli.json",
+    "requires": {
+      "sfd": ">=0.7.0"
+    }
   },
   "scripts": {
     "build": "wireit",

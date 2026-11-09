@@ -41,15 +41,16 @@ live apply, it writes the revocation records described in
 `access`, `diff`, `snapshot`, `provision`, `restore`, `freeze`, `unfreeze`, and
 `persona import` run their non-interactive work through
 `src/userShared/accessRequest.ts`, `diffRequest.ts`, `snapshotRequest.ts`,
-`provisionRequest.ts`, `lifecycleRequest.ts` (freeze, unfreeze, and restore),
+`provisionRequest.ts`, `lifecycleRequest.ts` (freeze, unfreeze, and restore), `stripRequest.ts`,
 and `personaImportRequest.ts`. The oclif commands and the sfd operations in
 `src/sfd/operations.ts` both call these modules. The modules own validation,
 error codes, result ordering, the plan/apply split, and the file-writing
 callback (snapshot). They do not prompt or print: the oclif commands keep flag
 parsing, prompts, and rendering, and `src/sfd/errors.ts` maps request errors to
-sfd's `code`/`actions` shape. Connected-package audit writes stay in the oclif
-`provision` command and are not part of the shared module. See
-[sfd operations](sfd.md).
+sfd's `code`/`actions` shape. The provisioning ledger writer,
+`src/userShared/provisionLedger.ts`, is the exception: the oclif `provision`
+command and the sfd apply both call it. Run and Item audit writes stay in the
+oclif `provision` command. See [sfd operations](sfd.md).
 
 ## CLI compatibility adapters
 

@@ -12,7 +12,7 @@ Start with [Getting started](getting-started.md). Come back to the guides below 
 - [Related-record provisioning](related-records.md): catalogs, before/after phases, context lookups, and User linking.
 - [CLI reference](cli-reference.md): every command with its usage, flags, and examples.
 - [Persona promotion](persona-promotion.md): keep personas in an org, and move them with export, import, and diff.
-- [sfd operations](sfd.md): access, diff, snapshot, and persona reads, plus plan-gated provision, restore, freeze, unfreeze, and persona import writes, through the warm `sfd` daemon.
+- [sfd operations](sfd.md): access, diff, snapshot, and persona reads, plus plan-gated provision, restore, freeze, unfreeze, strip, and persona import writes, through the warm `sfd` daemon.
 - [Connected org writes](connected-org-writes.md): the optional provisioning ledger and run log, and the persona revocation records `strip` writes, in orgs with the Warden package.
 - [Access audits](access-audits.md): who can access a target, what a user can access, and where each grant comes from.
 - [User matching](user-matching.md): which fields identify a user, fuzzy Username matching, and how lifecycle commands pick their targets.

@@ -5,7 +5,7 @@ description: Provisioning ledger, reconciliation logging, and persona revocation
 
 # Connected org writes
 
-`sf warden provision` can record its successful work in the Warden package installed in the target org. This is optional. If the package isn't there, provisioning works as usual. Persona-mode `sf warden strip` records its revocations there too; see [Persona revocation writes](#persona-revocation-writes). The sfd `warden.provision` operation does not write these records; see [sfd operations](sfd.md).
+`sf warden provision` can record its successful work in the Warden package installed in the target org. This is optional. If the package isn't there, provisioning works as usual. Persona-mode `sf warden strip` records its revocations there too; see [Persona revocation writes](#persona-revocation-writes). The sfd `warden.provision` operation writes ledger rows, but Run and Item records remain sf-only; see [sfd operations](sfd.md).
 
 ## What gets written
 
@@ -30,7 +30,7 @@ sf warden provision --target-org myOrg \
 - `--log-to-org` is off by default. `--log-detail` is `summary` by default and also accepts `full`.
 - `--dry-run` writes nothing. It doesn't check for the connected objects, create audit records, or write ledger rows.
 - Audit records are best effort. A failed create, update, or partial batch produces a warning. It never changes provisioning's result or exit code. Ledger and Item creates go out in sequential batches of at most 200 records, so a large run keeps the batches that succeed if another fails.
-- Warden doesn't read personas or other configuration from the org for this feature, and it doesn't run remote Apex. User and assignment changes are still made by the normal provisioning path.
+- Apart from looking up persona Ids for ledger provenance (only when the ledger has a `wdn_Persona__c` field), Warden doesn't read personas or other configuration from the org for this feature, and it doesn't run remote Apex. User and assignment changes are still made by the normal provisioning path.
 
 The org must expose the ledger and Run objects, and the authenticated user must be able to create and update them. Full-detail logging also needs the Item object. If objects or permissions are missing, provisioning still runs. Check the warnings to see which audit records weren't saved.
 

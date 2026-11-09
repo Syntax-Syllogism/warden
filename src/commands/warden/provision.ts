@@ -7,18 +7,15 @@ import { confirmWithTimeout } from '../../userShared/prompting.js';
 import { applyProvisionRequest, planProvisionRequest } from '../../userShared/provisionRequest.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
-  buildLedgerRows,
   buildProvenance,
   buildReconciliationItems,
   captureProvisioningWrites,
-  describeObjectFields,
   detectConnectedPackage,
   saveRun,
   updateRun,
   bestEffortOrgWrite,
   writeBatch,
   WARDEN_ITEM_OBJECT,
-  WARDEN_LEDGER_OBJECT,
   type ConnectedPackage,
 } from '../../userShared/orgWrites.js';
 import {
@@ -50,7 +47,7 @@ import {
   promptText,
 } from '../../userShared/prompting.js';
 import { rethrowLegacyPersonaDefinitionError, WardenCommand } from '../../wardenCommand.js';
-import { readPersonaIds } from '../../userShared/personas.js';
+import { writeProvisionLedger } from '../../userShared/provisionLedger.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');
@@ -338,29 +335,13 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     };
     try {
       if (!options.dryRun && options.connectedPackage.ledgerAvailable && options.capturedWrites) {
-        const personaNames = [...new Set(options.output.users.flatMap((user) => user.personas))];
-        const ledgerFields = await describeObjectFields(options.connection, WARDEN_LEDGER_OBJECT);
-        let personaIdsByName: Map<string, string> | undefined;
-        if (ledgerFields?.has('wdn_Persona__c') && personaNames.length > 0) {
-          personaIdsByName = await readPersonaIds(options.connection, personaNames);
-          const unresolved = personaNames.filter((name) => !personaIdsByName?.has(name));
-          if (unresolved.length > 0)
-            warn(`Warden org ledger provenance is unavailable for persona(s): ${unresolved.join(', ')}.`);
-        }
-        const ledgerRows = buildLedgerRows({
-          grants: options.capturedWrites.state.grants,
-          result: options.output,
+        await writeProvisionLedger(options.connection, {
+          state: options.capturedWrites.state,
+          output: options.output,
           personasDoc: options.personasDoc,
-          labelsByTypeAndId: options.capturedWrites.state.labelsByTypeAndId,
-          referenceIdsByType: options.capturedWrites.state.referenceIdsByType,
-          personaIdsByName,
           runId: options.runId,
-        });
-        await bestEffortOrgWrite(
-          () => writeBatch(options.connection, WARDEN_LEDGER_OBJECT, ledgerRows, warn, 'ledger'),
           warn,
-          'ledger'
-        );
+        });
       }
       if (!options.runId) return;
       const items = options.logDetail === 'full' ? buildReconciliationItems(options.output, options.runId) : [];

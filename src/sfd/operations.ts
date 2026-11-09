@@ -25,9 +25,21 @@ import {
 } from '../userShared/personaImportRequest.js';
 import { type PersonaDiff, diffPersonaDocuments, readOrgPersonas, readPersonaFile } from '../userShared/personas.js';
 import { applyProvisionRequest, planProvisionRequest } from '../userShared/provisionRequest.js';
-import { detectConnectedPackage } from '../userShared/orgWrites.js';
+import {
+  applyStripRequest,
+  planStripRequest,
+  writeStripSnapshot,
+  type PlannedStripRequest,
+} from '../userShared/stripRequest.js';
+import {
+  captureProvisioningWrites,
+  detectConnectedPackage,
+  serializeCaptureState,
+  type SerializedCaptureState,
+} from '../userShared/orgWrites.js';
+import { writeProvisionLedger } from '../userShared/provisionLedger.js';
 import { runAccessRequest, type AccessRequestInput } from '../userShared/accessRequest.js';
-import { runDiffRequest, type DiffRequestInput } from '../userShared/diffRequest.js';
+import { runDiffRequest, type DiffRequestInput, type DiffRequestResult } from '../userShared/diffRequest.js';
 import { defaultSnapshotOut, runSnapshotRequest } from '../userShared/snapshotRequest.js';
 import { requireExactlyOne } from '../userShared/targetFlags.js';
 import { toOperationError } from './errors.js';
@@ -43,6 +55,7 @@ const provisionMessages = Messages.loadMessages('@syntax-syllogism/warden', 'war
 const restoreMessages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.restore');
 const freezeMessages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.freeze');
 const unfreezeMessages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.unfreeze');
+const stripMessages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.strip');
 const personaImportMessages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.persona.import');
 
 const accessSchema = z
@@ -64,6 +77,7 @@ const diffSchema = z
     csvListDelimiter: z.string().optional(),
     verbose: z.boolean().default(false),
     verify: z.boolean().default(false),
+    failOnDrift: z.boolean().default(false),
   })
   .strict();
 const snapshotSchema = z
@@ -109,6 +123,32 @@ const lifecycleSchema = z
   })
   .strict();
 const personaImportSchema = z.object({ input: z.string(), prune: z.boolean().default(false) }).strict();
+const stripSchema = z
+  .object({
+    user: z.string().optional(),
+    usersDef: z.string().optional(),
+    externalId: z.string().optional(),
+    inputFormat: z.enum(['json', 'csv']).optional(),
+    csvListDelimiter: z.string().optional(),
+    noFreeze: z.boolean().default(false),
+    noDeactivate: z.boolean().default(false),
+    keepPermsets: z.boolean().default(false),
+    keepPermsetGroups: z.boolean().default(false),
+    keepLicenses: z.boolean().default(false),
+    keepPublicGroups: z.boolean().default(false),
+    keepQueues: z.boolean().default(false),
+    personas: z.array(z.string()).default([]),
+    allPersonas: z.boolean().default(false),
+    personasDef: z.string().optional(),
+    personaSource: z.enum(['file', 'org']).default('file'),
+    freeze: z.boolean().default(false),
+    deactivate: z.boolean().default(false),
+    snapshot: z.string().optional(),
+  })
+  .refine((options) => !(options.personas.length > 0 && options.allPersonas), {
+    message: 'personas and allPersonas are mutually exclusive.',
+  })
+  .strict();
 
 type AccessOptions = z.infer<typeof accessSchema>;
 type DiffOptions = z.infer<typeof diffSchema>;
@@ -119,6 +159,7 @@ type ProvisionOptions = z.infer<typeof provisionSchema>;
 type RestoreOptions = z.infer<typeof restoreSchema>;
 type LifecycleOptions = z.infer<typeof lifecycleSchema>;
 type PersonaImportOptions = z.infer<typeof personaImportSchema>;
+type StripOptions = z.infer<typeof stripSchema>;
 
 type ProvisionOperationPlan = {
   effects: Effect[];
@@ -128,6 +169,10 @@ type ProvisionOperationPlan = {
   core: ProvisionPlan;
   personaSourceLabel: string;
   failOnInsufficientLicense: boolean;
+  ledger?: {
+    capture: SerializedCaptureState;
+    personasDoc?: Awaited<ReturnType<typeof planProvisionRequest>>['personasDoc'];
+  };
 };
 type RestoreOperationPlan = {
   effects: Effect[];
@@ -144,6 +189,14 @@ type LifecycleOperationPlan = {
   core: FreezePlan;
 };
 type PersonaImportOperationPlan = { effects: Effect[]; summary: string; preview: PersonaDiff; core: PersonaImportPlan };
+type StripOperationPlan = {
+  effects: Effect[];
+  summary: string;
+  preview: LifecycleResult;
+  warnings: string[];
+  planned: PlannedStripRequest;
+  snapshot?: string;
+};
 
 const requiredConnection = (conn: Connection | undefined): Connection => {
   if (!conn) throw new Error('A Salesforce connection is required.');
@@ -194,14 +247,17 @@ const personaDiffHasRemovals = (diff: PersonaDiff): boolean => {
   });
 };
 
-const noticeSkippedProvisionAudit = async (conn: Connection, ctx: OperationContext): Promise<void> => {
-  const connectedPackage = await detectConnectedPackage(conn);
-  if (connectedPackage.ledgerAvailable || connectedPackage.runAvailable)
-    ctx.notice('Connected-package provision audit records are not written by this sfd operation.');
-};
-
 const reportFailed = (ctx: OperationContext, summary: { failed: number } | undefined): void => {
   ctx.reportFailures?.(summary?.failed ?? 0);
+};
+
+const reportCount = (ctx: OperationContext, count: number): void => {
+  ctx.reportFailures?.(count);
+};
+
+export const diffFailureCount = (result: DiffRequestResult, failOnDrift: boolean): number => {
+  if (Array.isArray(result)) return result.filter((verdict) => !verdict.conformant).length;
+  return result.summary.failed + (failOnDrift ? result.summary.changed : 0);
 };
 
 const access: ReadOperation<AccessOptions> = {
@@ -243,11 +299,14 @@ const diff: ReadOperation<DiffOptions> = {
   async run(conn, options, ctx) {
     try {
       ctx.onProgress({ phase: 'compare' });
-      return await runDiffRequest(requiredConnection(conn), {
-        ...options,
-        usersDef: resolveOptionalPath(ctx, options.usersDef),
-        personasDef: resolveOptionalPath(ctx, options.personasDef),
+      const { failOnDrift, ...request } = options;
+      const result = await runDiffRequest(requiredConnection(conn), {
+        ...request,
+        usersDef: resolveOptionalPath(ctx, request.usersDef),
+        personasDef: resolveOptionalPath(ctx, request.personasDef),
       } as DiffRequestInput);
+      reportCount(ctx, diffFailureCount(result, failOnDrift));
+      return result;
     } catch (error) {
       return toOperationError(error);
     }
@@ -271,7 +330,7 @@ const snapshot: ReadOperation<SnapshotOptions> = {
     try {
       ctx.onProgress({ phase: 'snapshot' });
       const output = resolveOptionalPath(ctx, options.out) ?? ctx.resolvePath(defaultSnapshotOut());
-      return await runSnapshotRequest(
+      const result = await runSnapshotRequest(
         requiredConnection(conn),
         {
           ...options,
@@ -281,6 +340,8 @@ const snapshot: ReadOperation<SnapshotOptions> = {
         },
         writeSnapshotFile
       );
+      reportFailed(ctx, result.summary);
+      return result;
     } catch (error) {
       return toOperationError(error);
     }
@@ -357,8 +418,11 @@ const provision: WriteOperation<ProvisionOptions, ProvisionOperationPlan, Provis
     async plan(conn, options, ctx) {
       try {
         ctx.onProgress({ phase: 'plan' });
+        const connection = requiredConnection(conn);
+        const connectedPackage = await detectConnectedPackage(connection);
+        const capturedWrites = connectedPackage.ledgerAvailable ? captureProvisioningWrites(connection) : undefined;
         const planned = await planProvisionRequest(
-          requiredConnection(conn),
+          capturedWrites?.connection ?? connection,
           {
             ...options,
             usersDef: ctx.resolvePath(options.usersDef),
@@ -376,7 +440,6 @@ const provision: WriteOperation<ProvisionOptions, ProvisionOperationPlan, Provis
             ctx: useCaseContext(ctx),
           }
         );
-        await noticeSkippedProvisionAudit(requiredConnection(conn), ctx);
         const core = jsonSafe(planned.core);
         reportFailed(ctx, core.preview.summary);
         const changes = actionCount(core.preview.users);
@@ -395,6 +458,9 @@ const provision: WriteOperation<ProvisionOptions, ProvisionOperationPlan, Provis
           core,
           personaSourceLabel: planned.personaSourceLabel,
           failOnInsufficientLicense: options.failOnInsufficientLicense ?? false,
+          ...(capturedWrites
+            ? { ledger: { capture: serializeCaptureState(capturedWrites.state), personasDoc: planned.personasDoc } }
+            : {}),
         };
       } catch (error) {
         return toOperationError(error);
@@ -403,11 +469,25 @@ const provision: WriteOperation<ProvisionOptions, ProvisionOperationPlan, Provis
     async apply(conn, plan, ctx) {
       try {
         ctx.onProgress({ phase: 'apply' });
+        const connection = requiredConnection(conn);
+        const capturedWrites = plan.ledger ? captureProvisioningWrites(connection, plan.ledger.capture) : undefined;
         const output = await applyProvisionRequest(
-          requiredConnection(conn),
+          capturedWrites?.connection ?? connection,
           plan.core,
           provisionMessages.getMessage.bind(provisionMessages)
         );
+        if (capturedWrites && plan.ledger) {
+          try {
+            await writeProvisionLedger(connection, {
+              state: capturedWrites.state,
+              output,
+              personasDoc: plan.ledger.personasDoc,
+              warn: (message) => ctx.notice(message),
+            });
+          } catch (error) {
+            ctx.notice(`Warden org ledger write failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
         reportFailed(ctx, output.summary);
         if (plan.failOnInsufficientLicense && output.licenses?.some((license) => license.shortfall > 0)) {
           const shortfalls = output.licenses
@@ -560,6 +640,85 @@ const unfreeze = lifecycleOperation(
   (field) => unfreezeMessages.getMessage('errorInvalidUserMatchField', [field])
 );
 
+const strip: WriteOperation<StripOptions, StripOperationPlan, LifecycleResult> = {
+  kind: 'write',
+  descriptor: {
+    id: 'warden.strip',
+    cliId: 'warden:strip',
+    title: 'Strip user access',
+    summary: stripMessages.getMessage('summary'),
+    effects: ['org-write', 'destructive', 'local-write'],
+    requiresOrg: 'required',
+    requiresProject: false,
+    optionsSchema: stripSchema,
+    retry: 'unsafe',
+  },
+  async plan(conn, options, ctx): Promise<StripOperationPlan> {
+    try {
+      ctx.onProgress({ phase: 'plan' });
+      const warnings: string[] = [];
+      const planned = await planStripRequest(
+        requiredConnection(conn),
+        {
+          ...options,
+          usersDef: resolveOptionalPath(ctx, options.usersDef),
+          personasDef: resolveOptionalPath(ctx, options.personasDef),
+        },
+        {
+          invalidUserMatchField: (field) => stripMessages.getMessage('errorInvalidUserMatchField', [field]),
+          warn: (message) => warnings.push(message),
+          ctx: useCaseContext(ctx),
+        }
+      );
+      const safePlanned = jsonSafe(planned);
+      reportFailed(ctx, safePlanned.core.preview.summary);
+      const hasDml = safePlanned.core.states.some((state) => state.hasDml);
+      const destructive = safePlanned.core.states.some((state) =>
+        state.steps.some(
+          (step) => step.kind === 'delete' || (step.kind === 'update' && step.actionKey === 'deactivated')
+        )
+      );
+      const snapshotPath = resolveOptionalPath(ctx, options.snapshot);
+      return {
+        effects: [
+          ...(hasDml ? ['org-write' as const] : []),
+          ...(destructive ? ['destructive' as const] : []),
+          ...(snapshotPath ? ['local-write' as const] : []),
+        ],
+        summary: `strip ${safePlanned.core.preview.users.length} user(s): ${safePlanned.core.preview.summary.changed} with changes`,
+        preview: safePlanned.core.preview,
+        warnings: [...safePlanned.core.warnings, ...warnings],
+        planned: safePlanned,
+        ...(snapshotPath ? { snapshot: snapshotPath } : {}),
+      };
+    } catch (error) {
+      return toOperationError(error);
+    }
+  },
+  async apply(conn, plan, ctx): Promise<LifecycleResult> {
+    const connection = requiredConnection(conn);
+    if (plan.snapshot) {
+      try {
+        await writeStripSnapshot(connection, plan.planned, plan.snapshot, ctx.org?.username);
+      } catch (error) {
+        return toOperationError(error);
+      }
+    }
+    try {
+      ctx.onProgress({ phase: 'apply' });
+      const result = await applyStripRequest(connection, plan.planned, {
+        invalidUserMatchField: (field) => stripMessages.getMessage('errorInvalidUserMatchField', [field]),
+        warn: (message) => ctx.notice(message),
+        ctx: useCaseContext(ctx),
+      });
+      reportFailed(ctx, result.summary);
+      return result;
+    } catch (error) {
+      return unsafeOperationError(error);
+    }
+  },
+};
+
 const personaImport: WriteOperation<
   PersonaImportOptions,
   PersonaImportOperationPlan,
@@ -614,5 +773,17 @@ const personaImport: WriteOperation<
 
 export default {
   apiVersion: 0,
-  operations: [access, diff, snapshot, personaDiff, personaExport, provision, restore, freeze, unfreeze, personaImport],
+  operations: [
+    access,
+    diff,
+    snapshot,
+    personaDiff,
+    personaExport,
+    provision,
+    restore,
+    freeze,
+    unfreeze,
+    strip,
+    personaImport,
+  ],
 } satisfies OperationModule;

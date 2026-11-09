@@ -33,7 +33,8 @@
         { "name": "input-format", "type": "string", "option": "inputFormat" },
         { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" },
         { "name": "verbose", "type": "boolean", "option": "verbose" },
-        { "name": "verify", "type": "boolean", "option": "verify" }
+        { "name": "verify", "type": "boolean", "option": "verify" },
+        { "name": "fail-on-drift", "type": "boolean", "option": "failOnDrift" }
       ]
     },
     {
@@ -140,6 +141,36 @@
         { "name": "external-id", "type": "string", "option": "externalId" },
         { "name": "input-format", "type": "string", "option": "inputFormat" },
         { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" }
+      ]
+    },
+    {
+      "operation": "warden.strip",
+      "name": ["warden", "strip"],
+      "sf": ["warden", "strip"],
+      "summary": "Strip users completely, or remove selected persona access.",
+      "agentTip": "Destructive. Run --plan first and review removals; production orgs require a --confirm hash.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "users-def", "type": "file", "option": "usersDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" },
+        { "name": "no-freeze", "type": "boolean", "option": "noFreeze" },
+        { "name": "no-deactivate", "type": "boolean", "option": "noDeactivate" },
+        { "name": "persona", "type": "string", "multiple": true, "option": "personas" },
+        { "name": "all-personas", "type": "boolean", "option": "allPersonas" },
+        { "name": "personas-def", "type": "file", "option": "personasDef" },
+        { "name": "persona-source", "type": "string", "option": "personaSource" },
+        { "name": "freeze", "type": "boolean", "option": "freeze" },
+        { "name": "deactivate", "type": "boolean", "option": "deactivate" },
+        { "name": "keep-permsets", "type": "boolean", "option": "keepPermsets" },
+        { "name": "keep-permset-groups", "type": "boolean", "option": "keepPermsetGroups" },
+        { "name": "keep-licenses", "type": "boolean", "option": "keepLicenses" },
+        { "name": "keep-public-groups", "type": "boolean", "option": "keepPublicGroups" },
+        { "name": "keep-queues", "type": "boolean", "option": "keepQueues" },
+        { "name": "snapshot", "type": "string", "option": "snapshot" }
       ]
     },
     {

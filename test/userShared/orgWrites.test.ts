@@ -9,6 +9,7 @@ import {
   describeObjectFields,
   detectConnectedPackage,
   readLedgerProvenance,
+  serializeCaptureState,
   updateBatch,
   updateRun,
   WARDEN_ITEM_OBJECT,
@@ -190,6 +191,23 @@ describe('connected org writes', () => {
     });
     expect(rows).to.have.length(2);
     expect(rows[0].wdn_Type__c).to.equal('Queue');
+  });
+
+  it('serializes query capture for a later apply without carrying grants across the boundary', async () => {
+    const connection = {
+      query: sinon.stub().resolves({ records: [{ Id: '0PS-support', Name: 'Support' }] }),
+      sobject: sinon.stub().returns({ create: sinon.stub().resolves([{ success: true }]) }),
+    };
+    const planned = captureProvisioningWrites(connection as never);
+    await planned.connection.query("SELECT Id, Name FROM PermissionSet WHERE Name = 'Support'");
+
+    const capture = JSON.parse(JSON.stringify(serializeCaptureState(planned.state))) as ReturnType<
+      typeof serializeCaptureState
+    >;
+    const applied = captureProvisioningWrites(connection as never, capture);
+
+    expect(serializeCaptureState(applied.state)).to.deep.equal(serializeCaptureState(planned.state));
+    expect(applied.state.grants).to.deep.equal([]);
   });
 
   it('emits one ledger row per contributing persona for a duplicated grant', () => {

@@ -1,25 +1,9 @@
 /* eslint-disable camelcase */
 import { Messages, SfError } from '@salesforce/core';
-import type { Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import {
-  describeUserFields,
-  detectInputFormat,
-  readProvisionDefinitions,
-  renderLifecycleResult,
-} from '@syntax-syllogism/warden-core';
-import type { InputFormat } from '@syntax-syllogism/warden-core';
-import {
-  strip,
-  stripOptionsSchema,
-  buildSnapshotFile,
-  loadAssignmentState,
-  writeSnapshotFile,
-  makeNotice,
-} from '@syntax-syllogism/warden-core';
+import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
 import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import { renderStripCsv } from '@syntax-syllogism/warden-core';
-import { toTargetOptions, validateUserTarget } from '../../userShared/useCaseOptions.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -58,83 +42,10 @@ import {
   promptUserSelection,
 } from '../../userShared/prompting.js';
 import { WardenCommand } from '../../wardenCommand.js';
-import {
-  PERSONA_ASSIGNMENT_OBJECT,
-  PERSONA_ASSIGNMENT_STATUS_FIELD,
-  readHeldPersonas,
-  readOrgPersonas,
-  personaPackageDetected,
-} from '../../userShared/personas.js';
-import {
-  WARDEN_LEDGER_OBJECT,
-  WARDEN_RUN_OBJECT,
-  describeObjectFields,
-  detectConnectedPackage,
-  readLedgerProvenance,
-  saveRun,
-  updateBatch,
-  type LedgerProvenance,
-} from '../../userShared/orgWrites.js';
+import { applyStripRequest, planStripRequest, writeStripSnapshot } from '../../userShared/stripRequest.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.strip');
-
-type StripTarget = { Id: string; field: string; value: string };
-
-const heldPersonasForTarget = (usersDoc: { users?: unknown }, target: StripTarget): string[] => {
-  const users = usersDoc.users;
-  if (!Array.isArray(users)) return [];
-  const candidates: unknown[] = users;
-  const user = candidates.find((candidate): candidate is Record<string, unknown> => {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return false;
-    const record = candidate as Record<string, unknown>;
-    const match = record.match;
-    const matchField = typeof match === 'string' && match.length > 0 ? match : target.field;
-    const value = Object.entries(record).find(([key]) => key.toLowerCase() === matchField.toLowerCase())?.[1];
-    return typeof value === 'string' && value === target.value;
-  });
-  const personas = user?.personas;
-  return Array.isArray(personas) ? personas.filter((persona): persona is string => typeof persona === 'string') : [];
-};
-
-const selectedPersonasByUser = (
-  assignments: Awaited<ReturnType<typeof readHeldPersonas>>,
-  requestedPersonas: string[],
-  allPersonas: boolean
-): Map<string, Set<string>> => {
-  const selected = new Map<string, Set<string>>();
-  for (const assignment of assignments) {
-    if (!allPersonas && !requestedPersonas.includes(assignment.persona)) continue;
-    const personas = selected.get(assignment.userId) ?? new Set<string>();
-    personas.add(assignment.persona);
-    selected.set(assignment.userId, personas);
-  }
-  return selected;
-};
-
-const selectedFilePersonasByUser = async (
-  conn: Connection,
-  states: Awaited<ReturnType<typeof strip.plan>>['states'],
-  usersPath: string | undefined,
-  personasPath: string | undefined,
-  requestedInputFormat: InputFormat | undefined,
-  csvListDelimiter: string | undefined,
-  requestedPersonas: string[],
-  allPersonas: boolean
-): Promise<Map<string, Set<string>>> => {
-  if (!usersPath) return new Map();
-  const inputFormat = detectInputFormat(usersPath, requestedInputFormat);
-  const definitions = await readProvisionDefinitions(usersPath, personasPath, {
-    ...(inputFormat === 'csv' ? { inputFormat, fieldMap: await describeUserFields(conn), csvListDelimiter } : {}),
-  });
-  const selected = new Map<string, Set<string>>();
-  for (const state of states) {
-    const held = heldPersonasForTarget(definitions.usersDoc, state.target as StripTarget);
-    const removed = allPersonas ? held : held.filter((persona) => requestedPersonas.includes(persona));
-    if (removed.length > 0) selected.set(state.target.Id, new Set(removed));
-  }
-  return selected;
-};
 
 export default class UserStrip extends WardenCommand<LifecycleResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -308,129 +219,39 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
     const targetOrg = requireTargetOrg(flags['target-org']);
     const personas = flags.persona ?? [];
     const personaMode = personas.length > 0 || flags['all-personas'];
-    const personaSource = flags['persona-source'] ?? 'file';
-    if (!personaMode || personaSource !== 'file') requireExactlyOne(flags, ['user', 'users-def']);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    await validateUserTarget(conn, flags.user, (field) => messages.getMessage('errorInvalidUserMatchField', [field]));
-    const baseOptions = {
-      ...toTargetOptions(flags),
-      noFreeze: flags['no-freeze'],
-      noDeactivate: flags['no-deactivate'],
-      keepPermsets: flags['keep-permsets'],
-      keepPermsetGroups: flags['keep-permset-groups'],
-      keepPublicGroups: flags['keep-public-groups'],
-      keepQueues: flags['keep-queues'],
-      keepLicenses: flags['keep-licenses'],
-    };
-    let ledgerProvenance: LedgerProvenance[] | undefined;
-    let heldAssignments: Awaited<ReturnType<typeof readHeldPersonas>> = [];
-    let selectedStates: Awaited<ReturnType<typeof strip.plan>>['states'] | undefined;
-    let stripOptions: Record<string, unknown> = {
-      ...baseOptions,
-      personas,
-      allPersonas: flags['all-personas'],
-      personasPath: flags['personas-def'],
-      personaSource,
-      freeze: flags.freeze,
-      deactivate: flags.deactivate,
-    };
-    if (personaMode && personaSource === 'org') {
-      // Core owns the planner, while this adapter owns package-backed persona assignment I/O.
-      if (!(await personaPackageDetected(conn))) {
-        throw new SfError('--persona-source org requires the Warden package with persona objects installed.');
-      }
-      const selection = await strip.plan(conn, stripOptionsSchema.parse(baseOptions));
-      selectedStates = selection.states;
-      const targets = selection.states.map((state) => state.target);
-      const [orgPersonas, assignments] = await Promise.all([
-        readOrgPersonas(conn, true),
-        readHeldPersonas(
-          conn,
-          targets.map((target) => target.Id)
-        ),
-      ]);
-      heldAssignments = assignments;
-      const heldByUser = new Map<string, string[]>();
-      for (const assignment of assignments) {
-        const names = heldByUser.get(assignment.userId) ?? [];
-        names.push(assignment.persona);
-        heldByUser.set(assignment.userId, names);
-      }
-      stripOptions = {
-        ...baseOptions,
-        // Core's org source is intentionally rejected: provide its pure planner an in-memory file-shaped document.
-        usersDoc: {
-          users: targets.map((target) => ({
-            match: target.field,
-            [target.field]: target.value,
-            personas: heldByUser.get(target.Id) ?? [],
-          })),
-        },
-        personasDoc: orgPersonas.document,
+    const planned = await planStripRequest(
+      conn,
+      {
+        user: flags.user,
+        usersDef: flags['users-def'],
+        externalId: flags['external-id'],
+        inputFormat: flags['input-format'] as 'json' | 'csv' | undefined,
+        csvListDelimiter: flags['csv-list-delimiter'],
+        noFreeze: flags['no-freeze'],
+        noDeactivate: flags['no-deactivate'],
+        keepPermsets: flags['keep-permsets'],
+        keepPermsetGroups: flags['keep-permset-groups'],
+        keepPublicGroups: flags['keep-public-groups'],
+        keepQueues: flags['keep-queues'],
+        keepLicenses: flags['keep-licenses'],
         personas,
         allPersonas: flags['all-personas'],
-        personaSource: 'file',
+        personasDef: flags['personas-def'],
+        personaSource: (flags['persona-source'] ?? 'file') as 'file' | 'org',
         freeze: flags.freeze,
         deactivate: flags.deactivate,
-      };
-      delete stripOptions.user;
-      delete stripOptions.usersPath;
-      delete stripOptions.externalId;
-      delete stripOptions.inputFormat;
-      delete stripOptions.csvListDelimiter;
-    }
-    if (personaMode) {
-      const connected = await detectConnectedPackage(conn);
-      if (!selectedStates) selectedStates = (await strip.plan(conn, stripOptionsSchema.parse(baseOptions))).states;
-      const targetIds = selectedStates.map((state) => state.target.Id);
-      if (personaSource === 'file' && (await personaPackageDetected(conn))) {
-        try {
-          heldAssignments = await readHeldPersonas(conn, targetIds);
-        } catch (error) {
-          this.warn(
-            `Could not read Warden persona assignments: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
+      },
+      {
+        invalidUserMatchField: (field) => messages.getMessage('errorInvalidUserMatchField', [field]),
+        warn: (message) => this.warn(message),
       }
-      if (connected.ledgerAvailable) {
-        try {
-          ledgerProvenance = await readLedgerProvenance(
-            conn,
-            personaSource === 'org' ? heldAssignments.map((assignment) => assignment.userId) : targetIds
-          );
-          stripOptions.ledgerTargets = ledgerProvenance;
-        } catch (error) {
-          this.warn(
-            `Could not read Warden ledger provenance: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      }
-    }
-    const plan = await strip.plan(conn, {
-      ...stripOptionsSchema.parse(stripOptions),
-      ...(ledgerProvenance ? { ledgerTargets: ledgerProvenance } : {}),
-    });
-    let removedPersonasByUser = new Map<string, Set<string>>();
-    if (personaMode && !flags['dry-run']) {
-      removedPersonasByUser =
-        personaSource === 'org'
-          ? selectedPersonasByUser(heldAssignments, personas, flags['all-personas'])
-          : await selectedFilePersonasByUser(
-              conn,
-              plan.states,
-              flags['users-def'],
-              flags['personas-def'],
-              flags['input-format'] as InputFormat | undefined,
-              flags['csv-list-delimiter'],
-              personas,
-              flags['all-personas']
-            );
-    }
+    );
     if (personaMode && !context.jsonOutput) {
       this.log(
         messages.getMessage('info.personaMode', [
           flags['all-personas'] ? 'all active personas' : personas.join(', '),
-          String(plan.states.length),
+          String(planned.core.states.length),
           flags.freeze ? 'yes' : 'no',
           flags.deactivate ? 'yes' : 'no',
         ])
@@ -438,28 +259,29 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
     }
     await confirmLifecycleWrites({
       required:
-        !flags['dry-run'] && plan.states.some((state) => state.hasDml) && !flags['no-prompt'] && context.interactive,
+        !flags['dry-run'] &&
+        planned.core.states.some((state) => state.hasDml) &&
+        !flags['no-prompt'] &&
+        context.interactive,
       message: messages.getMessage.bind(messages),
       confirm: (message) => this.confirm({ message }),
       warn: (message) => this.warn(message),
     });
     if (flags.snapshot) {
-      const targets = plan.states.map((state) => state.target);
-      const stateMaps = await loadAssignmentState(
+      await writeStripSnapshot(
         conn,
-        targets.map((target) => target.Id)
+        planned,
+        flags.snapshot,
+        targetOrg.getUsername(),
+        flags['dry-run'] ? planned.core.preview.users : planned.core.states.map((state) => state.result)
       );
-      const file = await buildSnapshotFile(conn, targets, stateMaps, targetOrg.getUsername());
-      await writeSnapshotFile(flags.snapshot, file);
-      const users = flags['dry-run']
-        ? plan.preview.users.filter((user) => user.status !== 'failed')
-        : plan.states.map((state) => state.result);
-      for (const user of users) user.actions.push(makeNotice('snapshotWritten'));
     }
-    const output = flags['dry-run'] ? plan.preview : await strip.apply(conn, plan);
-    if (personaMode && !flags['dry-run']) {
-      await this.writePersonaRevocations(conn, output, heldAssignments, ledgerProvenance ?? [], removedPersonasByUser);
-    }
+    const output = flags['dry-run']
+      ? planned.core.preview
+      : await applyStripRequest(conn, planned, {
+          invalidUserMatchField: (field) => messages.getMessage('errorInvalidUserMatchField', [field]),
+          warn: (message) => this.warn(message),
+        });
     await this.emitResult(context, {
       result: output,
       csv: renderStripCsv(output),
@@ -467,94 +289,5 @@ export default class UserStrip extends WardenCommand<LifecycleResult> {
     });
     if (output.summary.failed > 0) process.exitCode = 1;
     return output;
-  }
-
-  private async writePersonaRevocations(
-    conn: Connection,
-    output: LifecycleResult,
-    assignments: Awaited<ReturnType<typeof readHeldPersonas>>,
-    ledger: LedgerProvenance[],
-    removedPersonasByUser: ReadonlyMap<string, ReadonlySet<string>>
-  ): Promise<void> {
-    const assignmentFields = await describeObjectFields(conn, PERSONA_ASSIGNMENT_OBJECT);
-    const ledgerFields = await describeObjectFields(conn, WARDEN_LEDGER_OBJECT);
-    const runFields = await describeObjectFields(conn, WARDEN_RUN_OBJECT);
-    const requiredAssignmentFields = [PERSONA_ASSIGNMENT_STATUS_FIELD, 'wdn_Revoked_On__c', 'wdn_Revoked_By__c'];
-    const assignmentsAvailable = Boolean(
-      assignmentFields && requiredAssignmentFields.every((field) => assignmentFields.has(field))
-    );
-    if (!assignmentsAvailable) {
-      this.warn('Warden persona revocation fields are unavailable; skipped persona-assignment revocation bookkeeping.');
-    }
-    const successfulUserIds = new Set(
-      output.users.filter((user) => user.status !== 'failed').flatMap((user) => (user.id ? [user.id] : []))
-    );
-    const removedAssignments = assignments.filter(
-      (assignment) =>
-        successfulUserIds.has(assignment.userId) &&
-        removedPersonasByUser.get(assignment.userId)?.has(assignment.persona)
-    );
-    let identity: { user_id?: string } | undefined;
-    try {
-      identity = await (conn as unknown as { identity?: () => Promise<{ user_id?: string }> }).identity?.();
-    } catch (error) {
-      this.warn(
-        `Could not determine the running user for persona revocation: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-    const now = new Date().toISOString();
-    const runId =
-      runFields?.has('wdn_Mode__c') && runFields.has('wdn_Source_System__c')
-        ? await saveRun(conn, { wdn_Mode__c: 'Revoke', wdn_Source_System__c: 'Warden CLI' }, (message) =>
-            this.warn(message)
-          )
-        : undefined;
-    if (assignmentsAvailable) {
-      await updateBatch(
-        conn,
-        PERSONA_ASSIGNMENT_OBJECT,
-        removedAssignments.map((assignment) => ({
-          Id: assignment.id,
-          [PERSONA_ASSIGNMENT_STATUS_FIELD]: 'Revoked',
-          wdn_Revoked_On__c: now,
-          ...(identity?.user_id ? { wdn_Revoked_By__c: identity.user_id } : {}),
-        })),
-        (message) => this.warn(message),
-        'persona assignment revocation'
-      );
-    }
-    const successfulTargets = new Map<string, Set<string>>();
-    for (const user of output.users) {
-      if (!user.id) continue;
-      successfulTargets.set(
-        user.id,
-        new Set(
-          user.actions
-            .filter((action) => action.key.startsWith('removed'))
-            .flatMap((action) => action.items ?? [])
-            .map((item) => item.id)
-        )
-      );
-    }
-    const requiredLedgerFields = ['wdn_Revoked_On__c', 'wdn_Revoked_By_Run__c'];
-    if (!ledgerFields || requiredLedgerFields.some((field) => !ledgerFields.has(field))) {
-      this.warn('Warden ledger revocation fields are unavailable; skipped ledger revocation bookkeeping.');
-      return;
-    }
-    await updateBatch(
-      conn,
-      WARDEN_LEDGER_OBJECT,
-      ledger
-        .filter(
-          (row) =>
-            successfulTargets.get(row.userId)?.has(row.targetId) &&
-            removedPersonasByUser.get(row.userId)?.has(row.persona)
-        )
-        .map((row) => ({ Id: row.id, wdn_Revoked_On__c: now, ...(runId ? { wdn_Revoked_By_Run__c: runId } : {}) })),
-      (message) => this.warn(message),
-      'ledger revocation'
-    );
   }
 }

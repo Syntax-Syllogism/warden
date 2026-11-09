@@ -65,11 +65,17 @@ type SaveResult = { success?: boolean; id?: string; errors?: unknown[] };
 type QueryResult = { records?: Array<Record<string, unknown>> };
 type JsonRecord = Record<string, unknown>;
 
-type CaptureState = {
+export type CaptureState = {
   grants: CapturedGrant[];
   labelsByTypeAndId: Map<string, Map<string, string>>;
   referenceIdsByType: Map<string, Map<string, string>>;
   groupTypesById: Map<string, Extract<GrantType, 'Public Group' | 'Queue'>>;
+};
+
+export type SerializedCaptureState = {
+  labelsByTypeAndId: Array<[string, Array<[string, string]>]>;
+  referenceIdsByType: Array<[string, Array<[string, string]>]>;
+  groupTypesById: Array<[string, Extract<GrantType, 'Public Group' | 'Queue'>]>;
 };
 
 const packageVersion = (): string | undefined => {
@@ -242,14 +248,25 @@ const wrapSObject = (sobject: object, objectName: string, state: CaptureState): 
   });
 };
 
+export const serializeCaptureState = (state: CaptureState): SerializedCaptureState => ({
+  labelsByTypeAndId: [...state.labelsByTypeAndId].map(([type, labels]) => [type, [...labels]]),
+  referenceIdsByType: [...state.referenceIdsByType].map(([type, references]) => [type, [...references]]),
+  groupTypesById: [...state.groupTypesById],
+});
+
+const captureStateFrom = (seed?: SerializedCaptureState): CaptureState => ({
+  grants: [],
+  labelsByTypeAndId: new Map(seed?.labelsByTypeAndId.map(([type, labels]) => [type, new Map(labels)])),
+  referenceIdsByType: new Map(seed?.referenceIdsByType.map(([type, references]) => [type, new Map(references)])),
+  groupTypesById: new Map(seed?.groupTypesById),
+});
+
 /** Observe core's batched assignment DML while leaving its connection contract unchanged. */
-export const captureProvisioningWrites = (connection: Connection): { connection: Connection; state: CaptureState } => {
-  const state: CaptureState = {
-    grants: [],
-    labelsByTypeAndId: new Map(),
-    referenceIdsByType: new Map(),
-    groupTypesById: new Map(),
-  };
+export const captureProvisioningWrites = (
+  connection: Connection,
+  seed?: SerializedCaptureState
+): { connection: Connection; state: CaptureState } => {
+  const state = captureStateFrom(seed);
   const originalSobject = connection.sobject.bind(connection);
   const originalQuery = connection.query.bind(connection);
   const wrapped = new Proxy(connection, {
@@ -270,7 +287,7 @@ export const captureProvisioningWrites = (connection: Connection): { connection:
   return { connection: wrapped, state };
 };
 
-type PersonaDocument = { personas?: Record<string, JsonRecord> };
+export type PersonaDocument = { personas?: Record<string, JsonRecord> };
 
 const refsForType = (persona: JsonRecord, type: GrantType): string[] => {
   const key =

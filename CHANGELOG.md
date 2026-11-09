@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0] - 2026-11-09
+
+### Added
+
+- Plan/apply workflow for `strip`, so planned changes can be reviewed before they are applied
+- `diff --fail-on-drift` flag to exit with a non-zero status when drift is detected
+
+### Changed
+
+- `provision` now writes connected-package entries to the ledger
+- Requires sfd 0.7.0 or later
+
+### Fixed
+
+- `diff` and `snapshot` failures now report the correct failure exit status
+
 ## [0.10.0] - 2026-11-09
 
 ### Added
