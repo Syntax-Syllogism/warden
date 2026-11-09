@@ -1,8 +1,6 @@
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { detectInputFormat } from '@syntax-syllogism/warden-core';
-import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
-import { diff, type UserDiffResult } from '@syntax-syllogism/warden-core';
+import { type UserDiffResult } from '@syntax-syllogism/warden-core';
 import { renderUserDiffCsv, renderUserDiffHuman } from '@syntax-syllogism/warden-core';
 import {
   renderUserConformanceCsv,
@@ -10,6 +8,7 @@ import {
   type UserConformanceVerdict,
 } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import { runDiffRequest } from '../../userShared/diffRequest.js';
 import {
   apiVersionFlag,
   assertInteractiveAllowed,
@@ -19,7 +18,6 @@ import {
   interactiveFlag,
   inputFormatFlag,
   requireExactlyOne,
-  requireFlagDependencies,
   requireTargetOrg,
   resolveFlagsInteractively,
   resolveOrgInteractively,
@@ -41,11 +39,7 @@ import {
   promptOutputFormat,
   promptText,
 } from '../../userShared/prompting.js';
-import {
-  rethrowLegacyPersonaDefinitionError,
-  rethrowLegacyUserValueError,
-  WardenCommand,
-} from '../../wardenCommand.js';
+import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.diff');
@@ -105,38 +99,6 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
     'api-version': apiVersionFlag,
     interactive: interactiveFlag,
   };
-
-  private static async runPersonaMode(
-    conn: Connection,
-    flags: UserDiffFlags & { 'users-def': string; 'personas-def'?: string }
-  ): Promise<UserDiffCommandResult> {
-    const inputFormat = detectInputFormat(flags['users-def'], flags['input-format']);
-    let definitions: Awaited<ReturnType<typeof readProvisionDefinitions>> | undefined;
-    if (inputFormat === 'json') {
-      try {
-        definitions = await readProvisionDefinitions(flags['users-def'], flags['personas-def'], {}, (path, error) =>
-          messages.getMessage('errorInvalidJson', [path, error])
-        );
-      } catch (error) {
-        rethrowLegacyPersonaDefinitionError(
-          error,
-          flags['personas-def'],
-          messages.getMessage('errorInvalidPersonaDefinition')
-        );
-      }
-    }
-    return diff.run(conn, {
-      mode: 'persona',
-      verify: Boolean(flags.verify),
-      usersDoc: definitions?.usersDoc,
-      personasDoc: definitions?.personasSupplied ? definitions.personasDoc : undefined,
-      usersPath: inputFormat === 'csv' ? flags['users-def'] : undefined,
-      personasPath: inputFormat === 'csv' ? flags['personas-def'] : undefined,
-      inputFormat: inputFormat === 'csv' ? inputFormat : undefined,
-      csvListDelimiter: flags['csv-list-delimiter'],
-      externalId: flags['external-id'],
-    });
-  }
 
   // eslint-disable-next-line complexity
   public async run(): Promise<UserDiffCommandResult> {
@@ -260,37 +222,21 @@ export default class UserDiff extends WardenCommand<UserDiffCommandResult> {
       }
     }
     const targetOrg = requireTargetOrg(flags['target-org']);
-    requireExactlyOne(flags, ['user', 'users-def']);
-    if (flags.user && flags['external-id']) {
-      throw new SfError(messages.getMessage('errorExternalIdUserMode'));
-    }
-    if (flags.user && flags['personas-def']) {
-      throw new SfError(messages.getMessage('errorPersonasUserMode'));
-    }
-    if (flags.verify && (flags.user ?? flags.against)) {
-      throw new SfError(messages.getMessage('errorVerifyUserMode'));
-    }
-    requireFlagDependencies(flags, 'user', ['against']);
-    requireFlagDependencies(flags, 'against', ['user']);
     if (flags.verbose && (flags.output === 'csv' || flags.output === 'json' || this.jsonEnabled())) {
       throw new SfError(messages.getMessage('errorVerboseNonHuman'));
     }
     const context = this.resolveOutputContext(flags);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const diffResult =
-      typeof flags.user === 'string'
-        ? await diff
-            .run(conn, {
-              mode: 'user',
-              verify: false,
-              user: flags.user,
-              against: flags.against as string,
-            })
-            .catch(rethrowLegacyUserValueError)
-        : await UserDiff.runPersonaMode(
-            conn,
-            flags as UserDiffFlags & { 'users-def': string; 'personas-def'?: string }
-          );
+    const diffResult = await runDiffRequest(conn, {
+      user: flags.user,
+      against: flags.against,
+      usersDef: flags['users-def'],
+      personasDef: flags['personas-def'],
+      externalId: flags['external-id'],
+      inputFormat: flags['input-format'],
+      csvListDelimiter: flags['csv-list-delimiter'],
+      verify: flags.verify,
+    });
 
     if (Array.isArray(diffResult)) {
       const lookup = messages.getMessage.bind(messages);

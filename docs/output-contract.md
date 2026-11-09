@@ -5,7 +5,7 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 # Output contract
 
-All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#commands).
+All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/README.md#commands).
 
 ## Formats and destinations
 
@@ -13,10 +13,10 @@ All eight operational `warden` commands accept `--output human|csv|json` and `--
 
 The Salesforce CLI's global `--json` flag is not the same as Warden's `--output json`:
 
-* `--json` alone writes the Salesforce CLI `{status,result,warnings}` envelope to stdout and suppresses confirmation prompts.
-* `--json --output csv --output-file <path>` (or `--output json`) writes the Warden payload to the file, and the envelope stays on stdout.
-* `--json --output-file <path>` with no non-human `--output` writes the envelope to both stdout and the file.
-* `--json` with `--output csv` or `--output json` and no `--output-file` is an error.
+- `--json` alone writes the Salesforce CLI `{status,result,warnings}` envelope to stdout and suppresses confirmation prompts.
+- `--json --output csv --output-file <path>` (or `--output json`) writes the Warden payload to the file, and the envelope stays on stdout.
+- `--json --output-file <path>` with no non-human `--output` writes the envelope to both stdout and the file.
+- `--json` with `--output csv` or `--output json` and no `--output-file` is an error.
 
 Direct machine output does not suppress confirmations on commands that change data. For an unattended run, use global `--json`.
 
@@ -24,10 +24,10 @@ Direct machine output does not suppress confirmations on commands that change da
 
 ## Exit codes
 
-* `0`: the command finished with no per-user failures.
-* `1`: one or more users failed in `provision` or a lifecycle command, or the command itself errored (oclif also uses `1`).
-* `access` has no per-row failure, so it returns `0` unless it can't run.
-* `diff` returns `1` for per-user failures. `--fail-on-drift` (off by default) also returns `1` when any user has drift. `diff --verify` returns `1` when any user is non-conformant, by setting `process.exitCode = 1` after it renders the verdicts.
+- `0`: the command finished with no per-user failures.
+- `1`: one or more users failed in `provision` or a lifecycle command, or the command itself errored (oclif also uses `1`).
+- `access` has no per-row failure, so it returns `0` unless it can't run.
+- `diff` returns `1` for per-user failures. `--fail-on-drift` (off by default) also returns `1` when any user has drift. `diff --verify` returns `1` when any user is non-conformant, by setting `process.exitCode = 1` after it renders the verdicts.
 
 Exit codes don't change the result payload. With global `--json`, a partial failure or non-conformant verify result keeps `status: 0` in the Salesforce CLI envelope while the process exits with `1`. Verify mode's result is still the full verdict array.
 
@@ -35,13 +35,13 @@ Exit codes don't change the result payload. With global `--json`, a partial fail
 
 CSV rows are the same on every run and share one escaping rule.
 
-* **`access`** keeps its first eight columns (`userId`, `userName`, `username`, `assignmentType`, `sourceId`, `sourceName`, `viaPermissionSetId`, `viaPermissionSetName`). It adds `targetType`, `targetName`, `sourceApiName`, and `sourceLabel`, then target-specific access columns.
-* **`diff`** adds `userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter` after its original six columns. `diff --verify` uses `key,conformant,violations` instead.
-* **`provision`** writes one row per action, related-record result, or error, with `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`. Details are below.
-* **`freeze` and `unfreeze`** write one row per user: `userKey,userId,userName,username,wasFrozen,status,action,error`.
-* **`restore`** writes one row per action or action item: `userKey,userId,userName,username,status,action,category,name,error`.
-* **`strip`** writes one row per action or removed item: `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
-* **`snapshot`** writes `key,id,status,actions,skipped,warnings,errors`, one row per selected user. This report is separate from the snapshot file that `--out` writes.
+- **`access`** keeps its first eight columns (`userId`, `userName`, `username`, `assignmentType`, `sourceId`, `sourceName`, `viaPermissionSetId`, `viaPermissionSetName`). It adds `targetType`, `targetName`, `sourceApiName`, and `sourceLabel`, then target-specific access columns.
+- **`diff`** adds `userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter` after its original six columns. `diff --verify` uses `key,conformant,violations` instead.
+- **`provision`** writes one row per action, related-record result, or error, with `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`. Details are below.
+- **`freeze` and `unfreeze`** write one row per user: `userKey,userId,userName,username,wasFrozen,status,action,error`.
+- **`restore`** writes one row per action or action item: `userKey,userId,userName,username,status,action,category,name,error`.
+- **`strip`** writes one row per action or removed item: `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
+- **`snapshot`** writes `key,id,status,actions,skipped,warnings,errors`, one row per selected user. This report is separate from the snapshot file that `--out` writes.
 
 For lifecycle commands, a user with no actions still gets a row, and each error gets its own row. On CSV write, cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return get an apostrophe prefix. This protects spreadsheet viewers. It isn't applied to JSON or human output.
 
@@ -51,12 +51,12 @@ When CSV goes to stdout, access statistics and warnings stay out of it. When CSV
 
 **Related records.** Related rows use the same ten columns. `action` is `related`, `detail` is `<relationship> <phase> <sobject> <related-action>`, and `error` holds any related-record failure. In JSON, user actions are unchanged, and `users[].relatedRecords[]` is added for selected relationships. Each entry has `relationship`, `phase` (`before` or `after`), `sobject`, `action`, `status`, and, when available, `recordId`, `detail`, and `error`. `createdInThisRun` is internal and never appears in public output. Before-phase entries use the same action/status values and CSV columns as after-phase entries. Dry runs report planned entries for both phases. A before-phase failure reports its real related-record error and prevents the User save. If the related record succeeds but the User save fails, the result retains the applied before entry and its record Id; that record remains in the org and may be orphaned unless `--cleanup-on-failure` is enabled. Cleanup appends `deleted` (status `applied`) or `deleteFailed` (status `failed`, with the deletion error) entries to the same array. A before record retained because a successfully saved User links to it is reported as `skipped` with an explanatory `detail`. CSV uses the same header and includes the new actions in `detail`; `users[].actions` and the summary fields are unchanged.
 
-* Dry-run actions are `wouldCreate`, `wouldUpdate`, or `wouldSkip`. An unchanged matched row is `matched`.
-* Live actions are `created`, `updated`, `matched`, or `skipped`, plus `deleted` and `deleteFailed` when cleanup is enabled.
+- Dry-run actions are `wouldCreate`, `wouldUpdate`, or `wouldSkip`. An unchanged matched row is `matched`.
+- Live actions are `created`, `updated`, `matched`, or `skipped`, plus `deleted` and `deleteFailed` when cleanup is enabled.
 
 **Match fields.** Provision JSON also carries:
 
-* `users[].matchValue`, the value looked up under `matchedBy`. It is `null` when no lookup was made, because the value was absent, empty, or not a string.
-* `users[].matched`, whether an existing user was found.
+- `users[].matchValue`, the value looked up under `matchedBy`. It is `null` when no lookup was made, because the value was absent, empty, or not a string.
+- `users[].matched`, whether an existing user was found.
 
 `matchedBy` only says a match field was configured, so it can't tell you whether an existing user was found. Use `matched` for that. Human output combines the two as `matched <field> = <value>` or `unmatched <field> = <value>`, and prints bare `unmatched` when no match field was set. CSV still carries only `matchedBy`.

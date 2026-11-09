@@ -14,14 +14,9 @@
       "role": "Support_Manager",
       "IsActive": true,
       "IsFrozen": false,
-      "permissionSets": [
-        "Case_Agent",
-        "Knowledge_Reader"
-      ],
+      "permissionSets": ["Case_Agent", "Knowledge_Reader"],
       "permissionSetGroups": [],
-      "publicGroups": [
-        "EMEA_Support"
-      ],
+      "publicGroups": ["EMEA_Support"],
       "queues": [],
       "permissionSetLicenses": []
     },

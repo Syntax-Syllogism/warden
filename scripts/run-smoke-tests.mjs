@@ -32,7 +32,10 @@ function getOption(name, fallback) {
 }
 
 function timestamp() {
-  return new Date().toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, 'Z');
+  return new Date()
+    .toISOString()
+    .replaceAll(':', '-')
+    .replace(/\.\d{3}Z$/, 'Z');
 }
 
 function extractCommands(markdown) {
@@ -64,15 +67,14 @@ function inferCheck(command) {
   if (command.includes('restore')) return 'Confirm the snapshot resolves and the restore plan is additive.';
   if (command.includes('unfreeze')) return 'Confirm only login restoration is planned.';
   if (command.includes('freeze')) return 'Confirm only login state changes are planned.';
-  if (command.includes('strip')) return 'Confirm the snapshot is written and no destructive DML occurs in dry-run mode.';
+  if (command.includes('strip'))
+    return 'Confirm the snapshot is written and no destructive DML occurs in dry-run mode.';
   if (command.includes('access')) return 'Confirm the target resolves and the structured access result is valid.';
   return 'Review the command output and files it created.';
 }
 
 function splitArguments(value) {
-  return [...value.matchAll(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)].map((match) =>
-    match[0].replace(/^(['"])(.*)\1$/, '$2')
-  );
+  return [...value.matchAll(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)].map((match) => match[0].replace(/^(['"])(.*)\1$/, '$2'));
 }
 
 function runProcess(file, argv, { echo = true } = {}) {
@@ -114,7 +116,7 @@ async function askYesNo(rl, question) {
 }
 
 function markdownDetails(value) {
-  return value ? `\n\n\`\`\`text\n${value.trim().replaceAll('```', '\`\`\\`')}\n\`\`\`` : '';
+  return value ? `\n\n\`\`\`text\n${value.trim().replaceAll('```', '``\\`')}\n\`\`\`` : '';
 }
 
 async function validateProject() {

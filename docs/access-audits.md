@@ -7,33 +7,33 @@ description: Audit effective Salesforce user access and trace each grant to its 
 
 `sf warden access` is read-only. It answers two questions:
 
-* **Who can access this?** `--type <type> --target <name>` lists the active users who can access one target.
-* **What can this user access?** `--user field:value --type <type>` lists what one user can access, and where each grant comes from.
+- **Who can access this?** `--type <type> --target <name>` lists the active users who can access one target.
+- **What can this user access?** `--user field:value --type <type>` lists what one user can access, and where each grant comes from.
 
 ## What you can audit
 
 Target types are `field`, `object`, `apex-class`, `vf-page`, `custom-permission`, `tab`, and `record-type`. Name the target like this:
 
-| Type | `--target` |
-| --- | --- |
-| `field` | `Object.Field` |
-| `object` | the object API name |
-| `apex-class`, `vf-page`, `custom-permission` | the class, page, or permission developer name |
-| `tab` | the tab API name |
-| `record-type` | `SObject.DeveloperName` of an active, non-master record type |
+| Type                                         | `--target`                                                   |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `field`                                      | `Object.Field`                                               |
+| `object`                                     | the object API name                                          |
+| `apex-class`, `vf-page`, `custom-permission` | the class, page, or permission developer name                |
+| `tab`                                        | the tab API name                                             |
+| `record-type`                                | `SObject.DeveloperName` of an active, non-master record type |
 
 ## Scoping a user audit
 
 A user audit needs exactly one scope: a `--target`, or an `--sobject`, not both and not neither.
 
-| Invocation | Scope |
-| --- | --- |
-| `--user u:x --type field --target Account.SSN__c` | One field |
-| `--user u:x --type field --sobject Account` | Explicit field grants on `Account` |
-| `--user u:x --type object --target Account` | Object permissions on `Account` |
-| `--user u:x --type object --sobject Account` | Object permissions on `Account` |
-| `--user u:x --type apex-class/vf-page/custom-permission/tab --target <name>` | One setup or tab target |
-| `--user u:x --type record-type --target Account.Business_Account` | One active, non-master record type |
+| Invocation                                                                   | Scope                              |
+| ---------------------------------------------------------------------------- | ---------------------------------- |
+| `--user u:x --type field --target Account.SSN__c`                            | One field                          |
+| `--user u:x --type field --sobject Account`                                  | Explicit field grants on `Account` |
+| `--user u:x --type object --target Account`                                  | Object permissions on `Account`    |
+| `--user u:x --type object --sobject Account`                                 | Object permissions on `Account`    |
+| `--user u:x --type apex-class/vf-page/custom-permission/tab --target <name>` | One setup or tab target            |
+| `--user u:x --type record-type --target Account.Business_Account`            | One active, non-master record type |
 
 `--sobject` works only with `field` and `object` user audits. The `--user` value follows the [User matching](user-matching.md) rules and must resolve to exactly one user. It never uses fuzzy Username matching.
 
@@ -41,9 +41,9 @@ A user audit needs exactly one scope: a `--target`, or an `--sobject`, not both 
 
 Record-type audits read `recordTypeVisibilities` on Profiles and Permission Sets through the Metadata API. They also read `MutingPermissionSet` metadata for candidate Permission Set Groups. Only sources connected to active users are read. This takes longer than a data-API audit.
 
-* If a matching muting entry hides the record type, that Permission Set Group path is suppressed. A direct assignment of the component Permission Set still counts.
-* If any metadata read fails, the command returns an error and no partial result.
-* Profile rows report `default: true` or `false`. Permission Set and Permission Set Group rows report `default: null`, because they don't define a default.
+- If a matching muting entry hides the record type, that Permission Set Group path is suppressed. A direct assignment of the component Permission Set still counts.
+- If any metadata read fails, the command returns an error and no partial result.
+- Profile rows report `default: true` or `false`. Permission Set and Permission Set Group rows report `default: null`, because they don't define a default.
 
 ## Attribution and effective access
 
@@ -53,9 +53,9 @@ Muting is applied before rows are emitted. A PSG's backing `Group` Permission Se
 
 Some limits to know about:
 
-* Field audits report explicit `FieldPermissions` rows. Visibility granted some other way isn't inferred.
-* User tab audits warn that profile-level tab visibility doesn't appear as a clean `PermissionSetTabSetting` grant.
-* Large results are paged with `queryMore`, but org and API limits still apply to very large audits.
+- Field audits report explicit `FieldPermissions` rows. Visibility granted some other way isn't inferred.
+- User tab audits warn that profile-level tab visibility doesn't appear as a clean `PermissionSetTabSetting` grant.
+- Large results are paged with `queryMore`, but org and API limits still apply to very large audits.
 
 ## Output
 

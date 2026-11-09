@@ -2,10 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { unified } from '@astrojs/markdown-remark';
 import starlightLinksValidator from 'starlight-links-validator';
-import {
-  remarkRelativeMdLinks,
-  starlightPreset,
-} from '@syntax-syllogism/docs-theme';
+import { remarkRelativeMdLinks, starlightPreset } from '@syntax-syllogism/docs-theme';
 import { fileURLToPath } from 'node:url';
 
 const BASE = '/warden/docs';

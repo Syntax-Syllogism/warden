@@ -1,10 +1,36 @@
 # summary
 
-Strip and deactivate one or more users.
+Strip users completely, or remove selected persona access.
 
 # description
 
-Freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are set.
+Without persona flags, freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are set.
+
+With `--persona` or `--all-personas`, removes only persona-derived access. Shared grants remain, and freeze/deactivation are off unless `--freeze` or `--deactivate` is supplied.
+
+# flags.persona.summary
+
+Persona API name to remove. Repeat for multiple personas.
+
+# flags.all-personas.summary
+
+Remove access granted by every active persona held by each user.
+
+# flags.personas-def.summary
+
+Path to the persona definitions JSON file when using `--persona-source file`.
+
+# flags.persona-source.summary
+
+Read persona definitions and held personas from a file or the Warden package.
+
+# flags.freeze.summary
+
+Freeze users in persona mode after planning access removal.
+
+# flags.deactivate.summary
+
+Deactivate users in persona mode after planning access removal.
 
 # flags.no-freeze.summary
 
@@ -49,6 +75,10 @@ users-def.json must contain a users array.
 # errorSelectionRequired
 
 Specify either `--user` or `--users-def`.
+
+# errorPersonaSelectionRequired
+
+Provide at least one persona API name.
 
 # errorInvalidUserMatchField
 
@@ -186,6 +216,10 @@ Wrote snapshot.
 
 Processed %s user%s: %s changed, %s unchanged, %s failed.
 
+# info.personaMode
+
+Remove persona(s) %s from %s user(s). Freeze: %s. Deactivate: %s.
+
 # examples
 
 - Preview a strip for a single user:
@@ -203,3 +237,11 @@ Processed %s user%s: %s changed, %s unchanged, %s failed.
 - Capture a restorable snapshot before stripping:
 
   <%= config.bin %> <%= command.id %> --user username:someone@example.com --snapshot snapshots/user.json --target-org myOrg --no-prompt
+
+- Preview removal of one persona without freezing or deactivating the user:
+
+  <%= config.bin %> <%= command.id %> --user username:someone@example.com --persona support --persona-source org --dry-run --target-org myOrg
+
+- Remove every active persona and then freeze the user:
+
+  <%= config.bin %> <%= command.id %> --user username:someone@example.com --all-personas --persona-source org --freeze --target-org myOrg --no-prompt

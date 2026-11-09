@@ -47,9 +47,7 @@
             "actions": [],
             "skipped": [],
             "warnings": [],
-            "errors": [
-              "<fixture>/users.csv:4 — Invalid match field \"NotAUserField\"."
-            ]
+            "errors": ["<fixture>/users.csv:4 — Invalid match field \"NotAUserField\"."]
           },
           {
             "key": "Username:missing@example.com",
@@ -57,9 +55,7 @@
             "actions": [],
             "skipped": [],
             "warnings": [],
-            "errors": [
-              "<fixture>/users.csv:2 — Username=\"missing@example.com\" matched no user"
-            ]
+            "errors": ["<fixture>/users.csv:2 — Username=\"missing@example.com\" matched no user"]
           },
           {
             "key": "Username:ambiguous@example.com",
@@ -67,9 +63,7 @@
             "actions": [],
             "skipped": [],
             "warnings": [],
-            "errors": [
-              "<fixture>/users.csv:3 — Username=\"ambiguous@example.com\" matched multiple users"
-            ]
+            "errors": ["<fixture>/users.csv:3 — Username=\"ambiguous@example.com\" matched multiple users"]
           }
         ]
       },
@@ -406,9 +400,7 @@
               }
             ],
             "warnings": [],
-            "errors": [
-              "Second removal failed"
-            ]
+            "errors": ["Second removal failed"]
           }
         ]
       },
@@ -431,9 +423,7 @@
             "actions": [],
             "skipped": [],
             "warnings": [],
-            "errors": [
-              "Username=\"missing@example.com\" matched no user"
-            ]
+            "errors": ["Username=\"missing@example.com\" matched no user"]
           },
           {
             "key": "Username:good@example.com",
@@ -475,68 +465,48 @@
             "key": "NEW-1",
             "userName": "License",
             "username": "admin-one@example.test",
-            "personas": [
-              "admin"
-            ],
+            "personas": ["admin"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "NEW-1",
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           },
           {
             "key": "NEW-2",
             "userName": "License",
             "username": "admin-two@example.test",
-            "personas": [
-              "admin"
-            ],
+            "personas": ["admin"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "NEW-2",
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           },
           {
             "key": "NEW-3",
             "userName": "License",
             "username": "standard@example.test",
-            "personas": [
-              "standard"
-            ],
+            "personas": ["standard"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "NEW-3",
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           },
           {
             "key": "NEW-4",
             "userName": "License",
             "username": "inactive@example.test",
-            "personas": [
-              "inactive"
-            ],
+            "personas": ["inactive"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "NEW-4",
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           },
           {
@@ -544,16 +514,12 @@
             "id": "005existing00001AAA",
             "userName": "License",
             "username": "existing@example.test",
-            "personas": [
-              "admin"
-            ],
+            "personas": ["admin"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "EXISTING",
             "matched": true,
             "status": "planned",
-            "actions": [
-              "wouldUpdate"
-            ],
+            "actions": ["wouldUpdate"],
             "errors": []
           }
         ],
@@ -611,10 +577,7 @@
             "matchValue": null,
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           }
         ],
@@ -646,10 +609,7 @@
             "matchValue": null,
             "matched": false,
             "status": "planned",
-            "actions": [
-              "wouldCreate",
-              "wouldActivate"
-            ],
+            "actions": ["wouldCreate", "wouldActivate"],
             "errors": []
           }
         ],
@@ -679,17 +639,12 @@
             "id": "005xx0000000000000000000001AAA",
             "userName": "New User",
             "username": "new.user@example.test",
-            "personas": [
-              "default"
-            ],
+            "personas": ["default"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "A001",
             "matched": false,
             "status": "created",
-            "actions": [
-              "created",
-              "activated"
-            ],
+            "actions": ["created", "activated"],
             "errors": []
           },
           {
@@ -697,16 +652,12 @@
             "id": "005xx0000000000000000000001AAA",
             "userName": "Existing User",
             "username": "existing.user@example.test",
-            "personas": [
-              "default"
-            ],
+            "personas": ["default"],
             "matchedBy": "FederationIdentifier",
             "matchValue": "A002",
             "matched": true,
             "status": "updated",
-            "actions": [
-              "updated"
-            ],
+            "actions": ["updated"],
             "errors": []
           }
         ],
@@ -729,34 +680,25 @@
           {
             "key": "default:1",
             "userName": "Bad",
-            "personas": [
-              "default"
-            ],
+            "personas": ["default"],
             "matchedBy": "FederationIdentifier",
             "matchValue": null,
             "matched": false,
             "status": "failed",
             "actions": [],
-            "errors": [
-              "match field FederationIdentifier must be populated on the user."
-            ]
+            "errors": ["match field FederationIdentifier must be populated on the user."]
           },
           {
             "key": "insert-only@example.test",
             "id": "005xx0000000000000000000001AAA",
             "userName": "Good",
             "username": "insert-only@example.test",
-            "personas": [
-              "default"
-            ],
+            "personas": ["default"],
             "matchedBy": null,
             "matchValue": null,
             "matched": false,
             "status": "created",
-            "actions": [
-              "created",
-              "activated"
-            ],
+            "actions": ["created", "activated"],
             "errors": []
           }
         ],
@@ -781,21 +723,13 @@
             "id": "005xx0000000000000000000001AAA",
             "userName": "Partial",
             "username": "partial@example.test",
-            "personas": [
-              "default"
-            ],
+            "personas": ["default"],
             "matchedBy": null,
             "matchValue": null,
             "matched": false,
             "status": "failed",
-            "actions": [
-              "created",
-              "activated",
-              "assignedPermissionSet"
-            ],
-            "errors": [
-              "second PSA failed"
-            ]
+            "actions": ["created", "activated", "assignedPermissionSet"],
+            "errors": ["second PSA failed"]
           }
         ],
         "personaSource": "file (<fixture>/personas-psa-partial.json) [default]"

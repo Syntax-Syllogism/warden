@@ -40,11 +40,11 @@ Commands that change data (`provision`, `freeze`, `unfreeze`, `strip`, `restore`
 
 New here? Start with [Getting started](docs/getting-started.md).
 
-* [Command details](docs/command-details.md): how provisioning merges personas, and the example definition files
-* [Access audits](docs/access-audits.md): who can access a field, object, or other target, and why
-* [User matching](docs/user-matching.md): how commands find the users you name
-* [Lifecycle output and snapshots](docs/lifecycle-output.md): what freeze, strip, restore, and snapshot report
-* [Output contract](docs/output-contract.md): output formats, file destinations, and exit codes
+- [Command details](docs/command-details.md): how provisioning merges personas, and the example definition files
+- [Access audits](docs/access-audits.md): who can access a field, object, or other target, and why
+- [User matching](docs/user-matching.md): how commands find the users you name
+- [Lifecycle output and snapshots](docs/lifecycle-output.md): what freeze, strip, restore, and snapshot report
+- [Output contract](docs/output-contract.md): output formats, file destinations, and exit codes
 
 The [full documentation index](docs/README.md) lists the rest.
 
@@ -82,15 +82,16 @@ sf plugins   # verify
 
 ## Exit codes
 
-| Code | Meaning |
-| --- | --- |
-| `0` | No per-user failures. `diff` also returns `0` when it finds drift, unless you pass `--fail-on-drift`. `diff --verify` returns `0` when every user conforms. |
-| `1` | At least one user failed, `diff --fail-on-drift` found drift, `diff --verify` found a non-conforming user, or the command itself errored. |
+| Code | Meaning                                                                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | No per-user failures. `diff` also returns `0` when it finds drift, unless you pass `--fail-on-drift`. `diff --verify` returns `0` when every user conforms. |
+| `1`  | At least one user failed, `diff --fail-on-drift` found drift, `diff --verify` found a non-conforming user, or the command itself errored.                   |
 
 With the global `--json` flag, a partial failure or a non-conforming verify result still reports `status: 0` in the Salesforce CLI envelope, but the process exits with `1`. The result payload is unchanged, so you can inspect the per-user errors or verdicts.
 
 ## Commands
 
+<!-- prettier-ignore-start -->
 <!-- commands -->
 * [`sf warden access`](#sf-warden-access)
 * [`sf warden diff`](#sf-warden-diff)
@@ -196,7 +197,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -255,7 +256,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -308,7 +309,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden persona diff`
 
@@ -338,7 +339,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/diff.ts)_
+_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/diff.ts)_
 
 ## `sf warden persona export`
 
@@ -368,7 +369,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/export.ts)_
+_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/export.ts)_
 
 ## `sf warden persona import`
 
@@ -376,12 +377,13 @@ Import persona definitions into the connected org.
 
 ```
 USAGE
-  $ sf warden persona import --input <value> [--json] [--flags-dir <value>] [-o <value>] [--prune] [--api-version
-  <value>]
+  $ sf warden persona import --input <value> [--json] [--flags-dir <value>] [-o <value>] [--prune] [--dry-run]
+    [--api-version <value>]
 
 FLAGS
   -o, --target-org=<value>   Target org username or alias.
       --api-version=<value>  Override the api version used for the org connection.
+      --dry-run              Validate and plan actions without any write operations.
       --input=<value>        (required) Persona definitions JSON file.
       --prune                Delete org components that are absent from the input file.
 
@@ -401,7 +403,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/import.ts)_
+_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/import.ts)_
 
 ## `sf warden provision`
 
@@ -499,7 +501,7 @@ FLAG DESCRIPTIONS
     User. Never deletes or reverts the User. Has no effect with --dry-run.
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -546,7 +548,7 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -599,26 +601,31 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
-Strip and deactivate one or more users.
+Strip users completely, or remove selected persona access.
 
 ```
 USAGE
   $ sf warden strip [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>]
     [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--no-prompt] [--dry-run]
-    [--no-freeze] [--no-deactivate] [--keep-permsets] [--keep-permset-groups] [--keep-licenses] [--keep-public-groups]
-    [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
+    [--no-freeze] [--no-deactivate] [--persona <value>...] [--all-personas] [--personas-def <value>] [--persona-source
+    file|org] [--freeze] [--deactivate] [--keep-permsets] [--keep-permset-groups] [--keep-licenses]
+    [--keep-public-groups] [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>]
+    [--api-version <value>] [-i]
 
 FLAGS
   -i, --interactive                 Prompt for missing command values, summarize them, and confirm before continuing.
   -o, --target-org=<value>          Target org username or alias.
+      --all-personas                Remove access granted by every active persona held by each user.
       --api-version=<value>         Override the api version used for the org connection.
       --csv-list-delimiter=<value>  Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
+      --deactivate                  Deactivate users in persona mode after planning access removal.
       --dry-run                     Validate and plan actions without any write operations.
       --external-id=<value>         Default User field used to match entries in `--users-def`.
+      --freeze                      Freeze users in persona mode after planning access removal.
       --input-format=<option>       Override users-def format detection: json or csv.
                                     <options: json|csv>
       --keep-licenses               Keep permission set license assignments.
@@ -632,6 +639,10 @@ FLAGS
       --output=<option>             [default: human] Output format: human, csv, or json. Defaults to human.
                                     <options: human|csv|json>
       --output-file=<value>         Write the machine-readable output payload to this path.
+      --persona=<value>...          Persona API name to remove. Repeat for multiple personas.
+      --persona-source=<option>     Read persona definitions and held personas from a file or the Warden package.
+                                    <options: file|org>
+      --personas-def=<value>        Path to the persona definitions JSON file when using `--persona-source file`.
       --snapshot=<value>            Write a portable user snapshot JSON or CSV file before stripping access, including
                                     during dry-run. The extension selects the format.
       --user=<value>                Target a single user using `field:value`.
@@ -642,10 +653,13 @@ GLOBAL FLAGS
   --json               Format output as json.
 
 DESCRIPTION
-  Strip and deactivate one or more users.
+  Strip users completely, or remove selected persona access.
 
-  Freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are
-  set.
+  Without persona flags, freezes matching users, removes access grants, and deactivates the user unless the
+  corresponding opt-out flags are set.
+
+  With `--persona` or `--all-personas`, removes only persona-derived access. Shared grants remain, and
+  freeze/deactivation are off unless `--freeze` or `--deactivate` is supplied.
 
 EXAMPLES
   Preview a strip for a single user:
@@ -666,13 +680,23 @@ EXAMPLES
     $ sf warden strip --user username:someone@example.com --snapshot snapshots/user.json --target-org myOrg \
       --no-prompt
 
+  Preview removal of one persona without freezing or deactivating the user:
+
+    $ sf warden strip --user username:someone@example.com --persona support --persona-source org --dry-run \
+      --target-org myOrg
+
+  Remove every active persona and then freeze the user:
+
+    $ sf warden strip --user username:someone@example.com --all-personas --persona-source org --freeze --target-org \
+      myOrg --no-prompt
+
 FLAG DESCRIPTIONS
   --api-version=<value>  Override the api version used for the org connection.
 
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -725,5 +749,6 @@ FLAG DESCRIPTIONS
     Override the api version used for api requests made by this command
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/unfreeze.ts)_
 <!-- commandsstop -->
+<!-- prettier-ignore-end -->

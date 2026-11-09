@@ -156,7 +156,7 @@ Reverse record type access for one user:
 sf warden access --user 'Username:alice@example.com' --type record-type --target Account.Business_Account --target-org myOrg
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -264,7 +264,7 @@ Compare one user against another:
 sf warden diff --user username:new@example.com --against username:template@example.com --target-org myOrg --output csv
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -360,7 +360,7 @@ Freeze users from a definition file without prompts:
 sf warden freeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/freeze.ts)_
 
 ## `sf warden persona diff`
 
@@ -402,7 +402,7 @@ Format output as json.
 
 Reports added, removed, and changed personas without writing to the org.
 
-_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/diff.ts)_
+_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/diff.ts)_
 
 ## `sf warden persona export`
 
@@ -444,7 +444,7 @@ Format output as json.
 
 Reads active `wdn_Persona__c` records and their components and writes the canonical personas.json format.
 
-_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/export.ts)_
+_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/export.ts)_
 
 ## `sf warden persona import`
 
@@ -453,7 +453,7 @@ Import persona definitions into the connected org.
 ### Usage
 
 ```bash
-sf warden persona import --input <value> [--json] [--flags-dir <value>] [-o <value>] [--prune] [--api-version <value>]
+sf warden persona import --input <value> [--json] [--flags-dir <value>] [-o <value>] [--prune] [--dry-run] [--api-version <value>]
 ```
 
 ### Flags
@@ -467,6 +467,10 @@ Target org username or alias.
 Override the api version used for the org connection.
 
 Override the api version used for api requests made by this command
+
+#### `--dry-run`
+
+Validate and plan actions without any write operations.
 
 #### `--input` `<value>` · required
 
@@ -490,7 +494,7 @@ Format output as json.
 
 Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file.
 
-_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/persona/import.ts)_
+_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/persona/import.ts)_
 
 ## `sf warden provision`
 
@@ -634,7 +638,7 @@ Match production usernames to sandbox-suffixed users:
 sf warden provision --users-def config/user-def.json --personas-def config/persona-def.json --fuzzy-username --target-org mySandbox --dry-run
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -712,7 +716,7 @@ Restore without prompts:
 sf warden restore --snapshot snapshots/user.json --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -804,16 +808,16 @@ Snapshot users from a definition file:
 sf warden snapshot --users-def config/user-def.json --external-id FederationIdentifier --out snapshots/users.json --target-org myOrg
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
-Strip and deactivate one or more users.
+Strip users completely, or remove selected persona access.
 
 ### Usage
 
 ```bash
-sf warden strip [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--no-prompt] [--dry-run] [--no-freeze] [--no-deactivate] [--keep-permsets] [--keep-permset-groups] [--keep-licenses] [--keep-public-groups] [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
+sf warden strip [--json] [--flags-dir <value>] [-o <value>] [--user <value>] [--users-def <value>] [--external-id <value>] [--input-format json|csv] [--csv-list-delimiter <value>] [--no-prompt] [--dry-run] [--no-freeze] [--no-deactivate] [--persona <value>...] [--all-personas] [--personas-def <value>] [--persona-source file|org] [--freeze] [--deactivate] [--keep-permsets] [--keep-permset-groups] [--keep-licenses] [--keep-public-groups] [--keep-queues] [--snapshot <value>] [--output human|csv|json] [--output-file <value>] [--api-version <value>] [-i]
 ```
 
 ### Flags
@@ -826,6 +830,10 @@ Prompt for missing command values, summarize them, and confirm before continuing
 
 Target org username or alias.
 
+#### `--all-personas`
+
+Remove access granted by every active persona held by each user.
+
 #### `--api-version` `<value>`
 
 Override the api version used for the org connection.
@@ -836,6 +844,10 @@ Override the api version used for api requests made by this command
 
 Delimiter for multi-value CSV cells such as personas. Defaults to semicolon.
 
+#### `--deactivate`
+
+Deactivate users in persona mode after planning access removal.
+
 #### `--dry-run`
 
 Validate and plan actions without any write operations.
@@ -843,6 +855,10 @@ Validate and plan actions without any write operations.
 #### `--external-id` `<value>`
 
 Default User field used to match entries in `--users-def`.
+
+#### `--freeze`
+
+Freeze users in persona mode after planning access removal.
 
 #### `--input-format` `<option>`
 
@@ -892,6 +908,20 @@ Options: `human` · `csv` · `json` · Default: `human`
 
 Write the machine-readable output payload to this path.
 
+#### `--persona` `<value>...`
+
+Persona API name to remove. Repeat for multiple personas.
+
+#### `--persona-source` `<option>`
+
+Read persona definitions and held personas from a file or the Warden package.
+
+Options: `file` · `org`
+
+#### `--personas-def` `<value>`
+
+Path to the persona definitions JSON file when using `--persona-source file`.
+
 #### `--snapshot` `<value>`
 
 Write a portable user snapshot JSON or CSV file before stripping access, including during dry-run. The extension selects the format.
@@ -916,7 +946,9 @@ Format output as json.
 
 ### Description
 
-Freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are set.
+Without persona flags, freezes matching users, removes access grants, and deactivates the user unless the corresponding opt-out flags are set.
+
+With `--persona` or `--all-personas`, removes only persona-derived access. Shared grants remain, and freeze/deactivation are off unless `--freeze` or `--deactivate` is supplied.
 
 ### Examples
 
@@ -944,7 +976,19 @@ Capture a restorable snapshot before stripping:
 sf warden strip --user username:someone@example.com --snapshot snapshots/user.json --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/strip.ts)_
+Preview removal of one persona without freezing or deactivating the user:
+
+```bash
+sf warden strip --user username:someone@example.com --persona support --persona-source org --dry-run --target-org myOrg
+```
+
+Remove every active persona and then freeze the user:
+
+```bash
+sf warden strip --user username:someone@example.com --all-personas --persona-source org --freeze --target-org myOrg --no-prompt
+```
+
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -1040,4 +1084,4 @@ Unfreeze users from a definition file without prompts:
 sf warden unfreeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/src/commands/warden/unfreeze.ts)_

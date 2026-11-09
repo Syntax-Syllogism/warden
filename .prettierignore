@@ -1,1 +1,21 @@
-*.md
+# Generated or vendored output
+node_modules/
+lib/
+coverage/
+tmp/
+docs-site/dist/
+docs-site/.astro/
+.history/
+.loop/
+.wireit/
+
+# Lockfiles
+yarn.lock
+package-lock.json
+
+# sf message files keep their exact Markdown, and the CLI reference is generated
+messages/
+docs/cli-reference.md
+
+# Intentionally malformed test input
+test/fixtures/malformed.json

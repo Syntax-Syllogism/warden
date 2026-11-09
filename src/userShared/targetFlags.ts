@@ -56,7 +56,9 @@ export const requireExactlyOne = (
     throw new SfError(`--${second} cannot also be provided when using --${first}`);
   }
   if (!firstPresent && !secondPresent) {
-    throw new SfError(`Exactly one of the following must be provided: ${flagNames.map((name) => `--${name}`).join(', ')}`);
+    throw new SfError(
+      `Exactly one of the following must be provided: ${flagNames.map((name) => `--${name}`).join(', ')}`
+    );
   }
 };
 
@@ -125,7 +127,7 @@ const formatInteractiveValue = (value: unknown): string => {
 export const resolveFlagsInteractively = async <T extends Record<string, unknown>>(
   parsed: InteractiveParse<T>,
   prompts: readonly InteractivePrompt[],
-  options: { log: (message: string) => void; confirm: () => Promise<boolean>; validate?: (flags: T) => void }
+  options: { log: (message: string) => void; confirm: (flags: T) => Promise<boolean>; validate?: (flags: T) => void }
 ): Promise<{ flags: T; confirmed: boolean }> => {
   const flags = { ...parsed.flags };
   options.validate?.(flags);
@@ -150,7 +152,7 @@ export const resolveFlagsInteractively = async <T extends Record<string, unknown
   for (const [key, value] of Object.entries(flags)) {
     if (key !== 'interactive' && key !== 'json') options.log(`  --${key}: ${formatInteractiveValue(value)}`);
   }
-  const confirmed = await options.confirm();
+  const confirmed = await options.confirm(flags);
   if (!confirmed) options.log(messages.getMessage('interactive.declined'));
   return { flags, confirmed };
 };

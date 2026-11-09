@@ -5,7 +5,7 @@ description: Store, compare, and promote Warden persona assignment bundles throu
 
 # Persona promotion
 
-Warden can use personas stored in the org by the Warden package as a provisioning source. It can also move those personas between orgs as JSON files. The promotion commands need the package objects `wdn_Persona__c` and `wdn_Persona_Component__c` in the target org.
+Warden can use personas stored in the org by the Warden package as a provisioning source. It can also move those personas between orgs as JSON files. The promotion commands need the package objects `wdn_Persona__c` and `wdn_Persona_Component__c` in the target org. `strip --persona-source org` reads the same active personas, plus each user's `Active` persona assignments; see [Persona-scoped removal](command-details.md#persona-scoped-removal).
 
 ## File format
 
@@ -26,12 +26,12 @@ Promotion files have the same top-level shape as `personas.json`:
 
 The org model stores assignment components only:
 
-| Org component type | File property |
-| --- | --- |
-| `Permission Set` | `permissionSets` |
+| Org component type     | File property         |
+| ---------------------- | --------------------- |
+| `Permission Set`       | `permissionSets`      |
 | `Permission Set Group` | `permissionSetGroups` |
-| `Public Group` | `publicGroups` |
-| `Queue` | `queues` |
+| `Public Group`         | `publicGroups`        |
+| `Queue`                | `queues`              |
 
 Profiles, roles, assignment modes, and `userAttributes` are not stored in the org and are not read from it. If provisioning needs them, put them on file personas or on the user definition. To round-trip a file without losing anything, keep only the four lists above.
 
@@ -62,8 +62,8 @@ Import never deletes or deactivates an org persona just because it's missing fro
 
 `provision` takes `--persona-source file|org`:
 
-* **`file`**: reads `--personas-def` if you passed it. Without that file, only profile-only user definitions are valid.
-* **`org`**: reads the org's active personas. It doesn't read or merge `--personas-def`.
-* **Omitted**: uses `file` if you passed `--personas-def`. Otherwise Warden looks for `wdn_Persona__c` and uses `org` if the package is there, or `file` if it isn't.
+- **`file`**: reads `--personas-def` if you passed it. Without that file, only profile-only user definitions are valid.
+- **`org`**: reads the org's active personas. It doesn't read or merge `--personas-def`.
+- **Omitted**: uses `file` if you passed `--personas-def`. Otherwise Warden looks for `wdn_Persona__c` and uses `org` if the package is there, or `file` if it isn't.
 
 The result shows which source was used. References from org personas resolve like any other assignment reference, so the permission sets, groups, and queues must exist in the target org. The org model has no profile, so a new user still needs a profile in the user definition.

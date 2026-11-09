@@ -1,19 +1,10 @@
 import { Messages } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { loadAssignmentState } from '@syntax-syllogism/warden-core';
-import {
-  makeNotice,
-  failedResult,
-  renderLifecycleResult,
-  resolvedTargetResult,
-  summarizeLifecycle,
-} from '@syntax-syllogism/warden-core';
-import { snapshot, writeSnapshotFile } from '@syntax-syllogism/warden-core';
-import { buildTargetRequests, resolveTargets } from '@syntax-syllogism/warden-core';
-import type { LifecycleResult, LifecycleUserResult } from '@syntax-syllogism/warden-core';
+import { renderLifecycleResult, writeSnapshotFile } from '@syntax-syllogism/warden-core';
+import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import { renderSnapshotCsv } from '@syntax-syllogism/warden-core';
-import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import { defaultSnapshotOut, runSnapshotRequest } from '../../userShared/snapshotRequest.js';
 import {
   apiVersionFlag,
   assertInteractiveAllowed,
@@ -49,8 +40,6 @@ Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.snapshot');
 
 type SnapshotFlags = Record<string, unknown>;
-
-const defaultOut = (): string => `user-snapshot-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
 
 const getOrgProvenance = (flags: SnapshotFlags): string | undefined => {
   const targetOrg = flags['target-org'] as { getUsername?: () => string } | undefined;
@@ -108,7 +97,7 @@ export default class UserSnapshot extends WardenCommand<LifecycleResult> {
         });
       }
       if (!flagWasSupplied(parsedInteractive, flags, ['out'])) {
-        prompts.push({ key: 'out', prompt: () => promptText('Snapshot output path', defaultOut()) });
+        prompts.push({ key: 'out', prompt: () => promptText('Snapshot output path', defaultSnapshotOut()) });
       }
       if (!flags['target-org']) flags['target-org'] = await resolveOrgInteractively(undefined, promptOrgAlias);
       prompts.push(
@@ -125,36 +114,21 @@ export default class UserSnapshot extends WardenCommand<LifecycleResult> {
       context = this.resolveOutputContext(flags);
     }
     const targetOrg = requireTargetOrg(flags['target-org']);
-    requireExactlyOne(flags, ['user', 'users-def']);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const fieldMap = await describeUserFields(conn);
-    const { requests, errors: requestErrors } = await buildTargetRequests(flags, fieldMap, {
-      invalidUserMatchField: (field) => messages.getMessage('errorInvalidUserMatchField', [field]),
-      invalidJson: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
-    });
-    const { targets, errors: resolutionErrors } = await resolveTargets(conn, requests, fieldMap);
-    const state = await loadAssignmentState(
+    const out = typeof flags.out === 'string' && flags.out.length > 0 ? flags.out : defaultSnapshotOut();
+    const output = await runSnapshotRequest(
       conn,
-      targets.map((target) => target.Id)
-    );
-    const out = typeof flags.out === 'string' && flags.out.length > 0 ? flags.out : defaultOut();
-    await writeSnapshotFile(
-      out,
-      await snapshot.run(conn, {
-        // Core rejects partial selections, so capture only the CLI's resolved targets.
-        usersDoc: { users: targets.map((target) => ({ match: target.field, [target.field]: target.value })) },
+      {
+        user: flags.user,
+        usersDef: flags['users-def'],
+        externalId: flags['external-id'],
+        inputFormat: flags['input-format'] as 'json' | 'csv' | undefined,
+        csvListDelimiter: flags['csv-list-delimiter'],
+        out,
         org: getOrgProvenance(flags as SnapshotFlags),
-      })
+      },
+      writeSnapshotFile
     );
-
-    const users: LifecycleUserResult[] = requestErrors.concat(resolutionErrors).map(failedResult);
-    users.push(
-      ...targets.map((target) => ({
-        ...resolvedTargetResult(target, state.userLoginByUserId.get(target.Id)?.[0]),
-        actions: [makeNotice('snapshotWritten')],
-      }))
-    );
-    const output = { summary: summarizeLifecycle(users), users };
     const csv = renderSnapshotCsv(output);
     await this.emitResult(context, {
       result: output,

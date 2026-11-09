@@ -1,9 +1,9 @@
 import { Messages } from '@salesforce/core';
 import { renderLifecycleResult } from '@syntax-syllogism/warden-core';
-import { unfreeze, unfreezeOptionsSchema, summarizeLifecycle } from '@syntax-syllogism/warden-core';
+import { summarizeLifecycle } from '@syntax-syllogism/warden-core';
 import type { LifecycleResult } from '@syntax-syllogism/warden-core';
 import { renderLifecycleCsv } from '@syntax-syllogism/warden-core';
-import { toTargetOptions, validateUserTarget } from '../../userShared/useCaseOptions.js';
+import { applyUnfreezeRequest, planUnfreezeRequest } from '../../userShared/lifecycleRequest.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   apiVersionFlag,
@@ -116,8 +116,17 @@ export default class UserUnfreeze extends WardenCommand<LifecycleResult> {
     const targetOrg = requireTargetOrg(flags['target-org']);
     requireExactlyOne(flags, ['user', 'users-def']);
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    await validateUserTarget(conn, flags.user, (field) => messages.getMessage('errorInvalidUserMatchField', [field]));
-    const plan = await unfreeze.plan(conn, unfreezeOptionsSchema.parse(toTargetOptions(flags)));
+    const plan = await planUnfreezeRequest(
+      conn,
+      {
+        user: flags.user,
+        usersDef: flags['users-def'],
+        externalId: flags['external-id'],
+        inputFormat: flags['input-format'],
+        csvListDelimiter: flags['csv-list-delimiter'],
+      },
+      (field) => messages.getMessage('errorInvalidUserMatchField', [field])
+    );
     await confirmLifecycleWrites({
       required: !flags['dry-run'] && plan.updates.length > 0 && !flags['no-prompt'] && context.interactive,
       message: messages.getMessage.bind(messages),
@@ -126,7 +135,7 @@ export default class UserUnfreeze extends WardenCommand<LifecycleResult> {
     });
     const output = flags['dry-run']
       ? { summary: summarizeLifecycle(plan.users), users: plan.users }
-      : await unfreeze.apply(conn, plan);
+      : await applyUnfreezeRequest(conn, plan);
     const csv = renderLifecycleCsv(output);
     await this.emitResult(context, {
       result: output,

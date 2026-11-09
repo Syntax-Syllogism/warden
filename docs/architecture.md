@@ -5,28 +5,51 @@ description: Understand Warden's command layer, core use cases, and compatibilit
 
 # CLI/core architecture
 
-Warden pins `@syntax-syllogism/warden-core` exactly to `0.5.0` in `package.json`
-and `yarn.lock`. Core owns access resolution, provisioning rules, lifecycle
-operations, user matching, related-record synchronization, and definition parsing.
+Warden declares `@syntax-syllogism/warden-core` in `package.json` as a caret
+range and locks the resolved version in `yarn.lock`. Core owns access
+resolution, provisioning rules, lifecycle operations, user matching,
+related-record synchronization, and definition parsing.
 The plugin owns oclif commands and flags, Salesforce CLI messages, prompts,
 file destinations, connected-org audit writes, and Salesforce CLI JSON envelopes.
 
 ## Current command paths
 
-| Commands | Execution path |
-| --- | --- |
-| `freeze`, `unfreeze` | Validate the CLI target, parse core options, call core `plan()`, confirm pending writes, then call `apply()`. Dry runs summarize the planned users without applying. |
-| `strip` | Call core `strip.plan()`, confirm pending writes, optionally save the pre-strip snapshot, then call `strip.apply()`. Dry runs return `plan.preview` and still save a requested snapshot. |
-| `provision` | Read definitions and the selected persona source, call core `provision.plan()`, acknowledge reference warnings, then apply through the CLI compatibility adapter. Dry runs return `plan.preview`. |
-| `restore` | Read the snapshot, call core `restore.plan()`, confirm pending writes, then call `restore.apply()`. Dry runs return `plan.preview`. |
-| `access` | Keep CLI scope/target/user validation and stable output ordering; call core `access.run()` for forward and reverse audits. |
-| `diff` | Read persona definitions with CLI error mapping; call core `diff.run()` for user/persona comparisons and verification. Keep exit policies in the CLI. |
-| `snapshot` | Resolve the selection and retain failed rows; call core `snapshot.run()` with successful targets and write the returned file. |
-| `persona export`, `persona import`, `persona diff` | Retain the plugin's org-package integration. |
+| Commands                                           | Execution path                                                                                                                                                                                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `freeze`, `unfreeze`                               | Validate the CLI target, parse core options, call core `plan()`, confirm pending writes, then call `apply()`. Dry runs summarize the planned users without applying.                                                                                     |
+| `strip`                                            | Call core `strip.plan()`, confirm pending writes, optionally save the pre-strip snapshot, then call `strip.apply()`. Persona mode adds CLI-side reads and revocation writes (below). Dry runs return `plan.preview` and still save a requested snapshot. |
+| `provision`                                        | Read definitions and the selected persona source, call core `provision.plan()`, acknowledge reference warnings, then apply through the CLI compatibility adapter. Dry runs return `plan.preview`.                                                        |
+| `restore`                                          | Read the snapshot, call core `restore.plan()`, confirm pending writes, then call `restore.apply()`. Dry runs return `plan.preview`.                                                                                                                      |
+| `access`                                           | Keep CLI scope/target/user validation and stable output ordering; call core `access.run()` for forward and reverse audits.                                                                                                                               |
+| `diff`                                             | Read persona definitions with CLI error mapping; call core `diff.run()` for user/persona comparisons and verification. Keep exit policies in the CLI.                                                                                                    |
+| `snapshot`                                         | Resolve the selection and retain failed rows; call core `snapshot.run()` with successful targets and write the returned file.                                                                                                                            |
+| `persona export`, `persona import`, `persona diff` | Retain the plugin's org-package integration.                                                                                                                                                                                                             |
 
 All eight lifecycle/audit commands use core's public use-case facade. Access and
 provision human output uses core renderers; provision supplies the CLI message
 lookup, while access uses core's English empty-state text.
+
+`strip` persona mode (`--persona` or `--all-personas`) keeps core's planner and
+adds CLI-owned I/O around it. With `--persona-source org`, the command reads the
+org's active personas and their `Active` assignments, then passes core in-memory
+user and persona documents, because core rejects the `org` source itself. After a
+live apply, it writes the revocation records described in
+[Connected org writes](connected-org-writes.md#persona-revocation-writes).
+
+## Shared request modules and sfd
+
+`access`, `diff`, `snapshot`, `provision`, `restore`, `freeze`, `unfreeze`, and
+`persona import` run their non-interactive work through
+`src/userShared/accessRequest.ts`, `diffRequest.ts`, `snapshotRequest.ts`,
+`provisionRequest.ts`, `lifecycleRequest.ts` (freeze, unfreeze, and restore),
+and `personaImportRequest.ts`. The oclif commands and the sfd operations in
+`src/sfd/operations.ts` both call these modules. The modules own validation,
+error codes, result ordering, the plan/apply split, and the file-writing
+callback (snapshot). They do not prompt or print: the oclif commands keep flag
+parsing, prompts, and rendering, and `src/sfd/errors.ts` maps request errors to
+sfd's `code`/`actions` shape. Connected-package audit writes stay in the oclif
+`provision` command and are not part of the shared module. See
+[sfd operations](sfd.md).
 
 ## CLI compatibility adapters
 

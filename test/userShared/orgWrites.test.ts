@@ -6,7 +6,10 @@ import {
   buildLedgerRows,
   buildProvenance,
   captureProvisioningWrites,
+  describeObjectFields,
   detectConnectedPackage,
+  readLedgerProvenance,
+  updateBatch,
   updateRun,
   WARDEN_ITEM_OBJECT,
   WARDEN_LEDGER_OBJECT,
@@ -35,6 +38,81 @@ describe('connected org writes', () => {
     });
   });
 
+  it('reads package field availability and persona-scoped ledger provenance', async () => {
+    const describe = sinon.stub().resolves({ name: WARDEN_LEDGER_OBJECT, fields: [{ name: 'wdn_Revoked_On__c' }] });
+    const query = sinon.stub().resolves({
+      records: [
+        {
+          Id: 'a-ledger',
+          wdn_User__c: '005-user',
+          wdn_Target_Id__c: '0PS-target',
+          wdn_Persona__r: { wdn_Api_Name__c: 'support' },
+        },
+      ],
+    });
+    const fields = await describeObjectFields({ describe } as never, WARDEN_LEDGER_OBJECT);
+    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+
+    expect(fields?.has('wdn_Revoked_On__c')).to.equal(true);
+    expect(provenance).to.deep.equal([
+      { id: 'a-ledger', userId: '005-user', targetId: '0PS-target', persona: 'support' },
+    ]);
+    expect(query.firstCall.args[0]).to.include('wdn_Persona__r.wdn_Api_Name__c');
+    expect(query.firstCall.args[0]).to.include('wdn_Revoked_On__c = NULL');
+  });
+
+  it('excludes revoked ledger provenance after a persona is re-granted manually', async () => {
+    const query = sinon.stub().callsFake(async (soql: string) => {
+      if (soql.includes('wdn_Revoked_On__c = NULL')) return { records: [] };
+      return {
+        records: [
+          {
+            Id: 'a-revoked-ledger',
+            wdn_User__c: '005-user',
+            wdn_Target_Id__c: '0PS-target',
+            wdn_Persona__r: { wdn_Api_Name__c: 'support' },
+          },
+        ],
+      };
+    });
+
+    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+
+    expect(provenance).to.deep.equal([]);
+  });
+
+  it('updates revocation rows in collection batches', async () => {
+    const update = sinon.stub().resolves([{ success: true, id: 'a1' }]);
+    const warnings: string[] = [];
+    await updateBatch(
+      { sobject: sinon.stub().returns({ update }) } as never,
+      WARDEN_LEDGER_OBJECT,
+      [{ Id: 'a1', wdn_Revoked_On__c: '2026-10-17T00:00:00.000Z' }],
+      (warning) => warnings.push(warning),
+      'ledger revocation'
+    );
+    expect(update.calledOnce).to.equal(true);
+    expect(warnings).to.deep.equal([]);
+  });
+
+  it('warns when a revocation collection update has partial failures', async () => {
+    const update = sinon.stub().resolves([
+      { success: true, id: 'a1' },
+      { success: false, errors: [{ message: 'denied' }] },
+    ]);
+    const warnings: string[] = [];
+
+    await updateBatch(
+      { sobject: sinon.stub().returns({ update }) } as never,
+      WARDEN_LEDGER_OBJECT,
+      [{ Id: 'a1' }, { Id: 'a2' }],
+      (warning) => warnings.push(warning),
+      'ledger revocation'
+    );
+
+    expect(warnings).to.deep.equal(['Warden org ledger revocation batch 1 returned 1 failed record(s).']);
+  });
+
   it('builds provenance from injected environment and git values', () => {
     const provenance = buildProvenance({
       definitionPath: './personas.json',
@@ -60,11 +138,13 @@ describe('connected org writes', () => {
       { success: true, id: '0GM-queue' },
     ]);
     const connection = {
-      query: sinon.stub().callsFake(async (soql: string) =>
-        soql.includes("Type = 'Queue'")
-          ? { records: [{ Id: '00G-queue', DeveloperName: 'Case_Queue' }] }
-          : { records: [{ Id: '00G-public', DeveloperName: 'Internal_Users' }] }
-      ),
+      query: sinon
+        .stub()
+        .callsFake(async (soql: string) =>
+          soql.includes("Type = 'Queue'")
+            ? { records: [{ Id: '00G-queue', DeveloperName: 'Case_Queue' }] }
+            : { records: [{ Id: '00G-public', DeveloperName: 'Internal_Users' }] }
+        ),
       sobject: sinon.stub().returns({ create: groupMemberCreate }),
     };
     const captured = captureProvisioningWrites(connection as never);
@@ -140,6 +220,10 @@ describe('connected org writes', () => {
       },
       referenceIdsByType: new Map([['Permission Set', new Map([['Shared', '0PS-target']])]]),
       labelsByTypeAndId: new Map([['Permission Set', new Map([['0PS-target', 'Shared']])]]),
+      personaIdsByName: new Map([
+        ['first', 'a-persona-first'],
+        ['second', 'a-persona-second'],
+      ]),
       runId: 'a-run',
       grantedOn: '2026-09-26T00:00:00.000Z',
     });
@@ -150,8 +234,50 @@ describe('connected org writes', () => {
       wdn_Type__c: 'Permission Set',
       wdn_Target_Id__c: '0PS-target',
       wdn_Target_Label__c: 'Shared',
+      wdn_Persona__c: 'a-persona-first',
       wdn_Granted_By_Run__c: 'a-run',
     });
+    expect(rows[1].wdn_Persona__c).to.equal('a-persona-second');
+  });
+
+  it('preserves provisioned persona provenance for a later revoke lookup', async () => {
+    const rows = buildLedgerRows({
+      grants: [{ userId: '005-user', type: 'Permission Set', targetId: '0PS-target' }],
+      result: {
+        summary: { total: 1, created: 1, updated: 0, failed: 0, warnings: 0 },
+        users: [
+          {
+            id: '005-user',
+            key: 'Username:person@example.test',
+            personas: ['support'],
+            matchedBy: null,
+            matchValue: null,
+            matched: false,
+            status: 'created',
+            actions: ['assignedPermissionSet'],
+            errors: [],
+          },
+        ],
+      },
+      personasDoc: { personas: { support: { permissionSets: ['Support'] } } },
+      referenceIdsByType: new Map([['Permission Set', new Map([['Support', '0PS-target']])]]),
+      personaIdsByName: new Map([['support', 'a-persona-support']]),
+    });
+    const query = sinon.stub().resolves({
+      records: rows.map((row, index) => ({
+        Id: `a-ledger-${index}`,
+        wdn_User__c: row.wdn_User__c,
+        wdn_Target_Id__c: row.wdn_Target_Id__c,
+        wdn_Persona__r: { wdn_Api_Name__c: 'support' },
+      })),
+    });
+
+    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+
+    expect(rows[0].wdn_Persona__c).to.equal('a-persona-support');
+    expect(provenance).to.deep.equal([
+      { id: 'a-ledger-0', userId: '005-user', targetId: '0PS-target', persona: 'support' },
+    ]);
   });
 
   it('swallows an org write failure without changing the provisioning exit code', async () => {
@@ -220,7 +346,10 @@ describe('connected org writes', () => {
   });
 
   it('warns when a collection returns partial save failures', async () => {
-    const create = sinon.stub().resolves([{ success: true, id: 'audit-id' }, { success: false, errors: ['invalid'] }]);
+    const create = sinon.stub().resolves([
+      { success: true, id: 'audit-id' },
+      { success: false, errors: ['invalid'] },
+    ]);
     const connection = { sobject: sinon.stub().returns({ create }) };
     const warnings: string[] = [];
 

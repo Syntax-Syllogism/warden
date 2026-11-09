@@ -13,7 +13,7 @@ description: Install Warden and run your first Salesforce user lifecycle workflo
 sf plugins install @syntax-syllogism/warden@x.y.z
 ```
 
-Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#contributing)):
+Or build from source (see [Contributing](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/README.md#contributing)):
 
 ```bash
 git clone https://github.com/Syntax-Syllogism/warden.git
@@ -27,10 +27,10 @@ node ./bin/dev.js warden --help
 
 Warden's commands fall into four groups.
 
-* **Read-only audits.** [`access`](access-audits.md), [`diff`](command-details.md#warden-diff), and `persona diff` never write to the org. Use them to answer "who can see this?", "how does this user differ from what they should have?", and "what differs from the org's personas?" before you change anything.
-* **Lifecycle actions that change data.** `provision`, `freeze`, `unfreeze`, `strip`, and `restore` write to the org. Each supports `--dry-run` to preview the changes, and `--no-prompt` to skip the confirmation once you trust the plan (in CI, for example). All eight core commands also support `-i`/`--interactive`; see [Interactive mode](interactive-mode.md).
-* **Portable state.** `snapshot` saves a user's active/frozen state and assignments to a JSON or CSV file. The file extension picks the format, and `restore` reads either. Snapshots use developer/API names where they exist and fall back to Ids, so they work across orgs that share those names.
-* **Persona promotion.** `persona export` and `persona diff` read the org's personas; `persona import` writes them. See [Persona promotion](persona-promotion.md).
+- **Read-only audits.** [`access`](access-audits.md), [`diff`](command-details.md#warden-diff), and `persona diff` never write to the org. Use them to answer "who can see this?", "how does this user differ from what they should have?", and "what differs from the org's personas?" before you change anything.
+- **Lifecycle actions that change data.** `provision`, `freeze`, `unfreeze`, `strip`, and `restore` write to the org. Each supports `--dry-run` to preview the changes, and `--no-prompt` to skip the confirmation once you trust the plan (in CI, for example). All eight core commands also support `-i`/`--interactive`; see [Interactive mode](interactive-mode.md).
+- **Portable state.** `snapshot` saves a user's active/frozen state and assignments to a JSON or CSV file. The file extension picks the format, and `restore` reads either. Snapshots use developer/API names where they exist and fall back to Ids, so they work across orgs that share those names.
+- **Persona promotion.** `persona export` and `persona diff` read the org's personas; `persona import` writes them. See [Persona promotion](persona-promotion.md).
 
 ## Your first provisioning run
 
@@ -105,11 +105,11 @@ sf warden strip --target-org myOrg --user 'Username:user@example.com' \
 
 ## Next steps
 
-* [Command details](command-details.md): merge logic, precedence tables, and assignment modes.
-* [Related-record provisioning](related-records.md): before/after records, context lookups, and User linking.
-* [Connected org writes](connected-org-writes.md): the optional ledger and run log.
-* [Access audits](access-audits.md): scopes, attribution, muting, and output.
-* [Output contract](output-contract.md): formats, destinations, CSV shape, and `--json`.
-* [Lifecycle output and snapshots](lifecycle-output.md): identities, labels, snapshots, and action reports.
-* [Interactive mode](interactive-mode.md): guided prompts for all eight commands.
-* Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.9.0/README.md#commands) section of the README, or `--help` on any command.
+- [Command details](command-details.md): merge logic, precedence tables, and assignment modes.
+- [Related-record provisioning](related-records.md): before/after records, context lookups, and User linking.
+- [Connected org writes](connected-org-writes.md): the optional ledger and run log.
+- [Access audits](access-audits.md): scopes, attribution, muting, and output.
+- [Output contract](output-contract.md): formats, destinations, CSV shape, and `--json`.
+- [Lifecycle output and snapshots](lifecycle-output.md): identities, labels, snapshots, and action reports.
+- [Interactive mode](interactive-mode.md): guided prompts for all eight commands.
+- Every flag: the [Commands](https://github.com/Syntax-Syllogism/warden/blob/v0.10.0/README.md#commands) section of the README, or `--help` on any command.

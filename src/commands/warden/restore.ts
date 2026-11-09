@@ -1,12 +1,7 @@
 import { Messages, SfError } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import {
-  restore,
-  readSnapshotFile,
-  renderLifecycleResult,
-  renderRestoreCsv,
-  type LifecycleResult,
-} from '@syntax-syllogism/warden-core';
+import { renderLifecycleResult, renderRestoreCsv, type LifecycleResult } from '@syntax-syllogism/warden-core';
+import { applyRestoreRequest, planRestoreRequest } from '../../userShared/lifecycleRequest.js';
 import { confirmWithTimeout } from '../../userShared/prompting.js';
 import {
   apiVersionFlag,
@@ -85,23 +80,17 @@ export default class UserRestore extends WardenCommand<LifecycleResult> {
     const targetOrg = requireTargetOrg(flags['target-org']);
     const snapshotPath = requireFlagValue(flags.snapshot, '--snapshot');
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    let snapshot;
-    try {
-      snapshot = await readSnapshotFile(String(snapshotPath));
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new SfError(messages.getMessage('errorInvalidJson', [String(snapshotPath), detail]));
-    }
-    const plan = await restore.plan(conn, { snapshotDoc: { ...snapshot } });
-    // Core uses provisioning text for missing references; keep the CLI machine contract.
-    for (const user of plan.users) {
-      const warnings = user.result.warnings.map((warning) => {
-        const missing = /^(\w+) reference "(.*)" was not found\.$/.exec(warning);
-        return missing ? messages.getMessage('warningReferenceMissing', [missing[1], missing[2]]) : warning;
-      });
-      user.result.warnings = warnings;
-      user.preview.warnings = warnings;
-    }
+    const plan = await planRestoreRequest(
+      conn,
+      { snapshot: String(snapshotPath) },
+      {
+        invalidSnapshot: (error) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          throw new SfError(messages.getMessage('errorInvalidJson', [String(snapshotPath), detail]));
+        },
+        missingReferenceMessage: (type, reference) => messages.getMessage('warningReferenceMissing', [type, reference]),
+      }
+    );
 
     if (
       !flags.interactive &&
@@ -119,7 +108,7 @@ export default class UserRestore extends WardenCommand<LifecycleResult> {
         throw new SfError(messages.getMessage('errorPromptDeclined'));
       }
     }
-    const output = flags['dry-run'] ? plan.preview : await restore.apply(conn, plan);
+    const output = flags['dry-run'] ? plan.preview : await applyRestoreRequest(conn, plan);
     const csv = renderRestoreCsv(output);
     await this.emitResult(context, {
       result: output,

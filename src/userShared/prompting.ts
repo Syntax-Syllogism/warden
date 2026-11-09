@@ -132,6 +132,25 @@ export const promptUserSelection = (): Promise<'user' | 'users-def'> =>
     ],
   });
 
+export const promptStripMode = (): Promise<'full' | 'selected-personas' | 'all-personas'> =>
+  promptRuntime.select({
+    message: 'Strip mode',
+    choices: [
+      { name: 'Remove all access (full strip)', value: 'full' },
+      { name: 'Remove selected personas', value: 'selected-personas' },
+      { name: 'Remove all active personas', value: 'all-personas' },
+    ],
+  });
+
+export const promptPersonaSource = (): Promise<'file' | 'org'> =>
+  promptRuntime.select({
+    message: 'Persona source',
+    choices: [
+      { name: 'Definition files', value: 'file' },
+      { name: 'Warden package in the target org', value: 'org' },
+    ],
+  });
+
 export const promptDiffMode = (): Promise<'users' | 'personas'> =>
   promptRuntime.select({
     message: 'Diff mode',
@@ -173,7 +192,10 @@ export const confirmWithTimeout = async (
       timer = setTimeout(() => resolve({ confirmed: false, timedOut: true }), timeoutMs);
       timer.unref();
     });
-    return await Promise.race([confirmPrompt(message).then((confirmed) => ({ confirmed, timedOut: false })), timeoutPromise]);
+    return await Promise.race([
+      confirmPrompt(message).then((confirmed) => ({ confirmed, timedOut: false })),
+      timeoutPromise,
+    ]);
   } finally {
     if (timer) clearTimeout(timer);
   }

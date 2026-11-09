@@ -1,5 +1,6 @@
 {
   "config": {
+    "extends": "markdownlint/style/prettier",
     "default": true,
     "MD013": false,
     "MD024": false,
@@ -11,6 +12,9 @@
     "MD060": false
   },
   "ignores": [
+    "docs-site/dist/**",
+    "docs-site/.astro/**",
+    ".loop/**",
     "**/node_modules/**",
     "lib/**",
     "dist/**",

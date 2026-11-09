@@ -1,0 +1,159 @@
+{
+  "apiVersion": 0,
+  "commands": [
+    {
+      "operation": "warden.access",
+      "name": ["warden", "access"],
+      "sf": ["warden", "access"],
+      "summary": "Audit active-user access for a permission target.",
+      "agentTip": "Use after each permission change to confirm effective access; repeat calls are fast.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "type", "type": "string", "option": "type", "required": true },
+        { "name": "target", "type": "string", "option": "target" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "sobject", "type": "string", "option": "sobject" }
+      ]
+    },
+    {
+      "operation": "warden.diff",
+      "name": ["warden", "diff"],
+      "sf": ["warden", "diff"],
+      "summary": "Compare users against intended definitions or another user.",
+      "agentTip": "Use to inspect drift before changing a user's access assignments.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "against", "type": "string", "option": "against" },
+        { "name": "users-def", "type": "file", "option": "usersDef" },
+        { "name": "personas-def", "type": "file", "option": "personasDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" },
+        { "name": "verbose", "type": "boolean", "option": "verbose" },
+        { "name": "verify", "type": "boolean", "option": "verify" }
+      ]
+    },
+    {
+      "operation": "warden.snapshot",
+      "name": ["warden", "snapshot"],
+      "sf": ["warden", "snapshot"],
+      "summary": "Capture user assignment state to a portable snapshot file.",
+      "agentTip": "Snapshot before changing access so the state can be restored later.",
+      "formatter": "summary",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "users-def", "type": "file", "option": "usersDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" },
+        { "name": "out", "type": "file", "option": "out" }
+      ]
+    },
+    {
+      "operation": "warden.persona-diff",
+      "name": ["warden", "persona", "diff"],
+      "sf": ["warden", "persona", "diff"],
+      "summary": "Compare a persona definitions file with org personas.",
+      "agentTip": "Use before importing personas to inspect the proposed changes.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "input", "type": "file", "option": "input", "required": true }
+      ]
+    },
+    {
+      "operation": "warden.persona-export",
+      "name": ["warden", "persona", "export"],
+      "sf": ["warden", "persona", "export"],
+      "summary": "Export org personas to a canonical JSON file.",
+      "agentTip": "Export before editing personas locally or comparing an org to version control.",
+      "formatter": "summary",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "output", "type": "file", "option": "output", "required": true }
+      ]
+    },
+    {
+      "operation": "warden.provision",
+      "name": ["warden", "provision"],
+      "sf": ["warden", "provision"],
+      "summary": "Provision users from a definition file.",
+      "agentTip": "Use --plan first; production orgs require a human-provided --confirm hash before applying.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "users-def", "type": "file", "option": "usersDef", "required": true },
+        { "name": "personas-def", "type": "file", "option": "personasDef" },
+        { "name": "persona-source", "type": "string", "option": "personaSource" },
+        { "name": "related-def", "type": "file", "option": "relatedDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" },
+        { "name": "fuzzy-username", "type": "boolean", "option": "fuzzyUsername" },
+        { "name": "cleanup-on-failure", "type": "boolean", "option": "cleanupOnFailure" },
+        { "name": "fail-on-insufficient-license", "type": "boolean", "option": "failOnInsufficientLicense" }
+      ]
+    },
+    {
+      "operation": "warden.restore",
+      "name": ["warden", "restore"],
+      "sf": ["warden", "restore"],
+      "summary": "Restore users from a snapshot.",
+      "agentTip": "Use --plan first; production orgs require a human-provided --confirm hash before applying.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "snapshot", "type": "file", "option": "snapshot", "required": true }
+      ]
+    },
+    {
+      "operation": "warden.freeze",
+      "name": ["warden", "freeze"],
+      "sf": ["warden", "freeze"],
+      "summary": "Freeze one user or users from a definition file.",
+      "agentTip": "Use --plan first; production orgs require a human-provided --confirm hash before applying.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "users-def", "type": "file", "option": "usersDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" }
+      ]
+    },
+    {
+      "operation": "warden.unfreeze",
+      "name": ["warden", "unfreeze"],
+      "sf": ["warden", "unfreeze"],
+      "summary": "Unfreeze one user or users from a definition file.",
+      "agentTip": "Use --plan first; production orgs require a human-provided --confirm hash before applying.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "user", "type": "string", "option": "user" },
+        { "name": "users-def", "type": "file", "option": "usersDef" },
+        { "name": "external-id", "type": "string", "option": "externalId" },
+        { "name": "input-format", "type": "string", "option": "inputFormat" },
+        { "name": "csv-list-delimiter", "type": "string", "option": "csvListDelimiter" }
+      ]
+    },
+    {
+      "operation": "warden.persona-import",
+      "name": ["warden", "persona", "import"],
+      "sf": ["warden", "persona", "import"],
+      "summary": "Import persona definitions into the connected org.",
+      "agentTip": "Use --plan first; --prune can remove components and requires a human-provided confirmation hash in production.",
+      "formatter": "json",
+      "flags": [
+        { "name": "target-org", "char": "o", "type": "string" },
+        { "name": "input", "type": "file", "option": "input", "required": true },
+        { "name": "prune", "type": "boolean", "option": "prune" }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0] - 2026-11-09
+
+### Added
+- Added `sfd` operations for the Warden read commands
+- Added `sfd` operations for the Warden write commands
+- Added failed-user reporting to `sfd` operations for the Warden write commands
+- Added `--persona` and `--all-personas` flags to `strip` for persona-scoped removal
+
+### Changed
+- Upgraded the underlying Warden core library to 0.7.0 and the Salesforce core libraries to the v9 stack
+
 ## [0.9.0] - 2026-10-02
 
 ### Added

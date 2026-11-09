@@ -16,6 +16,13 @@ export type ConnectedPackage = {
   runAvailable: boolean;
 };
 
+export type LedgerProvenance = {
+  id: string;
+  userId: string;
+  persona: string;
+  targetId: string;
+};
+
 export type GrantType = 'Permission Set' | 'Permission Set Group' | 'Public Group' | 'Queue';
 
 export type CapturedGrant = {
@@ -35,6 +42,7 @@ export type Provenance = {
 
 export type LedgerRow = {
   wdn_User__c: string;
+  wdn_Persona__c?: string;
   wdn_Type__c: GrantType;
   wdn_Target_Id__c: string;
   wdn_Target_Label__c: string;
@@ -85,6 +93,56 @@ export const describeObject = async (connection: Connection, objectName: string)
   }
 };
 
+/** Returns field names when the object is available, without assuming a package version. */
+export const describeObjectFields = async (
+  connection: Connection,
+  objectName: string
+): Promise<Set<string> | undefined> => {
+  try {
+    const description = (await connection.describe(objectName)) as {
+      name?: unknown;
+      fields?: Array<{ name?: unknown }>;
+    };
+    if (description.name !== objectName) return undefined;
+    return new Set((description.fields ?? []).flatMap((field) => (typeof field.name === 'string' ? [field.name] : [])));
+  } catch {
+    return undefined;
+  }
+};
+
+const soqlLiteral = (value: string): string => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+
+export const readLedgerProvenance = async (connection: Connection, userIds: string[]): Promise<LedgerProvenance[]> => {
+  if (userIds.length === 0) return [];
+  const rows: LedgerProvenance[] = [];
+  for (let start = 0; start < userIds.length; start += 200) {
+    const ids = userIds
+      .slice(start, start + 200)
+      .map(soqlLiteral)
+      .join(',');
+    // eslint-disable-next-line no-await-in-loop
+    const result = (await connection.query(
+      `SELECT Id, wdn_User__c, wdn_Target_Id__c, wdn_Persona__r.wdn_Api_Name__c FROM ${WARDEN_LEDGER_OBJECT} WHERE wdn_User__c IN (${ids}) AND wdn_Revoked_On__c = NULL`
+    )) as QueryResult;
+    for (const record of result.records ?? []) {
+      const relationship = record.wdn_Persona__r as JsonRecord | undefined;
+      const id = record.Id;
+      const userId = record.wdn_User__c;
+      const targetId = record.wdn_Target_Id__c;
+      const persona = relationship?.wdn_Api_Name__c;
+      if (
+        typeof id === 'string' &&
+        typeof userId === 'string' &&
+        typeof targetId === 'string' &&
+        typeof persona === 'string'
+      ) {
+        rows.push({ id, userId, targetId, persona });
+      }
+    }
+  }
+  return rows;
+};
+
 /** Detect only through describe; InstalledSubscriberPackage is intentionally not consulted. */
 export const detectConnectedPackage = async (connection: Connection): Promise<ConnectedPackage> => {
   const [ledgerAvailable, runAvailable] = await Promise.all([
@@ -113,7 +171,7 @@ const rememberReference = (state: CaptureState, type: GrantType, record: JsonRec
   if (developerName) references.set(developerName, id);
   if (label) mapFor(state.labelsByTypeAndId, type).set(id, label);
   if (type === 'Public Group' || type === 'Queue') state.groupTypesById.set(id, type);
-}
+};
 
 const rememberQueryRecords = (state: CaptureState, soql: string, result: QueryResult): void => {
   const objectMatch = /\bFROM\s+([A-Za-z_][A-Za-z0-9_]*)/i.exec(soql);
@@ -123,10 +181,10 @@ const rememberQueryRecords = (state: CaptureState, soql: string, result: QueryRe
     objectName === 'PermissionSet'
       ? ('Permission Set' as const)
       : objectName === 'PermissionSetGroup'
-        ? ('Permission Set Group' as const)
-        : objectName === 'Group'
-          ? undefined
-          : undefined;
+      ? ('Permission Set Group' as const)
+      : objectName === 'Group'
+      ? undefined
+      : undefined;
   const groupTypeFromQuery = /\bType\s*=\s*'Queue'/i.test(soql)
     ? ('Queue' as const)
     : /\bType\s*=\s*'Regular'/i.test(soql)
@@ -134,7 +192,8 @@ const rememberQueryRecords = (state: CaptureState, soql: string, result: QueryRe
     : undefined;
   for (const record of result.records ?? []) {
     if (objectName === 'Group') {
-      const groupType = record.Type === 'Queue' ? 'Queue' : record.Type === 'Regular' ? 'Public Group' : groupTypeFromQuery;
+      const groupType =
+        record.Type === 'Queue' ? 'Queue' : record.Type === 'Regular' ? 'Public Group' : groupTypeFromQuery;
       if (groupType) rememberReference(state, groupType, record);
     } else if (type) {
       rememberReference(state, type, record);
@@ -152,11 +211,9 @@ const captureSuccessfulAssignments = (
   records.forEach((value, index) => {
     const record = value as JsonRecord;
     if (results[index]?.success !== true) return;
-    const userId =
-      objectName === 'PermissionSetAssignment'
-        ? record.AssigneeId
-        : record.UserOrGroupId;
-    const targetId = objectName === 'PermissionSetAssignment' ? record.PermissionSetId ?? record.PermissionSetGroupId : record.GroupId;
+    const userId = objectName === 'PermissionSetAssignment' ? record.AssigneeId : record.UserOrGroupId;
+    const targetId =
+      objectName === 'PermissionSetAssignment' ? record.PermissionSetId ?? record.PermissionSetGroupId : record.GroupId;
     if (typeof userId !== 'string' || typeof targetId !== 'string') return;
     let type: GrantType;
     if (objectName === 'GroupMember') {
@@ -169,7 +226,9 @@ const captureSuccessfulAssignments = (
 };
 
 const wrapSObject = (sobject: object, objectName: string, state: CaptureState): object => {
-  const originalCreate = Reflect.get(sobject, 'create') as unknown as (...args: unknown[]) => Promise<SaveResult | SaveResult[]>;
+  const originalCreate = Reflect.get(sobject, 'create') as unknown as (
+    ...args: unknown[]
+  ) => Promise<SaveResult | SaveResult[]>;
   return new Proxy(sobject, {
     get(target, property, receiver): unknown {
       if (property !== 'create') return Reflect.get(target, property, receiver) as unknown;
@@ -184,9 +243,7 @@ const wrapSObject = (sobject: object, objectName: string, state: CaptureState): 
 };
 
 /** Observe core's batched assignment DML while leaving its connection contract unchanged. */
-export const captureProvisioningWrites = (
-  connection: Connection
-): { connection: Connection; state: CaptureState } => {
+export const captureProvisioningWrites = (connection: Connection): { connection: Connection; state: CaptureState } => {
   const state: CaptureState = {
     grants: [],
     labelsByTypeAndId: new Map(),
@@ -220,25 +277,25 @@ const refsForType = (persona: JsonRecord, type: GrantType): string[] => {
     type === 'Permission Set'
       ? 'permissionSets'
       : type === 'Permission Set Group'
-        ? 'permissionSetGroups'
-        : type === 'Public Group'
-          ? 'publicGroups'
-          : 'queues';
+      ? 'permissionSetGroups'
+      : type === 'Public Group'
+      ? 'publicGroups'
+      : 'queues';
   const refs = persona[key];
   return Array.isArray(refs) ? refs.filter((ref): ref is string => typeof ref === 'string') : [];
 };
 
-const matchingPersonaCount = (
+const matchingPersonas = (
   userPersonas: string[],
   personas: Record<string, JsonRecord> | undefined,
   grant: CapturedGrant,
   referenceIdsByType: Map<string, Map<string, string>>
-): number => {
+): string[] => {
   const referenceIds = referenceIdsByType.get(grant.type);
   return userPersonas.filter((personaName) => {
     const refs = refsForType(personas?.[personaName] ?? {}, grant.type);
     return refs.some((ref) => (referenceIds?.get(ref) ?? ref) === grant.targetId);
-  }).length;
+  });
 };
 
 export const buildLedgerRows = (options: {
@@ -247,6 +304,7 @@ export const buildLedgerRows = (options: {
   personasDoc?: PersonaDocument;
   labelsByTypeAndId?: Map<string, Map<string, string>>;
   referenceIdsByType?: Map<string, Map<string, string>>;
+  personaIdsByName?: Map<string, string>;
   runId?: string;
   grantedOn?: string;
 }): LedgerRow[] => {
@@ -254,17 +312,21 @@ export const buildLedgerRows = (options: {
   const rows: LedgerRow[] = [];
   for (const grant of options.grants) {
     const user = usersById.get(grant.userId);
-    const count = matchingPersonaCount(
+    const personas = matchingPersonas(
       user?.personas ?? [],
       options.personasDoc?.personas,
       grant,
       options.referenceIdsByType ?? new Map<string, Map<string, string>>()
     );
-    const duplicateCount = count > 0 ? count : 1;
+    // Preserve a ledger row for an observed grant even when it cannot be tied to a persona.
+    const contributingPersonas = personas.length > 0 ? personas : [undefined];
     const label = options.labelsByTypeAndId?.get(grant.type)?.get(grant.targetId) ?? grant.targetId;
-    for (let index = 0; index < duplicateCount; index += 1) {
+    for (const persona of contributingPersonas) {
       rows.push({
         wdn_User__c: grant.userId,
+        ...(persona && options.personaIdsByName?.get(persona)
+          ? { wdn_Persona__c: options.personaIdsByName.get(persona) }
+          : {}),
         wdn_Type__c: grant.type,
         wdn_Target_Id__c: grant.targetId,
         wdn_Target_Label__c: label,
@@ -340,21 +402,25 @@ export const buildReconciliationItems = (result: ProvisionResult, runId: string)
   return items;
 };
 
-export const buildProvenance = (options: {
-  definitionPath?: string;
-  env?: NodeJS.ProcessEnv;
-  cliVersion?: string;
-  invokingUser?: string;
-  gitSha?: (path: string) => string | undefined;
-} = {}): Provenance => {
+export const buildProvenance = (
+  options: {
+    definitionPath?: string;
+    env?: NodeJS.ProcessEnv;
+    cliVersion?: string;
+    invokingUser?: string;
+    gitSha?: (path: string) => string | undefined;
+  } = {}
+): Provenance => {
   const env = options.env ?? process.env;
   const definitionPath = options.definitionPath ? resolve(options.definitionPath) : undefined;
   const defaultGitSha = (path: string): string | undefined => {
     try {
-      return execFileSync('git', ['-C', dirname(path), 'rev-parse', 'HEAD'], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim() || undefined;
+      return (
+        execFileSync('git', ['-C', dirname(path), 'rev-parse', 'HEAD'], {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim() || undefined
+      );
     } catch {
       return undefined;
     }
@@ -378,7 +444,11 @@ export const buildProvenance = (options: {
   };
 };
 
-export const bestEffortOrgWrite = async <T>(operation: () => Promise<T>, warn: (message: string) => void, label: string): Promise<T | undefined> => {
+export const bestEffortOrgWrite = async <T>(
+  operation: () => Promise<T>,
+  warn: (message: string) => void,
+  label: string
+): Promise<T | undefined> => {
   try {
     return await operation();
   } catch (error) {
@@ -424,6 +494,44 @@ export const writeBatch = async (
   return allResults.length > 0 ? allResults : undefined;
 };
 
+/** Apply audit updates in batches. Failures are warnings and never roll back access removal. */
+export const updateBatch = async (
+  connection: Connection,
+  objectName: string,
+  records: JsonRecord[],
+  warn: (message: string) => void,
+  label: string
+): Promise<SaveResult[] | undefined> => {
+  if (records.length === 0) return [];
+  const allResults: SaveResult[] = [];
+  for (let start = 0; start < records.length; start += 200) {
+    const batch = records.slice(start, start + 200);
+    const batchNumber = Math.floor(start / 200) + 1;
+    // eslint-disable-next-line no-await-in-loop
+    const result = await bestEffortOrgWrite(
+      () =>
+        connection.sobject(objectName).update(batch as never, { allOrNone: false }) as Promise<
+          SaveResult | SaveResult[]
+        >,
+      warn,
+      `${label} batch ${batchNumber}`
+    );
+    if (!result) continue;
+    const saveResults = asArray(result);
+    if (saveResults.length !== batch.length) {
+      warn(
+        `Warden org ${label} batch ${batchNumber} returned ${saveResults.length} result(s) for ${batch.length} record(s).`
+      );
+    }
+    const failures = saveResults.filter((saveResult) => saveResult.success !== true);
+    if (failures.length > 0) {
+      warn(`Warden org ${label} batch ${batchNumber} returned ${failures.length} failed record(s).`);
+    }
+    allResults.push(...saveResults);
+  }
+  return allResults.length > 0 ? allResults : undefined;
+};
+
 export const saveRun = async (
   connection: Connection,
   fields: JsonRecord,
@@ -444,7 +552,10 @@ export const updateRun = async (
   warn: (message: string) => void
 ): Promise<void> => {
   const result = await bestEffortOrgWrite(
-    () => connection.sobject(WARDEN_RUN_OBJECT).update([{ Id: runId, ...fields }], { allOrNone: false }) as Promise<SaveResult | SaveResult[]>,
+    () =>
+      connection.sobject(WARDEN_RUN_OBJECT).update([{ Id: runId, ...fields }], { allOrNone: false }) as Promise<
+        SaveResult | SaveResult[]
+      >,
     warn,
     'run summary'
   );
@@ -457,7 +568,9 @@ export const updateRun = async (
       return String(error);
     });
     warn(
-      `Warden org run summary update result ${index + 1}/${results.length} failed${errors && errors.length > 0 ? `: ${errors.join('; ')}` : '.'}`
+      `Warden org run summary update result ${index + 1}/${results.length} failed${
+        errors && errors.length > 0 ? `: ${errors.join('; ')}` : '.'
+      }`
     );
   });
 };

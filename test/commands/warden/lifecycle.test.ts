@@ -10,6 +10,13 @@ import UserFreeze from '../../../src/commands/warden/freeze.js';
 import UserRestore from '../../../src/commands/warden/restore.js';
 import UserSnapshot from '../../../src/commands/warden/snapshot.js';
 import UserStrip from '../../../src/commands/warden/strip.js';
+import {
+  PERSONA_ASSIGNMENT_OBJECT,
+  PERSONA_ASSIGNMENT_STATUS_FIELD,
+  PERSONA_OBJECT,
+} from '../../../src/userShared/personas.js';
+import { WARDEN_LEDGER_OBJECT, WARDEN_RUN_OBJECT } from '../../../src/userShared/orgWrites.js';
+import { promptRuntime } from '../../../src/userShared/prompting.js';
 import UserUnfreeze from '../../../src/commands/warden/unfreeze.js';
 import { checkLegacyOutput } from './outputParity.js';
 
@@ -18,6 +25,7 @@ type FakeConnection = {
   query: sinon.SinonStub;
   sobject: sinon.SinonStub;
   sobjectMap: Record<string, { create: sinon.SinonStub; update: sinon.SinonStub; delete: sinon.SinonStub }>;
+  identity?: sinon.SinonStub;
 };
 
 const lifecycleCsvHeader = 'userKey,userId,userName,username,wasFrozen,status,action,error';
@@ -567,6 +575,424 @@ describe('warden user lifecycle commands', () => {
     expect(csv).to.include('Public_Group');
     expect(csv).to.include('Case_Queue');
     expect(sfCommandStubs.log.called).to.equal(false);
+  });
+
+  it('plans persona-only stripping without freezing or deactivating', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-strip-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(
+      usersPath,
+      JSON.stringify({ users: [{ match: 'Username', Username: 'persona@example.com', personas: ['support'] }] })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { support: { permissionSets: ['Support_Read'] } } }));
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes("FROM User WHERE Username IN ('persona@example.com')")) {
+        return { records: [{ Id: '005-persona', IsActive: true, Username: 'persona@example.com' }] };
+      }
+      if (soql.includes('FROM UserLogin'))
+        return { records: [{ Id: '0LL-persona', UserId: '005-persona', IsFrozen: false }] };
+      if (soql.includes('FROM PermissionSet WHERE Name IN')) {
+        return { records: [{ Id: '0PS-support', Name: 'Support_Read', Label: 'Support Read' }] };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          records: [
+            {
+              Id: '0PA-support',
+              AssigneeId: '005-persona',
+              PermissionSetId: '0PS-support',
+              PermissionSetGroupId: null,
+              PermissionSet: { IsOwnedByProfile: false, Name: 'Support_Read', Label: 'Support Read' },
+            },
+          ],
+        };
+      }
+      return { records: [] };
+    });
+    sinon.stub(UserStrip.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        user: 'username:persona@example.com',
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        persona: ['support'],
+        'all-personas': false,
+        'persona-source': 'file',
+        freeze: false,
+        deactivate: false,
+        'external-id': undefined,
+        'input-format': undefined,
+        'csv-list-delimiter': undefined,
+        'no-prompt': true,
+        'dry-run': true,
+        'no-freeze': false,
+        'no-deactivate': false,
+        'keep-permsets': false,
+        'keep-permset-groups': false,
+        'keep-licenses': false,
+        'keep-public-groups': false,
+        'keep-queues': false,
+        snapshot: undefined,
+        output: 'csv',
+        'output-file': join(dir, 'result.csv'),
+        'api-version': undefined,
+      },
+    } as never);
+
+    const result = await UserStrip.run(['--json']);
+
+    expect(result.summary).to.deep.equal({ total: 1, changed: 1, unchanged: 0, failed: 0 });
+    expect(result.users[0].actions.map((action) => action.key)).to.deep.equal(['wouldRemovePermissionSet']);
+    expect(result.users[0].actions.map((action) => action.key)).not.to.include.members([
+      'wouldFreeze',
+      'wouldDeactivate',
+    ]);
+  });
+
+  it('prompts for all-personas file mode and confirms its freeze and deactivate choices', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-interactive-persona-strip-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(
+      usersPath,
+      JSON.stringify({ users: [{ match: 'Username', Username: 'persona@example.com', personas: ['support'] }] })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { support: { permissionSets: ['Support_Read'] } } }));
+    const conn = createConnection();
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes("FROM User WHERE Username IN ('persona@example.com')")) {
+        return { records: [{ Id: '005-persona', IsActive: true, Username: 'persona@example.com' }] };
+      }
+      if (soql.includes('FROM PermissionSet WHERE Name IN')) {
+        return { records: [{ Id: '0PS-support', Name: 'Support_Read', Label: 'Support Read' }] };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          records: [
+            {
+              Id: '0PA-support',
+              AssigneeId: '005-persona',
+              PermissionSetId: '0PS-support',
+              PermissionSetGroupId: null,
+              PermissionSet: { IsOwnedByProfile: false, Name: 'Support_Read', Label: 'Support Read' },
+            },
+          ],
+        };
+      }
+      return { records: [] };
+    });
+    const interactiveFlags = {
+      'target-org': { getConnection: () => conn },
+      user: undefined,
+      'users-def': usersPath,
+      'personas-def': undefined,
+      persona: undefined,
+      'all-personas': false,
+      'persona-source': undefined,
+      freeze: false,
+      deactivate: false,
+      'external-id': undefined,
+      'input-format': undefined,
+      'csv-list-delimiter': undefined,
+      'no-prompt': false,
+      'dry-run': true,
+      'no-freeze': false,
+      'no-deactivate': false,
+      'keep-permsets': false,
+      'keep-permset-groups': false,
+      'keep-licenses': false,
+      'keep-public-groups': false,
+      'keep-queues': false,
+      snapshot: undefined,
+      output: 'human',
+      'output-file': undefined,
+      'api-version': undefined,
+      interactive: true,
+    };
+    const suppliedFlags = Object.keys(interactiveFlags).filter(
+      (flag) =>
+        !['user', 'personas-def', 'persona', 'all-personas', 'persona-source', 'freeze', 'deactivate'].includes(flag)
+    );
+    sinon.stub(UserStrip.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: interactiveFlags,
+      raw: suppliedFlags.map((flag) => ({ type: 'flag', flag })),
+      metadata: {
+        flags: Object.fromEntries(
+          ['personas-def', 'persona', 'all-personas', 'persona-source', 'freeze', 'deactivate'].map((flag) => [
+            flag,
+            { setFromDefault: true },
+          ])
+        ),
+      },
+    } as never);
+    sinon.stub(promptRuntime, 'select').onFirstCall().resolves('all-personas').onSecondCall().resolves('file');
+    sinon.stub(promptRuntime, 'input').resolves(personasPath);
+    sinon.stub(promptRuntime, 'checkbox').resolves([]);
+    sinon.stub(promptRuntime, 'confirm').onFirstCall().resolves(true).onSecondCall().resolves(true);
+    let loggedModeBeforeConfirmation = false;
+    const confirmStub = sinon
+      .stub(UserStrip.prototype as unknown as { confirm: () => Promise<boolean> }, 'confirm')
+      .callsFake(async () => {
+        loggedModeBeforeConfirmation = sfCommandStubs.log
+          .getCalls()
+          .map((call) => String(call.args[0]))
+          .join('\n')
+          .includes('Persona mode: remove all active personas. Source: file. Freeze: yes. Deactivate: yes.');
+        return true;
+      });
+    const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true });
+    try {
+      const result = await UserStrip.run([]);
+      expect(result.summary.changed).to.equal(1);
+    } finally {
+      if (ttyDescriptor) Object.defineProperty(process.stdin, 'isTTY', ttyDescriptor);
+      else delete (process.stdin as unknown as { isTTY?: boolean }).isTTY;
+    }
+
+    expect(confirmStub.calledOnce).to.equal(true);
+    expect(loggedModeBeforeConfirmation).to.equal(true);
+  });
+
+  it('revokes only file-selected persona assignments and their matching ledger rows for an all-personas strip', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-strip-bookkeeping-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(
+      usersPath,
+      JSON.stringify({ users: [{ match: 'Username', Username: 'persona@example.com', personas: ['support'] }] })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { support: { permissionSets: ['Support_Read'] } } }));
+    const conn = createConnection();
+    conn.identity = sinon.stub().rejects(new Error('session expired'));
+    const assignmentUpdate = bulkSuccessStub('aPA');
+    const ledgerUpdate = bulkSuccessStub('aLG');
+    const runCreate = bulkSuccessStub('aRN');
+    conn.sobject.withArgs(PERSONA_ASSIGNMENT_OBJECT).returns({ update: assignmentUpdate });
+    conn.sobject.withArgs(WARDEN_LEDGER_OBJECT).returns({ update: ledgerUpdate });
+    conn.sobject.withArgs(WARDEN_RUN_OBJECT).returns({ create: runCreate });
+    conn.describe.withArgs(PERSONA_OBJECT).resolves({ name: PERSONA_OBJECT });
+    conn.describe.withArgs(PERSONA_ASSIGNMENT_OBJECT).resolves({
+      name: PERSONA_ASSIGNMENT_OBJECT,
+      fields: [{ name: PERSONA_ASSIGNMENT_STATUS_FIELD }, { name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By__c' }],
+    });
+    conn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({
+      name: WARDEN_LEDGER_OBJECT,
+      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }],
+    });
+    conn.describe.withArgs(WARDEN_RUN_OBJECT).resolves({
+      name: WARDEN_RUN_OBJECT,
+      fields: [{ name: 'wdn_Mode__c' }, { name: 'wdn_Source_System__c' }],
+    });
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes("FROM User WHERE Username IN ('persona@example.com')")) {
+        return { records: [{ Id: '005-persona', IsActive: true, Username: 'persona@example.com' }] };
+      }
+      if (soql.includes('FROM UserLogin'))
+        return { records: [{ Id: '0LL-persona', UserId: '005-persona', IsFrozen: false }] };
+      if (soql.includes('FROM PermissionSet WHERE Name IN')) {
+        return { records: [{ Id: '0PS-support', Name: 'Support_Read', Label: 'Support Read' }] };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          records: [
+            {
+              Id: '0PA-support',
+              AssigneeId: '005-persona',
+              PermissionSetId: '0PS-support',
+              PermissionSetGroupId: null,
+              PermissionSet: { IsOwnedByProfile: false, Name: 'Support_Read', Label: 'Support Read' },
+            },
+          ],
+        };
+      }
+      if (soql.includes(`FROM ${PERSONA_ASSIGNMENT_OBJECT}`)) {
+        return {
+          records: [
+            {
+              Id: 'a-assignment-support',
+              ['wdn_User__c']: '005-persona',
+              ['wdn_Persona__r']: { ['wdn_Api_Name__c']: 'support' },
+            },
+            {
+              Id: 'a-assignment-extra',
+              ['wdn_User__c']: '005-persona',
+              ['wdn_Persona__r']: { ['wdn_Api_Name__c']: 'extra' },
+            },
+          ],
+        };
+      }
+      if (soql.includes(`FROM ${WARDEN_LEDGER_OBJECT}`)) {
+        return {
+          records: [
+            {
+              Id: 'a-ledger-support',
+              ['wdn_User__c']: '005-persona',
+              ['wdn_Target_Id__c']: '0PS-support',
+              ['wdn_Persona__r']: { ['wdn_Api_Name__c']: 'support' },
+            },
+          ],
+        };
+      }
+      return { records: [] };
+    });
+    sinon.stub(UserStrip.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        user: 'username:persona@example.com',
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        persona: [],
+        'all-personas': true,
+        'persona-source': 'file',
+        freeze: false,
+        deactivate: false,
+        'external-id': undefined,
+        'input-format': undefined,
+        'csv-list-delimiter': undefined,
+        'no-prompt': true,
+        'dry-run': false,
+        'no-freeze': false,
+        'no-deactivate': false,
+        'keep-permsets': false,
+        'keep-permset-groups': false,
+        'keep-licenses': false,
+        'keep-public-groups': false,
+        'keep-queues': false,
+        snapshot: undefined,
+        output: undefined,
+        'output-file': undefined,
+        'api-version': undefined,
+      },
+    } as never);
+
+    const result = await UserStrip.run(['--json']);
+
+    expect(result.summary.changed).to.equal(1);
+    expect(assignmentUpdate.calledOnce).to.equal(true);
+    const assignmentRows = assignmentUpdate.firstCall.args[0] as Array<Record<string, string>>;
+    expect(assignmentRows).to.have.length(1);
+    expect(assignmentRows[0]).to.deep.include({
+      Id: 'a-assignment-support',
+      [PERSONA_ASSIGNMENT_STATUS_FIELD]: 'Revoked',
+    });
+    expect(ledgerUpdate.calledOnce).to.equal(true);
+    const ledgerRows = ledgerUpdate.firstCall.args[0] as Array<Record<string, string>>;
+    expect(ledgerRows).to.have.length(1);
+    expect(ledgerRows[0]).to.deep.include({
+      Id: 'a-ledger-support',
+      ['wdn_Revoked_By_Run__c']: 'aRN0000000000001AAA',
+    });
+    expect(
+      sfCommandStubs.warn.calledWithMatch(
+        'Could not determine the running user for persona revocation: session expired'
+      )
+    ).to.equal(true);
+  });
+
+  it('does not overwrite a revoked ledger row when a persona target is later granted manually', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'warden-persona-strip-regrant-test-'));
+    const usersPath = join(dir, 'users.json');
+    const personasPath = join(dir, 'personas.json');
+    writeFileSync(
+      usersPath,
+      JSON.stringify({ users: [{ match: 'Username', Username: 'regrant@example.com', personas: ['support'] }] })
+    );
+    writeFileSync(personasPath, JSON.stringify({ personas: { support: { permissionSets: ['Support_Read'] } } }));
+    const conn = createConnection();
+    const ledgerUpdate = bulkSuccessStub('aLG');
+    conn.sobject.withArgs(WARDEN_LEDGER_OBJECT).returns({ update: ledgerUpdate });
+    conn.describe.withArgs(PERSONA_OBJECT).resolves({ name: PERSONA_OBJECT });
+    conn.describe.withArgs(PERSONA_ASSIGNMENT_OBJECT).resolves({
+      name: PERSONA_ASSIGNMENT_OBJECT,
+      fields: [{ name: PERSONA_ASSIGNMENT_STATUS_FIELD }, { name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By__c' }],
+    });
+    conn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({
+      name: WARDEN_LEDGER_OBJECT,
+      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }],
+    });
+    conn.describe.withArgs(WARDEN_RUN_OBJECT).resolves({
+      name: WARDEN_RUN_OBJECT,
+      fields: [{ name: 'wdn_Mode__c' }, { name: 'wdn_Source_System__c' }],
+    });
+    conn.query.callsFake(async (soql: string) => {
+      if (soql.includes("FROM User WHERE Username IN ('regrant@example.com')")) {
+        return { records: [{ Id: '005-regrant', IsActive: true, Username: 'regrant@example.com' }] };
+      }
+      if (soql.includes('FROM UserLogin'))
+        return { records: [{ Id: '0LL-regrant', UserId: '005-regrant', IsFrozen: false }] };
+      if (soql.includes('FROM PermissionSet WHERE Name IN')) {
+        return { records: [{ Id: '0PS-support', Name: 'Support_Read', Label: 'Support Read' }] };
+      }
+      if (soql.includes('FROM PermissionSetAssignment')) {
+        return {
+          records: [
+            {
+              Id: '0PA-support',
+              AssigneeId: '005-regrant',
+              PermissionSetId: '0PS-support',
+              PermissionSetGroupId: null,
+              PermissionSet: { IsOwnedByProfile: false, Name: 'Support_Read', Label: 'Support Read' },
+            },
+          ],
+        };
+      }
+      if (soql.includes(`FROM ${PERSONA_ASSIGNMENT_OBJECT}`)) {
+        return {
+          records: [
+            {
+              Id: 'a-assignment-support',
+              ['wdn_User__c']: '005-regrant',
+              ['wdn_Persona__r']: { ['wdn_Api_Name__c']: 'support' },
+            },
+          ],
+        };
+      }
+      if (soql.includes(`FROM ${WARDEN_LEDGER_OBJECT}`)) {
+        expect(soql).to.include('wdn_Revoked_On__c = NULL');
+        return { records: [] };
+      }
+      return { records: [] };
+    });
+    sinon.stub(UserStrip.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection: () => conn },
+        user: 'username:regrant@example.com',
+        'users-def': usersPath,
+        'personas-def': personasPath,
+        persona: [],
+        'all-personas': true,
+        'persona-source': 'file',
+        freeze: false,
+        deactivate: false,
+        'external-id': undefined,
+        'input-format': undefined,
+        'csv-list-delimiter': undefined,
+        'no-prompt': true,
+        'dry-run': false,
+        'no-freeze': false,
+        'no-deactivate': false,
+        'keep-permsets': false,
+        'keep-permset-groups': false,
+        'keep-licenses': false,
+        'keep-public-groups': false,
+        'keep-queues': false,
+        snapshot: undefined,
+        output: undefined,
+        'output-file': undefined,
+        'api-version': undefined,
+      },
+    } as never);
+
+    const result = await UserStrip.run(['--json']);
+
+    expect(result.summary.changed).to.equal(1);
+    expect(result.users[0].warnings).to.include(
+      'removedUnmanagedGrant: Support Read for Username:regrant@example.com.'
+    );
+    expect(ledgerUpdate.called).to.equal(false);
   });
 
   it('snapshots assignment state with portable names and excludes profile-owned permission sets', async () => {

@@ -346,6 +346,40 @@ describe('warden user provision command', () => {
     expect(fakeConn.sobject.called).to.equal(false);
   });
 
+  it('rejects a non-interactive CSV related definition before accessing the org', async () => {
+    const fakeConn = createFakeConnection();
+    const directory = mkdtempSync(join(tmpdir(), 'warden-provision-csv-related-validation-'));
+    const usersPath = join(directory, 'users.csv');
+    const relatedPath = join(directory, 'related.json');
+    writeFileSync(usersPath, 'Username\nuser@example.test\n');
+    writeFileSync(relatedPath, JSON.stringify({ relationships: {} }));
+    const getConnection = sinon.spy(() => fakeConn);
+    sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
+      flags: {
+        'target-org': { getConnection },
+        'users-def': usersPath,
+        'related-def': relatedPath,
+        'input-format': 'csv',
+        'no-prompt': true,
+        'dry-run': false,
+      },
+    } as never);
+
+    try {
+      await UserProvision.run(['--json']);
+      expect.fail('Expected CSV users with a related definition to be rejected.');
+    } catch (error) {
+      expect((error as Error).message).to.equal(
+        '--related-def requires a JSON --users-def. CSV user definitions cannot select relationships.'
+      );
+    }
+
+    expect(getConnection.notCalled).to.equal(true);
+    expect(fakeConn.describe.notCalled).to.equal(true);
+    expect(fakeConn.query.notCalled).to.equal(true);
+    expect(fakeConn.sobject.notCalled).to.equal(true);
+  });
+
   it('reports dry-run user-license headroom for net-new users', async () => {
     const fakeConn = createFakeConnection();
     const dir = mkdtempSync(join(tmpdir(), 'warden-license-test-'));
@@ -711,7 +745,10 @@ describe('warden user provision command', () => {
 
   it('writes two ledger rows for a duplicated CSV persona grant', async () => {
     const fakeConn = createFakeConnection();
-    fakeConn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({ name: WARDEN_LEDGER_OBJECT });
+    fakeConn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({
+      name: WARDEN_LEDGER_OBJECT,
+      fields: [{ name: 'wdn_Persona__c' }],
+    });
     const ledgerCreate = bulkSuccessStub('a0Gxx000000000');
     fakeConn.sobject.withArgs(WARDEN_LEDGER_OBJECT).returns({ create: ledgerCreate });
     const dir = mkdtempSync(join(tmpdir(), 'warden-provision-csv-ledger-test-'));
@@ -736,6 +773,14 @@ describe('warden user provision command', () => {
       if (soql.includes('FROM UserLogin')) return { records: [] };
       if (soql.includes('FROM PermissionSetAssignment')) return { records: [] };
       if (soql.includes('FROM GroupMember')) return { records: [] };
+      if (soql.includes(`FROM ${PERSONA_OBJECT}`)) {
+        return {
+          records: [
+            { Id: 'a-persona-first', [PERSONA_API_NAME_FIELD]: 'first' },
+            { Id: 'a-persona-second', [PERSONA_API_NAME_FIELD]: 'second' },
+          ],
+        };
+      }
       return { records: [] };
     });
     sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'parse').resolves({
@@ -757,9 +802,10 @@ describe('warden user provision command', () => {
 
     expect(result.users[0].status).to.equal('created');
     expect(ledgerCreate.calledOnce).to.equal(true);
-    const ledgerRows = ledgerCreate.firstCall.args[0] as Array<{ wdn_Target_Id__c: string }>;
+    const ledgerRows = ledgerCreate.firstCall.args[0] as Array<{ wdn_Target_Id__c: string; wdn_Persona__c?: string }>;
     expect(ledgerRows).to.have.length(2);
     expect(ledgerRows.every((row) => row.wdn_Target_Id__c === '0PSshared')).to.equal(true);
+    expect(ledgerRows.map((row) => row.wdn_Persona__c)).to.deep.equal(['a-persona-first', 'a-persona-second']);
   });
 
   it('produces byte-equivalent command results for equivalent CSV and JSON definitions', async () => {

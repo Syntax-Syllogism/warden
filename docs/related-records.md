@@ -46,13 +46,13 @@ The catalog needs a `relationships` object. Each name a user selects must exist 
 
 ## Matching, sources, and modes
 
-* `phase: "before"` creates or updates the related record before the User save. An optional `linkUser: { "userField": "ContactId", "fromRelatedField": "Id" }` copies the related value into the User payload. `linkUser` is only valid on `before`. Two selected relationships linking the same User field fail that user before DML.
-* `phase: "after"` saves the User first, then creates or updates the related record, and can set a lookup from `{ "from": "user.Id" }`. `user.Id` is forbidden anywhere in a `before` relationship and in every `match.from`.
-* Matching uses a unique or External-ID, filterable field on the related object, filled from a non-Id User field. Zero matches create a record, one match updates it, and several matches fail that user. Two users selecting the same relationship with the same match value also fail, before any DML.
-* Every relationship needs a non-empty `sobject`, `phase`, `match`, and `fields`.
-* A field source is exactly `{ "from": "user.<UserField>" }`, `{ "from": "context.<name>" }`, or `{ "value": <literal> }`. Matching still requires a non-Id User field. Context names match exact keys in that user's `relatedContext`; missing or empty referenced values fail that user, while `0` and `false` are valid. Unreferenced context entries are ignored, including when no catalog is supplied.
-* `mode` defaults to `setIfEmpty`, which keeps populated values on a matched record. Only literal `null` and `""` count as empty. Set `mode: "sync"` to overwrite every configured field. On create, both modes write all configured fields and always write the match field.
-* A configured record type is applied only on create. Warden never changes the record type of a matched record, and a matched record with a different configured record type fails that user. An `Account` relationship must declare an available Person Account record type.
+- `phase: "before"` creates or updates the related record before the User save. An optional `linkUser: { "userField": "ContactId", "fromRelatedField": "Id" }` copies the related value into the User payload. `linkUser` is only valid on `before`. Two selected relationships linking the same User field fail that user before DML.
+- `phase: "after"` saves the User first, then creates or updates the related record, and can set a lookup from `{ "from": "user.Id" }`. `user.Id` is forbidden anywhere in a `before` relationship and in every `match.from`.
+- Matching uses a unique or External-ID, filterable field on the related object, filled from a non-Id User field. Zero matches create a record, one match updates it, and several matches fail that user. Two users selecting the same relationship with the same match value also fail, before any DML.
+- Every relationship needs a non-empty `sobject`, `phase`, `match`, and `fields`.
+- A field source is exactly `{ "from": "user.<UserField>" }`, `{ "from": "context.<name>" }`, or `{ "value": <literal> }`. Matching still requires a non-Id User field. Context names match exact keys in that user's `relatedContext`; missing or empty referenced values fail that user, while `0` and `false` are valid. Unreferenced context entries are ignored, including when no catalog is supplied.
+- `mode` defaults to `setIfEmpty`, which keeps populated values on a matched record. Only literal `null` and `""` count as empty. Set `mode: "sync"` to overwrite every configured field. On create, both modes write all configured fields and always write the match field.
+- A configured record type is applied only on create. Warden never changes the record type of a matched record, and a matched record with a different configured record type fails that user. An `Account` relationship must declare an available Person Account record type.
 
 ## Validation and execution
 

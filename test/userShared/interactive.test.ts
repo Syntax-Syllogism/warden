@@ -306,8 +306,9 @@ describe('interactive command support', () => {
   });
 
   it('offers an already resolved api version as the prompt default', async () => {
-    const input = sinon.stub(promptRuntime, 'input').callsFake((async (config: { default?: string }) =>
-      config.default ?? '') as never);
+    const input = sinon
+      .stub(promptRuntime, 'input')
+      .callsFake((async (config: { default?: string }) => config.default ?? '') as never);
     expect(await promptOptionalApiVersion('62.0')).to.equal('62.0');
     expect(input.firstCall.args[0].default).to.equal('62.0');
     expect(await promptOptionalApiVersion()).to.equal(undefined);
@@ -688,6 +689,12 @@ describe('interactive command support', () => {
           'target-org': org,
           user: undefined,
           'users-def': undefined,
+          persona: undefined,
+          'all-personas': false,
+          'persona-source': undefined,
+          'personas-def': undefined,
+          freeze: false,
+          deactivate: false,
           'external-id': undefined,
           'input-format': undefined,
           'csv-list-delimiter': undefined,
@@ -841,6 +848,12 @@ describe('interactive command support', () => {
           'output',
           'no-prompt',
           'dry-run',
+          'persona',
+          'all-personas',
+          'persona-source',
+          'personas-def',
+          'freeze',
+          'deactivate',
           'no-freeze',
           'no-deactivate',
           'keep-permsets',
@@ -850,6 +863,7 @@ describe('interactive command support', () => {
           'keep-queues',
         ],
         expectedPrompts: [
+          'Strip mode',
           'User selection',
           'User match (field:value)',
           'What should this strip skip?',
@@ -875,6 +889,7 @@ describe('interactive command support', () => {
           return interactiveMode === 'access-user-sobject' ? ('sobject' as never) : ('target' as never);
         if (config.message === 'Diff mode')
           return interactiveMode === 'diff-personas' ? ('personas' as never) : ('users' as never);
+        if (config.message === 'Strip mode') return 'full' as never;
         if (config.message === 'User selection') return 'user' as never;
         if (config.message === 'Access target type') return 'object' as never;
         if (config.message === 'Input format') return 'json' as never;
@@ -1283,6 +1298,57 @@ describe('interactive command support', () => {
     }
   });
 
+  it('allows supplied user and users-def before prompting for a file persona strip', async () => {
+    const org = makeOrg(makeConnection());
+    const flags = {
+      'target-org': org,
+      user: 'Username:first@example.test',
+      'users-def': 'users.json',
+      persona: ['support'],
+      'all-personas': false,
+      'persona-source': 'file',
+      'personas-def': 'personas.json',
+      freeze: false,
+      deactivate: false,
+      'external-id': undefined,
+      'input-format': undefined,
+      'csv-list-delimiter': undefined,
+      'no-prompt': false,
+      'dry-run': false,
+      'no-freeze': false,
+      'no-deactivate': false,
+      'keep-permsets': false,
+      'keep-permset-groups': false,
+      'keep-licenses': false,
+      'keep-public-groups': false,
+      'keep-queues': false,
+      snapshot: undefined,
+      output: 'human',
+      'output-file': undefined,
+      'api-version': undefined,
+      interactive: true,
+    };
+    const suppliedFlags = Object.keys(flags).filter((flag) => flag !== 'interactive');
+    const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true });
+    try {
+      const select = sinon.stub(promptRuntime, 'select').rejects(new Error('no select prompt expected'));
+      const input = sinon.stub(promptRuntime, 'input').rejects(new Error('no input prompt expected'));
+      sinon.stub(promptRuntime, 'checkbox').resolves([] as never);
+      installInteractiveParse(UserStrip, flags, suppliedFlags);
+      const confirm = sinon.stub(UserStrip.prototype as unknown as Record<string, unknown>, 'confirm').resolves(false);
+
+      const result = await UserStrip.run([]);
+
+      expect(result).to.deep.equal({ summary: { total: 0, changed: 0, unchanged: 0, failed: 0 }, users: [] });
+      expect(confirm.calledOnce).to.equal(true);
+      expect(select.called || input.called).to.equal(false);
+    } finally {
+      if (ttyDescriptor) Object.defineProperty(process.stdin, 'isTTY', ttyDescriptor);
+      else delete (process.stdin as unknown as { isTTY?: boolean }).isTTY;
+    }
+  });
+
   it('rejects prompted non-human output with supplied verbose before confirmation', async () => {
     const org = makeOrg(makeConnection());
     const flags = {
@@ -1343,7 +1409,9 @@ describe('interactive command support', () => {
         promptedMessages.push(config.message);
         return false;
       }) as never);
-      const confirm = sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm').resolves(false);
+      const confirm = sinon
+        .stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm')
+        .resolves(false);
       installInteractiveParse(
         UserProvision,
         {
@@ -1388,7 +1456,9 @@ describe('interactive command support', () => {
     try {
       const select = sinon.stub(promptRuntime, 'select').rejects(new Error('no prompt expected'));
       const input = sinon.stub(promptRuntime, 'input').rejects(new Error('no prompt expected'));
-      const confirm = sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm').resolves(true);
+      const confirm = sinon
+        .stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm')
+        .resolves(true);
       installInteractiveParse(
         UserProvision,
         {
@@ -1437,7 +1507,9 @@ describe('interactive command support', () => {
     try {
       const select = sinon.stub(promptRuntime, 'select').rejects(new Error('no prompt expected'));
       const input = sinon.stub(promptRuntime, 'input').rejects(new Error('no prompt expected'));
-      const confirm = sinon.stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm').resolves(true);
+      const confirm = sinon
+        .stub(UserProvision.prototype as unknown as Record<string, unknown>, 'confirm')
+        .resolves(true);
       installInteractiveParse(
         UserProvision,
         {

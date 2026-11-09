@@ -76,8 +76,9 @@ describe('shared target flags', () => {
     expect(() => requireExactlyOne({}, ['user', 'users-def'])).to.throw(
       'Exactly one of the following must be provided: --user, --users-def'
     );
-    expect(() => requireExactlyOne({ user: 'Username:first@example.test', 'users-def': 'users.json' }, ['user', 'users-def']))
-      .to.throw('--users-def cannot also be provided when using --user');
+    expect(() =>
+      requireExactlyOne({ user: 'Username:first@example.test', 'users-def': 'users.json' }, ['user', 'users-def'])
+    ).to.throw('--users-def cannot also be provided when using --user');
     expect(() => requireFlagDependencies({ user: 'Username:first@example.test' }, 'user', ['against'])).to.throw(
       'All of the following must be provided when using --user: --against'
     );

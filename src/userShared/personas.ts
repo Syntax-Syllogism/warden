@@ -9,6 +9,10 @@ import { describeObject } from './orgWrites.js';
 
 export const PERSONA_OBJECT = 'wdn_Persona__c';
 export const PERSONA_COMPONENT_OBJECT = 'wdn_Persona_Component__c';
+export const PERSONA_ASSIGNMENT_OBJECT = 'wdn_Persona_Assignment__c';
+export const PERSONA_ASSIGNMENT_USER_FIELD = 'wdn_User__c';
+export const PERSONA_ASSIGNMENT_PERSONA_FIELD = 'wdn_Persona__c';
+export const PERSONA_ASSIGNMENT_STATUS_FIELD = 'wdn_Status__c';
 export const PERSONA_NAME_FIELD = 'Name';
 export const PERSONA_API_NAME_FIELD = 'wdn_Api_Name__c';
 export const PERSONA_ACTIVE_FIELD = 'wdn_Active__c';
@@ -27,6 +31,12 @@ export type PersonaDocument = PersonaDefinitionsFile;
 export type OrgPersonaRead = {
   document: PersonaDocument;
   count: number;
+};
+
+export type HeldPersonaAssignment = {
+  id: string;
+  userId: string;
+  persona: string;
 };
 
 export type PersonaPromotionResult = {
@@ -48,7 +58,7 @@ const listFields = {
 type ListField = (typeof listFields)[keyof typeof listFields];
 
 const asString = (record: JsonRecord, field: string): string | undefined =>
-  typeof record[field] === 'string' ? (record[field] as string) : undefined;
+  typeof record[field] === 'string' ? record[field] : undefined;
 
 const asArray = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
 
@@ -156,6 +166,26 @@ export const readOrgPersonas = async (connection: Connection, activeOnly = true)
   return { document: { personas: definitions }, count: Object.keys(definitions).length };
 };
 
+/** Read only active package assignments; Revoked assignments deliberately do not grant access. */
+export const readHeldPersonas = async (connection: Connection, userIds: string[]): Promise<HeldPersonaAssignment[]> => {
+  if (userIds.length === 0) return [];
+  const records = await queryRecordsInBatches(
+    connection,
+    userIds,
+    (batch) =>
+      `SELECT Id, ${PERSONA_ASSIGNMENT_USER_FIELD}, ${PERSONA_ASSIGNMENT_PERSONA_FIELD}, wdn_Persona__r.${PERSONA_API_NAME_FIELD} FROM ${PERSONA_ASSIGNMENT_OBJECT} WHERE ${PERSONA_ASSIGNMENT_USER_FIELD} IN (${soqlValues(
+        batch
+      )}) AND ${PERSONA_ASSIGNMENT_STATUS_FIELD} = 'Active'`
+  );
+  return records.flatMap((record) => {
+    const id = asString(record, 'Id');
+    const userId = asString(record, PERSONA_ASSIGNMENT_USER_FIELD);
+    const relationship = record.wdn_Persona__r as JsonRecord | undefined;
+    const persona = relationship ? asString(relationship, PERSONA_API_NAME_FIELD) : undefined;
+    return id && userId && persona ? [{ id, userId, persona }] : [];
+  });
+};
+
 export const readPersonaFile = async (path: string): Promise<PersonaDocument> =>
   parsePersonaDefinitions(JSON.parse(await readFile(path, 'utf8')));
 
@@ -170,7 +200,8 @@ const componentRecords = (document: PersonaDocument): Array<Record<string, strin
     return entries;
   });
 
-const loadPersonaIds = async (connection: Connection, names: string[]): Promise<Map<string, string>> => {
+/** Resolve package persona lookup ids from their stable API names. */
+export const readPersonaIds = async (connection: Connection, names: string[]): Promise<Map<string, string>> => {
   if (names.length === 0) return new Map();
   const records = await queryRecordsInBatches(
     connection,
@@ -204,7 +235,7 @@ export const importOrgPersonas = async (
     upsert(records: unknown[], externalIdField: string): Promise<unknown>;
   };
   await saveInBatches(parentRecords, (batch) => personaSObject.upsert(batch, PERSONA_API_NAME_FIELD), 'Persona upsert');
-  const personaIds = await loadPersonaIds(connection, names);
+  const personaIds = await readPersonaIds(connection, names);
   const desired = componentRecords(document).flatMap((component) => {
     const personaId = personaIds.get(component.apiName);
     return personaId ? [{ personaId, type: component.type, reference: component.reference }] : [];

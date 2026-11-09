@@ -1,13 +1,7 @@
 import { Messages, SfError } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { describeUserFields } from '@syntax-syllogism/warden-core';
-import { parseUserFlag, resolveTargetField, resolveTargets } from '@syntax-syllogism/warden-core';
-import type { ResolvedTargetUser } from '@syntax-syllogism/warden-core';
-import { serializeCsv } from '@syntax-syllogism/warden-core';
-import { flattenAccessRow, renderAccessResult } from '@syntax-syllogism/warden-core';
-import { getResolver } from '@syntax-syllogism/warden-core';
-import { access, reverseCsvColumns } from '@syntax-syllogism/warden-core';
-import type { AccessTargetType, UserAccessResult, UserAccessRow } from '@syntax-syllogism/warden-core';
+import { renderAccessResult } from '@syntax-syllogism/warden-core';
+import type { AccessTargetType, UserAccessResult } from '@syntax-syllogism/warden-core';
 import { UserAccessError } from '@syntax-syllogism/warden-core';
 import {
   promptAccessMode,
@@ -33,24 +27,11 @@ import {
   type InteractivePrompt,
 } from '../../userShared/targetFlags.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
+import { AccessRequestError, runAccessRequest } from '../../userShared/accessRequest.js';
 import { WardenCommand } from '../../wardenCommand.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.access');
-
-const stableOrder = (rows: UserAccessRow[]): UserAccessRow[] =>
-  [...rows].sort(
-    (a, b) =>
-      a.userName.localeCompare(b.userName) ||
-      a.userId.localeCompare(b.userId) ||
-      a.targetName.localeCompare(b.targetName) ||
-      a.assignmentType.localeCompare(b.assignmentType) ||
-      a.sourceName.localeCompare(b.sourceName) ||
-      (a.viaPermissionSetName ?? '').localeCompare(b.viaPermissionSetName ?? '') ||
-      JSON.stringify(a.access).localeCompare(JSON.stringify(b.access)) ||
-      a.sourceId.localeCompare(b.sourceId) ||
-      (a.viaPermissionSetId ?? '').localeCompare(b.viaPermissionSetId ?? '')
-  );
 
 export default class UserAccess extends WardenCommand<UserAccessResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -149,52 +130,13 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
     const { format, outputFile } = context;
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
     try {
-      const userMode = typeof flags.user === 'string' && flags.user.length > 0;
-      const hasTarget = typeof flags.target === 'string' && flags.target.length > 0;
-      const hasSobject = typeof flags.sobject === 'string' && flags.sobject.length > 0;
-      if (hasTarget && hasSobject) throw new SfError(messages.getMessage('errorUserModeScopesMutuallyExclusive'));
-      if (!userMode && hasSobject) throw new SfError(messages.getMessage('errorSobjectRequiresUser'));
-      if (!userMode && !hasTarget) throw new SfError(messages.getMessage('errorTargetRequired'));
-      if (userMode && !hasTarget && !hasSobject) throw new SfError(messages.getMessage('errorUserModeRequiresScope'));
-
-      const resolver = getResolver(type);
-      if (hasTarget) {
-        await resolver.validateTarget(conn, flags.target as string);
-      } else {
-        if (type !== 'field' && type !== 'object') {
-          throw new SfError(messages.getMessage('errorSobjectUnsupported', [type]));
-        }
-        await getResolver('object').validateTarget(conn, flags.sobject as string);
-      }
-
-      let user: ResolvedTargetUser | undefined;
-      if (userMode) {
-        let parsedUser: { field: string; value: string };
-        try {
-          parsedUser = parseUserFlag(flags.user as string);
-        } catch {
-          throw new SfError(messages.getMessage('errorInvalidUserValue', [flags.user as string]));
-        }
-        const fieldMap = await describeUserFields(conn);
-        const matchField = resolveTargetField(parsedUser.field, fieldMap);
-        if (!matchField) throw new SfError(messages.getMessage('errorInvalidUserMatchField', [parsedUser.field]));
-        const resolution = await resolveTargets(
-          conn,
-          [{ key: `${matchField}:${parsedUser.value}`, field: matchField, value: parsedUser.value, order: 0 }],
-          fieldMap
-        );
-        if (resolution.errors.length > 0) throw new SfError(resolution.errors[0].message);
-        user = resolution.targets[0];
-        if (!user) throw new SfError(messages.getMessage('errorUserResolutionFailed'));
-      }
-
-      const result = await access.run(conn, { type, target: flags.target, user: flags.user, sobject: flags.sobject });
-      const orderedResult = { ...result, rows: stableOrder(result.rows) };
-      const columns = user ? reverseCsvColumns(result.targetType) : resolver.csvColumns();
-      const csv = serializeCsv(
-        orderedResult.rows.map((row) => flattenAccessRow(row, columns)),
-        columns
-      );
+      const request = await runAccessRequest(conn, {
+        type,
+        target: flags.target,
+        user: flags.user,
+        sobject: flags.sobject,
+      });
+      const { result: orderedResult, csv, resolvedUser } = request;
       if (format === 'csv' && !outputFile) {
         this.warn(
           `Stats: active users with access ${orderedResult.stats.totalActiveUsersWithAccess}; profiles ${orderedResult.stats.profileGrants}; permission sets ${orderedResult.stats.permissionSetGrants}; permission set groups ${orderedResult.stats.permissionSetGroupGrants}`
@@ -204,10 +146,11 @@ export default class UserAccess extends WardenCommand<UserAccessResult> {
       await this.emitResult(context, {
         result: orderedResult,
         csv,
-        human: renderAccessResult(orderedResult, user?.name),
+        human: renderAccessResult(orderedResult, resolvedUser?.name),
       });
       return orderedResult;
     } catch (error) {
+      if (error instanceof AccessRequestError) throw new SfError(error.message);
       if (error instanceof UserAccessError) {
         const message = messages.getMessage(error.code, error.args);
         const detail = error.cause instanceof Error ? error.cause.message : undefined;

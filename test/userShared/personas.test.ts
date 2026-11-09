@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import type { Connection } from '@salesforce/core';
 import { expect } from 'chai';
 import sinon from 'sinon';
@@ -7,12 +8,15 @@ import {
   COMPONENT_TYPE_FIELD,
   PERSONA_API_NAME_FIELD,
   PERSONA_ACTIVE_FIELD,
+  PERSONA_ASSIGNMENT_OBJECT,
+  PERSONA_ASSIGNMENT_STATUS_FIELD,
   PERSONA_COMPONENT_OBJECT,
   PERSONA_NAME_FIELD,
   PERSONA_OBJECT,
   diffPersonaDocuments,
   importOrgPersonas,
   readOrgPersonas,
+  readHeldPersonas,
 } from '../../src/userShared/personas.js';
 
 const connection = (value: unknown): Connection => value as Connection;
@@ -60,6 +64,24 @@ describe('org persona adapter', () => {
         support: { permissionSets: [], permissionSetGroups: [], publicGroups: ['Support_Group'], queues: [] },
       },
     });
+  });
+
+  it('reads active held personas by user and excludes revoked assignments', async () => {
+    const query = sinon.stub().resolves({
+      records: [
+        {
+          Id: 'a10',
+          wdn_User__c: '005-user',
+          wdn_Persona__r: { [PERSONA_API_NAME_FIELD]: 'support' },
+        },
+      ],
+    });
+
+    const result = await readHeldPersonas(connection({ query }), ['005-user']);
+
+    expect(result).to.deep.equal([{ id: 'a10', userId: '005-user', persona: 'support' }]);
+    expect(query.firstCall.args[0]).to.include(`FROM ${PERSONA_ASSIGNMENT_OBJECT}`);
+    expect(query.firstCall.args[0]).to.include(`${PERSONA_ASSIGNMENT_STATUS_FIELD} = 'Active'`);
   });
 
   it('adds missing components and only prunes them when requested', async () => {

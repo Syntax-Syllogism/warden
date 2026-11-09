@@ -1,20 +1,17 @@
 /* eslint-disable camelcase */
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import { Flags } from '@salesforce/sf-plugins-core';
-import { describeUserFields } from '@syntax-syllogism/warden-core';
 import { renderProvisionCsv, renderProvisionHuman } from '@syntax-syllogism/warden-core';
-import { detectInputFormat, type InputFormat } from '@syntax-syllogism/warden-core';
-import { parseUsersDefinition, DefinitionError } from '@syntax-syllogism/warden-core';
-import { provision, provisionOptionsSchema, type ProvisionResult } from '@syntax-syllogism/warden-core';
-import { readProvisionDefinitions } from '@syntax-syllogism/warden-core';
+import type { ProvisionResult } from '@syntax-syllogism/warden-core';
 import { confirmWithTimeout } from '../../userShared/prompting.js';
-import { applyProvisionWithLegacyOutput } from '../../userShared/useCaseOptions.js';
+import { applyProvisionRequest, planProvisionRequest } from '../../userShared/provisionRequest.js';
 import { outputFlags } from '../../userShared/outputFlags.js';
 import {
   buildLedgerRows,
   buildProvenance,
   buildReconciliationItems,
   captureProvisioningWrites,
+  describeObjectFields,
   detectConnectedPackage,
   saveRun,
   updateRun,
@@ -53,13 +50,10 @@ import {
   promptText,
 } from '../../userShared/prompting.js';
 import { rethrowLegacyPersonaDefinitionError, WardenCommand } from '../../wardenCommand.js';
-import { PERSONA_OBJECT, personaPackageDetected, readOrgPersonas } from '../../userShared/personas.js';
+import { readPersonaIds } from '../../userShared/personas.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@syntax-syllogism/warden', 'warden.provision');
-
-type ProvisionDefinitions = Awaited<ReturnType<typeof readProvisionDefinitions>>;
-type PersonaSource = 'file' | 'org';
 
 export default class UserProvision extends WardenCommand<ProvisionResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -186,64 +180,12 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     }
     const targetOrg = requireTargetOrg(flags['target-org']);
     const usersPath = requireFlagValue(flags['users-def'], '--users-def');
-    const logToOrg = flags['log-to-org'] === true;
-    const logDetail = flags['log-detail'] === 'full' ? 'full' : 'summary';
-    const inputFormat = detectInputFormat(usersPath, flags['input-format'] as InputFormat | undefined);
-    // Refuse before the connection is used, so a misconfigured invocation costs zero API calls.
-    if (flags['related-def'] && inputFormat === 'csv') {
+    if (flags['related-def'] && effectiveInputFormat(flags) === 'csv') {
       throw new SfError(messages.getMessage('errorRelatedRequiresJson'));
     }
+    const logToOrg = flags['log-to-org'] === true;
+    const logDetail = flags['log-detail'] === 'full' ? 'full' : 'summary';
     const conn = targetOrg.getConnection(flags['api-version'] ?? undefined);
-    const personaSource: PersonaSource =
-      (flags['persona-source'] as PersonaSource | undefined) ??
-      (flags['personas-def'] ? 'file' : (await personaPackageDetected(conn)) ? 'org' : 'file');
-    let orgPersonas: Awaited<ReturnType<typeof readOrgPersonas>> | undefined;
-    if (personaSource === 'org') orgPersonas = await readOrgPersonas(conn);
-    let definitions: ProvisionDefinitions;
-    try {
-      definitions = await readProvisionDefinitions(
-        usersPath,
-        personaSource === 'file' ? flags['personas-def'] : undefined,
-        {
-          relatedPath: flags['related-def'],
-          ...(inputFormat === 'csv'
-            ? { inputFormat, fieldMap: await describeUserFields(conn), csvListDelimiter: flags['csv-list-delimiter'] }
-            : {}),
-        },
-        (path, error) => messages.getMessage('errorInvalidJson', [path, error])
-      );
-    } catch (error) {
-      return rethrowLegacyPersonaDefinitionError(
-        error,
-        flags['personas-def'],
-        messages.getMessage('errorInvalidPersonaDefinition')
-      );
-    }
-    // The legacy reader reparsed CSV rows through the schema, dropping source metadata.
-    // Keep that machine-output contract until a separate change explicitly adopts source prefixes.
-    const usersDoc = parseUsersDefinition(definitions.usersDoc);
-    definitions.usersDoc = usersDoc;
-    if (personaSource === 'file' && !definitions.personasSupplied) {
-      const users = usersDoc.users;
-      const index = users.findIndex((user) => Object.keys(user).some((key) => key.toLowerCase() === 'personas'));
-      if (index >= 0) {
-        const user = users[index] as Record<string, unknown>;
-        const identity = ['FederationIdentifier', 'Username', 'Email']
-          .map((field) => user[Object.keys(user).find((key) => key.toLowerCase() === field.toLowerCase()) ?? ''])
-          .find((value) => typeof value === 'string' && value.length > 0);
-        throw new DefinitionError(
-          'errorPersonasWithoutDefinition',
-          messages.getMessage('errorPersonasWithoutDefinition', [String(identity ?? index + 1)])
-        );
-      }
-    }
-    const ledgerPersonasDoc = orgPersonas?.document ?? definitions.personasDoc;
-    const personaSourceLabel =
-      personaSource === 'org'
-        ? `org (${PERSONA_OBJECT}, ${orgPersonas?.count ?? 0} personas)`
-        : `file${flags['personas-def'] ? ` (${flags['personas-def']})` : ' (no --personas-def)'}${
-            flags['persona-source'] ? '' : ' [default]'
-          }`;
     // Connected writes are intentionally composed around the core use case. Core remains
     // responsible for provisioning policy and DML; this adapter only observes successful
     // assignment inserts and persists optional audit records.
@@ -261,19 +203,32 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     if (flags['dry-run'] && flags['cleanup-on-failure']) {
       this.warn(messages.getMessage('warning.cleanupIgnoredInDryRun'));
     }
-    const plan = await provision.plan(
+    const planned = await planProvisionRequest(
       provisioningConnection,
-      provisionOptionsSchema.parse({
-        usersDoc: definitions.usersDoc,
-        personasDoc: orgPersonas?.document ?? definitions.personasDoc,
-        personasSupplied: personaSource === 'org' ? true : definitions.personasSupplied,
-        relatedDoc: definitions.relatedDoc,
-        csvListDelimiter: flags['csv-list-delimiter'],
+      {
+        usersDef: usersPath,
+        personasDef: flags['personas-def'],
+        personaSource: flags['persona-source'] as 'file' | 'org' | undefined,
+        relatedDef: flags['related-def'],
         externalId: flags['external-id'],
+        inputFormat: flags['input-format'] as 'json' | 'csv' | undefined,
+        csvListDelimiter: flags['csv-list-delimiter'],
         fuzzyUsername: flags['fuzzy-username'],
         cleanupOnFailure: flags['cleanup-on-failure'],
-      })
+      },
+      {
+        relatedDefinitionRequiresJson: () => new SfError(messages.getMessage('errorRelatedRequiresJson')),
+        invalidDefinition: (path, error) => messages.getMessage('errorInvalidJson', [path, error]),
+        invalidPersonaDefinition: (error, personasPath) =>
+          rethrowLegacyPersonaDefinitionError(
+            error,
+            personasPath,
+            messages.getMessage('errorInvalidPersonaDefinition')
+          ),
+        personasWithoutDefinition: (identity) => messages.getMessage('errorPersonasWithoutDefinition', [identity]),
+      }
     );
+    const { core: plan, personasDoc: ledgerPersonasDoc, personaSourceLabel } = planned;
     if (plan.warnings.length > 0 && context.interactive) {
       await this.acknowledgeWarnings(plan.warnings, flags['no-prompt'] || Boolean(flags.interactive));
     }
@@ -302,7 +257,7 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     }
     const output = flags['dry-run']
       ? plan.preview
-      : await applyProvisionWithLegacyOutput(provisioningConnection, plan, messages.getMessage.bind(messages));
+      : await applyProvisionRequest(provisioningConnection, plan, messages.getMessage.bind(messages));
 
     await this.writeConnectedRecords({
       connection: provisioningConnection,
@@ -370,7 +325,9 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     connection: Connection;
     connectedPackage: ConnectedPackage;
     capturedWrites?: ReturnType<typeof captureProvisioningWrites>;
-    personasDoc?: ProvisionDefinitions['personasDoc'];
+    personasDoc?: Awaited<
+      ReturnType<typeof import('@syntax-syllogism/warden-core').readProvisionDefinitions>
+    >['personasDoc'];
     output: ProvisionResult;
     runId?: string;
     logDetail: 'summary' | 'full';
@@ -381,12 +338,22 @@ export default class UserProvision extends WardenCommand<ProvisionResult> {
     };
     try {
       if (!options.dryRun && options.connectedPackage.ledgerAvailable && options.capturedWrites) {
+        const personaNames = [...new Set(options.output.users.flatMap((user) => user.personas))];
+        const ledgerFields = await describeObjectFields(options.connection, WARDEN_LEDGER_OBJECT);
+        let personaIdsByName: Map<string, string> | undefined;
+        if (ledgerFields?.has('wdn_Persona__c') && personaNames.length > 0) {
+          personaIdsByName = await readPersonaIds(options.connection, personaNames);
+          const unresolved = personaNames.filter((name) => !personaIdsByName?.has(name));
+          if (unresolved.length > 0)
+            warn(`Warden org ledger provenance is unavailable for persona(s): ${unresolved.join(', ')}.`);
+        }
         const ledgerRows = buildLedgerRows({
           grants: options.capturedWrites.state.grants,
           result: options.output,
           personasDoc: options.personasDoc,
           labelsByTypeAndId: options.capturedWrites.state.labelsByTypeAndId,
           referenceIdsByType: options.capturedWrites.state.referenceIdsByType,
+          personaIdsByName,
           runId: options.runId,
         });
         await bestEffortOrgWrite(

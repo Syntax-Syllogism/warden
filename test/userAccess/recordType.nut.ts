@@ -42,7 +42,9 @@ const visibilityFor = (component: MetadataComponent): { visible: boolean; defaul
   if (!match) return undefined;
   // The raw metadata entry also carries recordType; return only the visibility
   // shape callers assert against.
-  return typeof match.default === 'boolean' ? { visible: match.visible, default: match.default } : { visible: match.visible };
+  return typeof match.default === 'boolean'
+    ? { visible: match.visible, default: match.default }
+    : { visible: match.visible };
 };
 
 const createUser = async (conn: Connection, profileId: string, username: string, alias: string): Promise<string> => {
