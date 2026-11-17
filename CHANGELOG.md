@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.1] - 2026-11-17
+
+### Changed
+
+- Internal maintenance and tooling updates
+
 ## [0.11.0] - 2026-11-09
 
 ### Added
