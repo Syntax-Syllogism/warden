@@ -7,6 +7,13 @@ Warden is a Salesforce CLI plugin for managing users over their lifetime. You ca
 
 These docs are for Salesforce admins and developers. Start with [Getting started](getting-started.md), then come back to the guides below when you need the details of one workflow.
 
+<video controls muted playsinline preload="none" width="1280" height="720" poster="/warden/docs/media/warden-cli-poster.jpg" aria-label="Warden CLI walkthrough, 74 seconds: promote personas, provision, audit, compare, pause, revoke, and offboard users from the terminal" style="width: 100%; height: auto; aspect-ratio: 16 / 9;">
+  <source src="/warden/docs/media/warden-cli.webm" type="video/webm" />
+  <source src="/warden/docs/media/warden-cli.mp4" type="video/mp4" />
+</video>
+
+The 74-second walkthrough above follows a user through the whole lifecycle in the terminal: promote personas, provision, audit, compare, pause, revoke, and offboard. It starts muted; turn the sound on from the player controls.
+
 ## Start here
 
 - [Getting started](getting-started.md): install Warden, define key terms, and run your first audit and provisioning plan.
