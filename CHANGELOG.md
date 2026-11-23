@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.2] - 2026-11-23
+
+### Changed
+- Clarified in the documentation how the three Warden products relate and what the warden-base org package provides
+
+### Security
+- Resolved open Dependabot security alerts in project dependencies
+
 ## [0.11.1] - 2026-11-17
 
 ### Changed

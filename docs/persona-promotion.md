@@ -5,7 +5,7 @@ description: Store, compare, and promote Warden persona assignment bundles throu
 
 # Persona promotion
 
-Warden can use personas stored in the org by the Warden package as a provisioning source. It can also move those personas between orgs as JSON files. The promotion commands need the package objects `wdn_Persona__c` and `wdn_Persona_Component__c` in the target org. `strip --persona-source org` reads the same active personas, plus each user's `Active` persona assignments; see [Persona-scoped removal](command-details.md#persona-scoped-removal).
+This page is for admins who keep personas (named bundles of permission sets, groups, and queues) in an org and want to move them between orgs, such as from a sandbox to production. Warden can use personas stored in the org by [warden-base](https://github.com/Syntax-Syllogism/warden-base) as a provisioning source. It can also move those personas between orgs as JSON files. The promotion commands need the package objects `wdn_Persona__c` and `wdn_Persona_Component__c` in the target org. `strip --persona-source org` reads the same active personas, plus each user's `Active` persona assignments. See [Persona-scoped removal](command-details.md#persona-scoped-removal).
 
 ## File format
 
@@ -49,14 +49,18 @@ sf warden persona export --target-org myOrg --output personas.json
 sf warden persona diff --target-org myOrg --input personas.json
 ```
 
-`import` upserts each persona in the file by `wdn_Api_Name__c`, sets it active, and adds any missing components. Existing components are kept by default. With `--prune`, components that are not in the file are deleted, for the personas named in the file only.
+`import` requires the `wdn_Persona_Publisher` permission set in the target org. It upserts each persona in the file by `wdn_Api_Name__c`, sets it active, and adds any missing components. Existing components are kept by default. With `--prune`, components that are not in the file are deleted, for the personas named in the file only.
 
 ```bash
 sf warden persona import --target-org myOrg --input personas.json
 sf warden persona import --target-org myOrg --input personas.json --prune
 ```
 
-Import never deletes or deactivates an org persona just because it's missing from the file. It has no dry run, so run `diff` first. `--prune` is the destructive option.
+Import never deletes or deactivates an org persona just because it's missing from the file. `--prune` is the destructive option. Add `--dry-run` to print the same comparison as `persona diff` and write nothing. Review it before you use `--prune`, which deletes components.
+
+```bash
+sf warden persona import --target-org myOrg --input personas.json --dry-run
+```
 
 ## Provisioning from org personas
 

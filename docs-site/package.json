@@ -13,5 +13,10 @@
     "@syntax-syllogism/docs-theme": "^0.4.0",
     "astro": "^7.4.12",
     "starlight-links-validator": "^0.25.2"
+  },
+  "overrides": {
+    "@oclif/core": {
+      "minimatch": "^11.0.1"
+    }
   }
 }

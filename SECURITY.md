@@ -14,15 +14,13 @@ fixes.
 
 Please **do not** open a public GitHub issue for security vulnerabilities.
 
-Email a description to **<j.p.richter@gmail.com>** with:
+Report it privately through GitHub: open the repository's **Security** tab and choose
+**Report a vulnerability** (<https://github.com/Syntax-Syllogism/warden/security/advisories/new>). Include:
 
 - a clear description of the issue,
 - reproduction steps or a proof of concept,
 - the affected version (commit SHA or release tag), and
 - the impact you believe the issue has.
-
-If you would like to encrypt your report, request a PGP key in your first
-message and one will be provided.
 
 ## Response SLA
 

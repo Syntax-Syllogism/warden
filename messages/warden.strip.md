@@ -22,7 +22,7 @@ Path to the persona definitions JSON file when using `--persona-source file`.
 
 # flags.persona-source.summary
 
-Read persona definitions and held personas from a file or the Warden package.
+Read persona definitions and held personas from a file or from warden-base in the org.
 
 # flags.freeze.summary
 

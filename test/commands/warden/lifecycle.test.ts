@@ -780,7 +780,7 @@ describe('warden user lifecycle commands', () => {
     });
     conn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({
       name: WARDEN_LEDGER_OBJECT,
-      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }],
+      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }, { name: 'wdn_Persona__c' }],
     });
     conn.describe.withArgs(WARDEN_RUN_OBJECT).resolves({
       name: WARDEN_RUN_OBJECT,
@@ -911,7 +911,7 @@ describe('warden user lifecycle commands', () => {
     });
     conn.describe.withArgs(WARDEN_LEDGER_OBJECT).resolves({
       name: WARDEN_LEDGER_OBJECT,
-      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }],
+      fields: [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }, { name: 'wdn_Persona__c' }],
     });
     conn.describe.withArgs(WARDEN_RUN_OBJECT).resolves({
       name: WARDEN_RUN_OBJECT,

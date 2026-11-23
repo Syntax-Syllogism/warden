@@ -5,7 +5,7 @@ description: Understand Warden lifecycle reports, assignment labels, action noti
 
 # Lifecycle output and snapshots
 
-This page describes what the lifecycle commands print and what a snapshot file contains. For flags, see the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/README.md#commands).
+This page is for anyone reading the output of `freeze`, `unfreeze`, `strip`, `snapshot`, and `restore`, or working with snapshot files. It describes what those commands print and what a snapshot file contains. For flags, see the [CLI reference](cli-reference.md).
 
 ## Resolved user identity
 

@@ -404,74 +404,116 @@ describe('sfd warden write operations', () => {
     expect(applyContext.failures).to.equal(1);
   });
 
-  it('writes persona revocation bookkeeping after a successful strip apply', async () => {
-    const operation = stripOperation();
-    const corePlan = stripPlan();
-    const result = {
-      summary: { total: 1, changed: 1, unchanged: 0, failed: 0 },
-      users: [
-        {
-          ...stripUser('changed'),
-          actions: [{ key: 'removedPermissionSet', items: [{ id: '0PSsupport' }] }],
-        },
+  for (const scenario of [
+    {
+      title: 'writes persona revocation bookkeeping after a successful strip apply',
+      runFails: false,
+      hasPersona: true,
+      notices: [],
+    },
+    {
+      title: 'revokes the assignment but skips the ledger with one warning when the Revoke run fails',
+      runFails: true,
+      hasPersona: true,
+      notices: [
+        'Revoke run could not be saved; skipped ledger revocation bookkeeping (the ledger guard requires wdn_Revoked_By_Run__c).',
       ],
-    } as LifecycleResult;
-    const createRun = sinon.stub().resolves([{ success: true, id: 'a0Rrun' }]);
-    const updateAssignments = sinon.stub().resolves([{ success: true, id: 'a0Aassignment' }]);
-    const updateLedger = sinon.stub().resolves([{ success: true, id: 'a0Lledger' }]);
-    const connection = {
-      describe: sinon.stub().callsFake(async (objectName: string) => ({
-        name: objectName,
-        fields:
-          objectName === PERSONA_ASSIGNMENT_OBJECT
-            ? [{ name: 'wdn_Status__c' }, { name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By__c' }]
-            : objectName === WARDEN_LEDGER_OBJECT
-            ? [{ name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By_Run__c' }]
-            : [{ name: 'wdn_Mode__c' }, { name: 'wdn_Source_System__c' }],
-      })),
-      identity: sinon.stub().resolves({ ['user_id']: '005operator' }),
-      sobject: sinon.stub().callsFake((objectName: string) => ({
-        create: objectName === WARDEN_RUN_OBJECT ? createRun : sinon.stub(),
-        update:
-          objectName === PERSONA_ASSIGNMENT_OBJECT
-            ? updateAssignments
-            : objectName === WARDEN_LEDGER_OBJECT
-            ? updateLedger
-            : sinon.stub(),
-      })),
-    };
-    sinon.stub(strip, 'apply').resolves(result);
-    const plan = {
-      effects: ['org-write', 'destructive'] as Effect[],
-      summary: 'strip 1 user(s): 1 with changes',
-      preview: corePlan.preview,
-      warnings: [],
-      planned: {
-        core: corePlan,
-        personaMode: true,
-        heldAssignments: [{ id: 'a0Aassignment', userId: '005target', persona: 'support' }],
-        ledgerProvenance: [{ id: 'a0Lledger', userId: '005target', persona: 'support', targetId: '0PSsupport' }],
-        removedPersonasByUser: { '005target': ['support'] },
-      },
-    };
+    },
+    {
+      title: 'skips unscoped ledger rows on older packages and reports their count',
+      runFails: false,
+      hasPersona: false,
+      notices: ['1 ledger row(s) have no persona (package lacks Grant.wdn_Persona__c); not revoked.'],
+    },
+  ]) {
+    it(scenario.title, async () => {
+      const operation = stripOperation();
+      const corePlan = stripPlan();
+      const result = {
+        summary: { total: 1, changed: 1, unchanged: 0, failed: 0 },
+        users: [
+          {
+            ...stripUser('changed'),
+            actions: [{ key: 'removedPermissionSet', items: [{ id: '0PSsupport' }] }],
+          },
+        ],
+      } as LifecycleResult;
+      const createRun = sinon.stub().resolves([{ success: true, id: 'a0Rrun' }]);
+      if (scenario.runFails) createRun.rejects(new Error('Revoke run insert failed'));
+      const updateAssignments = sinon.stub().resolves([{ success: true, id: 'a0Aassignment' }]);
+      const updateLedger = sinon.stub().resolves([{ success: true, id: 'a0Lledger' }]);
+      const connection = {
+        describe: sinon.stub().callsFake(async (objectName: string) => ({
+          name: objectName,
+          fields:
+            objectName === PERSONA_ASSIGNMENT_OBJECT
+              ? [{ name: 'wdn_Status__c' }, { name: 'wdn_Revoked_On__c' }, { name: 'wdn_Revoked_By__c' }]
+              : objectName === WARDEN_LEDGER_OBJECT
+              ? [
+                  { name: 'wdn_Revoked_On__c' },
+                  { name: 'wdn_Revoked_By_Run__c' },
+                  ...(scenario.hasPersona ? [{ name: 'wdn_Persona__c' }] : []),
+                ]
+              : [{ name: 'wdn_Mode__c' }, { name: 'wdn_Source_System__c' }],
+        })),
+        identity: sinon.stub().resolves({ ['user_id']: '005operator' }),
+        sobject: sinon.stub().callsFake((objectName: string) => ({
+          create: objectName === WARDEN_RUN_OBJECT ? createRun : sinon.stub(),
+          update:
+            objectName === PERSONA_ASSIGNMENT_OBJECT
+              ? updateAssignments
+              : objectName === WARDEN_LEDGER_OBJECT
+              ? updateLedger
+              : sinon.stub(),
+        })),
+      };
+      sinon.stub(strip, 'apply').resolves(result);
+      const plan = {
+        effects: ['org-write', 'destructive'] as Effect[],
+        summary: 'strip 1 user(s): 1 with changes',
+        preview: corePlan.preview,
+        warnings: [],
+        planned: {
+          core: corePlan,
+          personaMode: true,
+          heldAssignments: [{ id: 'a0Aassignment', userId: '005target', persona: 'support' }],
+          ledgerProvenance: [
+            {
+              id: 'a0Lledger',
+              userId: '005target',
+              persona: scenario.hasPersona ? 'support' : undefined,
+              targetId: '0PSsupport',
+            },
+          ],
+          removedPersonasByUser: { '005target': ['support'] },
+        },
+      };
 
-    await operation.apply(connection as never, plan, context(mkdtempSync(join(tmpdir(), 'warden-sfd-strip-persona-'))));
+      const applyContext = context(mkdtempSync(join(tmpdir(), 'warden-sfd-strip-persona-')));
+      await operation.apply(connection as never, JSON.parse(JSON.stringify(plan)) as typeof plan, applyContext);
 
-    expect(createRun.calledOnce).to.equal(true);
-    expect(updateAssignments.calledOnce).to.equal(true);
-    const assignmentRows = updateAssignments.firstCall.args[0] as Array<Record<string, unknown>>;
-    expect(assignmentRows[0]).to.deep.include({
-      Id: 'a0Aassignment',
-      ['wdn_Status__c']: 'Revoked',
-      ['wdn_Revoked_By__c']: '005operator',
+      expect(createRun.calledOnce).to.equal(true);
+      expect(updateAssignments.calledOnce).to.equal(true);
+      const assignmentRows = updateAssignments.firstCall.args[0] as Array<Record<string, unknown>>;
+      expect(assignmentRows[0]).to.deep.include({
+        Id: 'a0Aassignment',
+        ['wdn_Status__c']: 'Revoked',
+        ['wdn_Revoked_By__c']: '005operator',
+      });
+      expect(applyContext.notices).to.deep.equal(scenario.notices);
+      if (scenario.notices.length) {
+        expect(updateLedger.called).to.equal(false);
+        return;
+      }
+      expect(updateLedger.calledOnce).to.equal(true);
+      const ledgerRows = updateLedger.firstCall.args[0] as Array<Record<string, unknown>>;
+      expect(ledgerRows[0]).to.deep.include({
+        Id: 'a0Lledger',
+        ['wdn_Revoked_By_Run__c']: 'a0Rrun',
+        ['wdn_Revoked_On__c']: assignmentRows[0]['wdn_Revoked_On__c'],
+      });
     });
-    expect(updateLedger.calledOnce).to.equal(true);
-    const ledgerRows = updateLedger.firstCall.args[0] as Array<Record<string, unknown>>;
-    expect(ledgerRows[0]).to.deep.include({
-      Id: 'a0Lledger',
-      ['wdn_Revoked_By_Run__c']: 'a0Rrun',
-    });
-  });
+  }
 
   it('writes strip snapshots before DML and skips DML when snapshot writing fails', async () => {
     const operation = stripOperation();

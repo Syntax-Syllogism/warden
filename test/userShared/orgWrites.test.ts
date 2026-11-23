@@ -40,7 +40,7 @@ describe('connected org writes', () => {
   });
 
   it('reads package field availability and persona-scoped ledger provenance', async () => {
-    const describe = sinon.stub().resolves({ name: WARDEN_LEDGER_OBJECT, fields: [{ name: 'wdn_Revoked_On__c' }] });
+    const describe = sinon.stub().resolves({ name: WARDEN_LEDGER_OBJECT, fields: [{ name: 'wdn_Persona__c' }] });
     const query = sinon.stub().resolves({
       records: [
         {
@@ -51,15 +51,32 @@ describe('connected org writes', () => {
         },
       ],
     });
-    const fields = await describeObjectFields({ describe } as never, WARDEN_LEDGER_OBJECT);
-    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+    const provenance = await readLedgerProvenance({ describe, query } as never, ['005-user']);
 
-    expect(fields?.has('wdn_Revoked_On__c')).to.equal(true);
+    expect(describe.calledOnceWithExactly(WARDEN_LEDGER_OBJECT)).to.equal(true);
     expect(provenance).to.deep.equal([
       { id: 'a-ledger', userId: '005-user', targetId: '0PS-target', persona: 'support' },
     ]);
     expect(query.firstCall.args[0]).to.include('wdn_Persona__r.wdn_Api_Name__c');
     expect(query.firstCall.args[0]).to.include('wdn_Revoked_On__c = NULL');
+  });
+
+  it('reads active grants without a persona relationship on older packages', async () => {
+    const describe = sinon.stub().resolves({ name: WARDEN_LEDGER_OBJECT, fields: [{ name: 'wdn_Revoked_On__c' }] });
+    const query = sinon.stub().resolves({
+      records: [{ Id: 'a-ledger', wdn_User__c: '005-user', wdn_Target_Id__c: '0PS-target' }],
+    });
+    const connection = { describe, query } as never;
+    const fields = await describeObjectFields(connection, WARDEN_LEDGER_OBJECT);
+    const provenance = await readLedgerProvenance(connection, ['005-user'], fields);
+
+    expect(describe.calledOnce).to.equal(true);
+    expect(query.firstCall.args[0]).to.equal(
+      `SELECT Id, wdn_User__c, wdn_Target_Id__c FROM ${WARDEN_LEDGER_OBJECT} WHERE wdn_User__c IN ('005-user') AND wdn_Revoked_On__c = NULL`
+    );
+    expect(provenance).to.deep.equal([
+      { id: 'a-ledger', userId: '005-user', targetId: '0PS-target', persona: undefined },
+    ]);
   });
 
   it('excludes revoked ledger provenance after a persona is re-granted manually', async () => {
@@ -77,7 +94,7 @@ describe('connected org writes', () => {
       };
     });
 
-    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+    const provenance = await readLedgerProvenance({ query } as never, ['005-user'], new Set(['wdn_Persona__c']));
 
     expect(provenance).to.deep.equal([]);
   });
@@ -290,7 +307,7 @@ describe('connected org writes', () => {
       })),
     });
 
-    const provenance = await readLedgerProvenance({ query } as never, ['005-user']);
+    const provenance = await readLedgerProvenance({ query } as never, ['005-user'], new Set(['wdn_Persona__c']));
 
     expect(rows[0].wdn_Persona__c).to.equal('a-persona-support');
     expect(provenance).to.deep.equal([

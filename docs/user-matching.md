@@ -5,7 +5,7 @@ description: Resolve Salesforce users with exact fields, fuzzy Usernames, and li
 
 # User matching
 
-Provisioning and the lifecycle commands that read `users-def.json` share one matching layer. It finds existing Salesforce `User` records before Warden plans any write or action.
+This page is for anyone writing a users definition file or a `--user` expression. Provisioning and the lifecycle commands that read `users-def.json` share one matching layer, which finds existing Salesforce `User` records before Warden plans any write or action. A users definition (`--users-def`) is a JSON or CSV file that lists the users to act on; see [Command details](provisioning.md#example-usersjson) for the format.
 
 ## Match fields
 
@@ -52,4 +52,4 @@ Lifecycle commands use the same per-entry shape:
 sf warden freeze --users-def ./users.json --target-org mySandbox
 ```
 
-For provisioning merge and precedence rules, see [command details](command-details.md#warden-provision). For every flag, see the [README command reference](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/README.md).
+For provisioning merge and precedence rules, see [command details](provisioning.md#warden-provision). For every flag, see the [CLI reference](cli-reference.md).

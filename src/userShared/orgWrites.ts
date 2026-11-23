@@ -19,7 +19,7 @@ export type ConnectedPackage = {
 export type LedgerProvenance = {
   id: string;
   userId: string;
-  persona: string;
+  persona?: string;
   targetId: string;
 };
 
@@ -118,8 +118,14 @@ export const describeObjectFields = async (
 
 const soqlLiteral = (value: string): string => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
 
-export const readLedgerProvenance = async (connection: Connection, userIds: string[]): Promise<LedgerProvenance[]> => {
+export const readLedgerProvenance = async (
+  connection: Connection,
+  userIds: string[],
+  ledgerFields?: ReadonlySet<string>
+): Promise<LedgerProvenance[]> => {
   if (userIds.length === 0) return [];
+  const fields = ledgerFields ?? (await describeObjectFields(connection, WARDEN_LEDGER_OBJECT));
+  const personaSelect = fields?.has('wdn_Persona__c') ? ', wdn_Persona__r.wdn_Api_Name__c' : '';
   const rows: LedgerProvenance[] = [];
   for (let start = 0; start < userIds.length; start += 200) {
     const ids = userIds
@@ -128,21 +134,16 @@ export const readLedgerProvenance = async (connection: Connection, userIds: stri
       .join(',');
     // eslint-disable-next-line no-await-in-loop
     const result = (await connection.query(
-      `SELECT Id, wdn_User__c, wdn_Target_Id__c, wdn_Persona__r.wdn_Api_Name__c FROM ${WARDEN_LEDGER_OBJECT} WHERE wdn_User__c IN (${ids}) AND wdn_Revoked_On__c = NULL`
+      `SELECT Id, wdn_User__c, wdn_Target_Id__c${personaSelect} FROM ${WARDEN_LEDGER_OBJECT} WHERE wdn_User__c IN (${ids}) AND wdn_Revoked_On__c = NULL`
     )) as QueryResult;
     for (const record of result.records ?? []) {
-      const relationship = record.wdn_Persona__r as JsonRecord | undefined;
+      const relationship = personaSelect ? (record.wdn_Persona__r as JsonRecord | undefined) : undefined;
       const id = record.Id;
       const userId = record.wdn_User__c;
       const targetId = record.wdn_Target_Id__c;
       const persona = relationship?.wdn_Api_Name__c;
-      if (
-        typeof id === 'string' &&
-        typeof userId === 'string' &&
-        typeof targetId === 'string' &&
-        typeof persona === 'string'
-      ) {
-        rows.push({ id, userId, targetId, persona });
+      if (typeof id === 'string' && typeof userId === 'string' && typeof targetId === 'string') {
+        rows.push({ id, userId, targetId, persona: typeof persona === 'string' ? persona : undefined });
       }
     }
   }
@@ -558,6 +559,7 @@ export const saveRun = async (
   const id = results?.[0]?.id;
   if (results && (!results[0] || results[0].success !== true || typeof id !== 'string')) {
     warn('Warden org run write did not return a record id.');
+    return undefined;
   }
   return id;
 };

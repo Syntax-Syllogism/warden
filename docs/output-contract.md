@@ -5,7 +5,9 @@ description: Machine-readable formats, destinations, CSV schemas, and exit codes
 
 # Output contract
 
-All eight operational `warden` commands accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The flag reference is in the [README](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/README.md#commands).
+This page is for people who script Warden or read its output in CI. It describes the output formats, where output goes, the CSV columns, and the exit codes.
+
+The eight operational commands (`access`, `diff`, `freeze`, `provision`, `restore`, `snapshot`, `strip`, and `unfreeze`) accept `--output human|csv|json` and `--output-file <path>`. Human output is the default. The `persona` commands are different: `persona export --output` takes a file path, not a format. The flag reference is in the [CLI reference](cli-reference.md).
 
 ## Formats and destinations
 
@@ -36,14 +38,14 @@ Exit codes don't change the result payload. With global `--json`, a partial fail
 CSV rows are the same on every run and share one escaping rule.
 
 - **`access`** keeps its first eight columns (`userId`, `userName`, `username`, `assignmentType`, `sourceId`, `sourceName`, `viaPermissionSetId`, `viaPermissionSetName`). It adds `targetType`, `targetName`, `sourceApiName`, and `sourceLabel`, then target-specific access columns.
-- **`diff`** adds `userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter` after its original six columns. `diff --verify` uses `key,conformant,violations` instead.
+- **`diff`** adds `userName,username,valueApiName,valueLabel,valueType,valueBefore,valueAfter` after its original six columns. `diff --verify` uses `key,conformant,violations` instead. In `diff`, `value` keeps its position and still holds the record Id. Profile and role rows also fill `valueBefore` and `valueAfter`, while `value` stays the readable `before -> after` string.
 - **`provision`** writes one row per action, related-record result, or error, with `userKey,userId,userName,username,personas,matchedBy,status,action,detail,error`. Details are below.
 - **`freeze` and `unfreeze`** write one row per user: `userKey,userId,userName,username,wasFrozen,status,action,error`.
 - **`restore`** writes one row per action or action item: `userKey,userId,userName,username,status,action,category,name,error`.
 - **`strip`** writes one row per action or removed item: `userKey,userId,userName,username,status,action,category,itemId,itemApiName,error`.
 - **`snapshot`** writes `key,id,status,actions,skipped,warnings,errors`, one row per selected user. This report is separate from the snapshot file that `--out` writes.
 
-For lifecycle commands, a user with no actions still gets a row, and each error gets its own row. On CSV write, cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return get an apostrophe prefix. This protects spreadsheet viewers. It isn't applied to JSON or human output.
+For lifecycle commands, a user with no actions still gets a row, and each error gets its own row. On CSV write, cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return get an apostrophe prefix. This protects spreadsheet viewers. It isn't applied to JSON or human output. When Warden reads a snapshot CSV, it strips that prefix, so names survive a write/read round trip.
 
 When CSV goes to stdout, access statistics and warnings stay out of it. When CSV goes to a file, the file holds only the CSV.
 

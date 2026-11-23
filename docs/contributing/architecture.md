@@ -5,6 +5,8 @@ description: Understand Warden's command layer, core use cases, and compatibilit
 
 # CLI/core architecture
 
+This page is for contributors and integrators, not for people who only run Warden. It describes how the plugin is split from the shared [`@syntax-syllogism/warden-core`](https://github.com/Syntax-Syllogism/warden-core) library, which source modules own what, and how the CLI keeps its output stable. To contribute, start with [CONTRIBUTING](https://github.com/Syntax-Syllogism/warden/blob/release/CONTRIBUTING.md).
+
 Warden declares `@syntax-syllogism/warden-core` in `package.json` as a caret
 range and locks the resolved version in `yarn.lock`. Core owns access
 resolution, provisioning rules, lifecycle operations, user matching,
@@ -34,7 +36,7 @@ adds CLI-owned I/O around it. With `--persona-source org`, the command reads the
 org's active personas and their `Active` assignments, then passes core in-memory
 user and persona documents, because core rejects the `org` source itself. After a
 live apply, it writes the revocation records described in
-[Connected org writes](connected-org-writes.md#persona-revocation-writes).
+[Connected org writes](../connected-org-writes.md#persona-revocation-writes).
 
 ## Shared request modules and sfd
 
@@ -50,7 +52,7 @@ parsing, prompts, and rendering, and `src/sfd/errors.ts` maps request errors to
 sfd's `code`/`actions` shape. The provisioning ledger writer,
 `src/userShared/provisionLedger.ts`, is the exception: the oclif `provision`
 command and the sfd apply both call it. Run and Item audit writes stay in the
-oclif `provision` command. See [sfd operations](sfd.md).
+oclif `provision` command. See [sfd operations](../sfd.md).
 
 ## CLI compatibility adapters
 
@@ -63,7 +65,7 @@ contract: related-record failures also
 mark the user failed and populate user errors, cross-reference failures retain
 candidate diagnostics, and live summary warning counts exclude license
 shortfalls. Dry-run license reporting remains in the core preview; see
-[Command details](command-details.md#license-headroom).
+[Command details](../provisioning.md#license-headroom).
 The provision command reparses user definitions to preserve the legacy CSV
 error format without source-row prefixes, and retains the missing-persona-file
 validation error.
@@ -83,12 +85,12 @@ the legacy command, so no reorder is needed.
 and the shared lifecycle write confirmation. Core plans do not prompt.
 Interactive summary confirmations replace the later write confirmation;
 global `--json` and `--no-prompt` bypass it. See
-[Interactive mode](interactive-mode.md#confirmation).
+[Interactive mode](../interactive-mode.md#confirmation).
 
 `src/wardenCommand.ts` translates core errors into the existing Salesforce CLI
 error names and keeps a successful JSON envelope's status independent of a
 partial-failure process exit code. Output formats and destinations are described
-in the [Output contract](output-contract.md).
+in the [Output contract](../output-contract.md).
 
 Before removing an adapter or changing execution paths, compare against
 `test/commands/warden/fixtures/core-0.2-output.json` and
@@ -98,3 +100,24 @@ diff tests compare serialized JSON (including key order) and CSV against those
 fixtures; process tests check Salesforce CLI envelopes.
 `test/commands/warden/planApply.test.ts` covers
 confirmation ordering, bypasses, timeout cleanup, and partial strip snapshots.
+
+## Package contract pin
+
+The org-side objects come from the [warden-base](https://github.com/Syntax-Syllogism/warden-base)
+package, which publishes a `contract.json` that lists its objects, fields, and
+permission sets. `test/fixtures/warden-base-contract.json` is this repo's pinned
+copy of that file. Refresh it with `yarn sync:base-contract <path-or-url>` when
+warden-base publishes a new contract. The script checks the package name,
+version, objects, and permission sets before it writes the file.
+
+`test/userShared/orgContract.test.ts` checks the `wdn_` names against the
+fixture without an org:
+
+- Every `wdn_…__c` and `wdn_…__r` token in `src/` must exist in the fixture.
+- Each entry in `CLI_CONTRACT_USAGE` (`src/userShared/orgContract.ts`) must be a
+  field or relationship of its named object in the fixture.
+- Every token in `src/` must appear in `CLI_CONTRACT_USAGE`. When you add a
+  package name to the CLI, add it to that map under its object.
+
+A failure here means either the fixture needs a refresh, or the CLI is using a
+name warden-base doesn't define.

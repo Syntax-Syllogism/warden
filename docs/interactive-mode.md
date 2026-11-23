@@ -5,7 +5,7 @@ description: Use Warden's guided flag prompts to collect, review, and confirm co
 
 # Interactive mode
 
-All eight `sf warden` commands accept `-i`/`--interactive`: `access`, `diff`, `freeze`, `provision`, `restore`, `snapshot`, `strip`, and `unfreeze`.
+This page is for anyone who prefers to be prompted instead of remembering flags. All eight core `sf warden` commands accept `-i`/`--interactive`: `access`, `diff`, `freeze`, `provision`, `restore`, `snapshot`, `strip`, and `unfreeze`.
 
 Interactive mode asks for the flags you didn't pass. Anything already on the command line is kept. Warden uses text, select, confirm, or checkbox prompts as fits each flag. When it has everything, it prints the resolved values and asks `Proceed with these values?` once. If you decline, it prints `Operation cancelled.`, returns an empty result, and makes no changes and writes no snapshot `--out` file.
 

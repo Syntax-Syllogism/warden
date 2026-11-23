@@ -18,7 +18,7 @@ Optional path to persona definition JSON file. Omit it for profile-only provisio
 
 # flags.persona-source.summary
 
-Persona definition source: file or org. Defaults to file when --personas-def is supplied, otherwise org when the Warden package is detected.
+Persona definition source: file or org. Defaults to file when --personas-def is supplied, otherwise org when warden-base is installed in the org.
 
 # flags.related-def.summary
 

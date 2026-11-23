@@ -1,6 +1,6 @@
 # flags.output.summary
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 # flags.target-org.summary
 
@@ -8,7 +8,7 @@ Target org username or alias.
 
 # flags.api-version.summary
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 # flags.user.summary
 

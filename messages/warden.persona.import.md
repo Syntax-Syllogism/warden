@@ -4,7 +4,7 @@ Import persona definitions into the connected org.
 
 # description
 
-Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file.
+Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file, and --dry-run to see the changes without writing them.
 
 # flags.input.summary
 

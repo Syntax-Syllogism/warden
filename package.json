@@ -1,7 +1,7 @@
 {
   "name": "@syntax-syllogism/warden",
   "description": "a sf cli plugin for user lifecycle administration",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
@@ -43,10 +43,19 @@
   "resolutions": {
     "**/mocha/js-yaml": "^4.3.2",
     "**/mocha/minimatch": "^5.1.8",
-    "**/mocha/serialize-javascript": "^7.0.3",
-    "**/@typescript-eslint/typescript-estree/minimatch": "^9.0.7",
+    "**/mocha/serialize-javascript": "^7.1.3",
+    "**/@typescript-eslint/typescript-estree/minimatch": "^11.0.1",
     "**/markdownlint-cli2/js-yaml": "^4.3.2",
-    "**/markdownlint-cli2/smol-toml": "^1.7.1"
+    "**/markdownlint-cli2/smol-toml": "^1.7.1",
+    "**/@oclif/core/minimatch": "^11.0.1",
+    "**/typedoc/minimatch": "^11.0.1",
+    "**/linkinator/glob": "^14.0.2",
+    "**/mocha/diff": "^5.2.2",
+    "**/istanbul-lib-processinfo/uuid": "^11.1.1",
+    "katex": "^0.18.2",
+    "**/c8/test-exclude/minimatch": "^11.0.1",
+    "**/c8/test-exclude/glob": "^14.0.2",
+    "markdown-it": "^14.3.3"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -108,11 +117,12 @@
     "postpack": "sf-clean --ignore-signing-artifacts",
     "prepack": "sf-prepack",
     "prepare": "husky",
+    "sync:base-contract": "node scripts/sync-base-contract.mjs",
     "test": "wireit",
     "test:nuts": "mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel",
     "test:nuts:cov": "c8 --check-coverage false mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel",
     "test:only": "wireit",
-    "version": "oclif readme && ss-docs-cli-reference"
+    "version": "ss-docs-cli-reference"
   },
   "publishConfig": {
     "access": "public",
@@ -184,6 +194,7 @@
       },
       "files": [
         "test/**/*.ts",
+        "test/fixtures/warden-base-contract.json",
         "src/**/*.ts",
         "**/tsconfig.json",
         ".mocha*",

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import { WardenCommand, type OutputContext } from '../../../src/wardenCommand.js';
@@ -15,8 +16,20 @@ const goldenOutputs = {
   >),
 };
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Goldens were captured on Linux (/tmp/warden-*). Match the platform temp dir too, as it appears
+// inside serialized JSON (backslashes doubled on Windows), and normalize the separators after it.
+const fixtureRoots = [...new Set(['/tmp', tmpdir()])]
+  .map((root) => escapeRegExp(JSON.stringify(root).slice(1, -1)))
+  .join('|');
+const separator = String.raw`(?:/|\\\\)`;
+const segment = String.raw`[^/"\\\s]+`;
+const fixturePath = new RegExp(`(?:${fixtureRoots})${separator}warden-${segment}((?:${separator}${segment})*)`, 'g');
+
 const normalize = (output: MachineOutput): MachineOutput =>
-  JSON.parse(JSON.stringify(output).replace(/\/tmp\/warden-[^/"\\\s]+/g, '<fixture>')) as MachineOutput;
+  JSON.parse(
+    JSON.stringify(output).replace(fixturePath, (_match, rest: string) => `<fixture>${rest.replace(/\\\\/g, '/')}`)
+  ) as MachineOutput;
 
 /** Machine output captured before each command cutover; compare JSON key order and CSV bytes. */
 export const checkLegacyOutput = (title: string): (() => void) => {

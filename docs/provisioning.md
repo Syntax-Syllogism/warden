@@ -1,0 +1,228 @@
+---
+title: Provisioning
+description: How warden provision merges personas, resolves references, and reads definition files, with example users.json, users.csv and personas.json.
+---
+
+# Provisioning
+
+This page explains the rules behind `warden provision`: how personas merge, which value wins, and what each mode does. For flags, see the [CLI reference](cli-reference.md). Org-side personas are covered in [Persona promotion](persona-promotion.md).
+
+## `warden provision`
+
+### Provisioning logic
+
+User definitions and persona definitions live in two files, so user-specific data stays separate from reusable access bundles.
+
+#### Field naming
+
+- User fields must be Salesforce `User` API field names.
+- Names are matched case-insensitively and canonicalized against `User` describe metadata before any DML.
+- A user-level value overrides the same field in a persona's `userAttributes`.
+- A user can include a `match` key to choose its own lookup field.
+
+#### Several personas per user
+
+With `--personas-def`, each user needs a non-empty `personas` array of names defined in `personas.json`. Before planning, Warden merges those personas into one:
+
+- **Assignment lists** (`permissionSets`, `permissionSetGroups`, `publicGroups`, `queues`) are combined, with duplicates removed in first-seen order.
+- **Single values** (`profile`, `role`, and each category's mode) must agree across personas. If two personas set different values, that user fails with a conflict error and the rest of the batch continues.
+- **`userAttributes` keys** are checked the same way. If two personas set the same key differently, the user fails, unless the user entry sets that field itself. The user's value always wins.
+
+#### Username and Alias defaults (insert only)
+
+When a user is created, Warden fills in `Username` and `Alias` if you left them out:
+
+- **`Username`** defaults to `<Email>.<myDomain>`, where `<myDomain>` is the first DNS label of the org's My Domain hostname. For example, `jdoe@acme.com` in the org `mycompany.my.salesforce.com` gives `jdoe@acme.com.mycompany`. If Warden can't work out the domain, it leaves the field unset and you get the usual missing-required-field error.
+- **`Alias`** comes from `FirstName` and `LastName`. Take up to 3 letters from each. If one name is shorter than 3, borrow from the other to reach 6. Lowercase it and cut it to Salesforce's 8-character limit. `John`/`Doe` gives `johdoe`, `Jo`/`Anderson` gives `joande`, and `Al`/`Bo` gives `albo`.
+
+Defaults are never applied to users matched for update. A `Username` or `Alias` you set explicitly is always used as written.
+
+#### Field precedence
+
+A user-level value beats a persona value for any field both set. A persona wins only by contributing assignment-list entries (which combine) and by supplying a value the user left unset.
+
+| Setting                                                       | On a user (`users.json`)                                  | On a persona (`personas.json`)          | Who wins                                                      | Notes                                                                                                                  |
+| ------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Profile**                                                   | `profile` (name or 15/18-char Id) **or** raw `ProfileId`  | `profile` (name or Id)                  | user `profile`, then user `ProfileId`, then persona `profile` | Resolved by `Profile.Name`. Setting both `profile` and `ProfileId` on one user is a per-row error. Required on insert. |
+| **Role**                                                      | `role` (DeveloperName/Name or Id) **or** raw `UserRoleId` | `role`                                  | user `role`, then user `UserRoleId`, then persona `role`      | Resolved by `UserRole.DeveloperName`/`Name`. Setting both is a per-row error. Optional.                                |
+| **Username**                                                  | `Username`                                                | `userAttributes.Username`               | explicit value beats the default                              | Default is `<Email>.<myDomain>`, **insert only**.                                                                      |
+| **Alias**                                                     | `Alias`                                                   | `userAttributes.Alias`                  | explicit value beats the default                              | Default is the 3+3 name rule, **insert only**.                                                                         |
+| **Permission-flag fields** (`UserPermissionKnowledgeUser`, …) | direct boolean field                                      | persona `userAttributes`                | user field                                                    | Written to `User`. Subject to org licenses.                                                                            |
+| **Other writeable `User` fields** (`Title`, `Department`, …)  | direct field                                              | persona `userAttributes`                | user field                                                    | Matched case-insensitively against `User` describe.                                                                    |
+| **Assignment lists** (permission sets, groups, queues)        | not settable per user                                     | persona lists plus per-category `…Mode` | combined across personas                                      | Resolved by name or Id. `additive` keeps existing assignments; `sync` removes unlisted ones.                           |
+| **Match field** (upsert key)                                  | `match` key                                               | none                                    | per-user `match`, then `--external-id`                        | Must be a filterable `User` field. See [User matching](user-matching.md).                                              |
+| **IsActive**                                                  | none                                                      | none                                    | always `true`                                                 | Provisioning always activates and unfreezes.                                                                           |
+
+A user-level `profile` or `role` also silences the persona-versus-persona conflict for that field. If you name your own profile, it no longer matters that two personas disagreed.
+
+#### Profile-only provisioning
+
+Leave out `--personas-def` when each row carries its own `profile` and/or `role` and shouldn't get any permission set, group, or queue assignments:
+
+```bash
+sf warden provision --users-def ./users-profile-only.json \
+  --dry-run --target-org acme-uat
+```
+
+Profile-only rows use the same matching, profile and role resolution, and insert defaults as persona-driven rows. Assignment lists come only from personas, so these rows have none, and every mode defaults to `additive`. That means the run can't add assignments and can't remove existing access.
+
+#### Match resolution
+
+The rules for exact and fuzzy matching, case handling, ambiguity, filterable fields, and sandbox Username suffixes are in [User matching](user-matching.md). For provisioning:
+
+- `--external-id` sets the default field for finding existing users. `--match-field` is an alias.
+- A user's own `match` value overrides the flag for that row.
+- With neither, the user is treated as new.
+
+#### Mixed-source example
+
+```json
+{
+  "users": [
+    { "personas": ["ops"], "match": "FederationIdentifier", "FederationIdentifier": "ABC123", "LastName": "Park" },
+    { "personas": ["csr"], "match": "Username", "Username": "bob@acme.com.dev", "LastName": "Bob" },
+    { "personas": ["finance"], "match": "Employee_ID__c", "Employee_ID__c": "E-9981", "LastName": "Su" },
+    { "personas": ["creator"], "Username": "alice@acme.com.dev", "LastName": "Alice" }
+  ]
+}
+```
+
+#### Required fields for new users
+
+Creating a user needs these fields. `Username` and `Alias` can be omitted because Warden fills them in (see above). Provide the rest.
+
+- `Username` (defaulted from `Email` and My Domain)
+- `LastName`
+- `Alias` (defaulted from `FirstName`/`LastName`)
+- `TimeZoneSidKey`
+- `LocaleSidKey`
+- `EmailEncodingKey`
+- `LanguageLocaleKey`
+- `ProfileId`, when neither the user nor a persona sets `profile`
+
+#### How references are looked up
+
+References resolve by Id or by developer/API name. Labels aren't supported because they aren't reliably unique.
+
+| Reference            | Resolved by                                              |
+| -------------------- | -------------------------------------------------------- |
+| Profile              | Id or `Profile.Name`                                     |
+| Role                 | Id or `UserRole.DeveloperName` (falls back to `Name`)    |
+| Permission Set       | Id or `PermissionSet.Name`                               |
+| Permission Set Group | Id or `PermissionSetGroup.DeveloperName`                 |
+| Public Group         | Id or `Group.DeveloperName` where `Group.Type='Regular'` |
+| Queue                | Id or `Group.DeveloperName` where `Group.Type='Queue'`   |
+
+A missing optional assignment target produces a warning and is skipped. A missing required reference, meaning a persona `profile` or `role` that can't be resolved, fails that user.
+
+#### Assignment modes
+
+Every assignment category has its own mode, and the default is `additive`. When personas are merged, each category's mode must agree across the personas that set it. A disagreement is a per-row conflict error.
+
+| Mode property            | Behavior                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| `permissionSetMode`      | `additive` adds missing assignments. `sync` adds missing ones and removes any not listed. |
+| `permissionSetGroupMode` | Same, for permission set groups.                                                          |
+| `publicGroupMode`        | Same, for `GroupMember` records where `Group.Type='Regular'`.                             |
+| `queueMode`              | Same, for `GroupMember` records where `Group.Type='Queue'`.                               |
+
+`sync` splits `GroupMember` rows by `Group.Type`, so syncing public groups never touches queue memberships, and the reverse.
+
+#### Dry run
+
+`--dry-run` validates input, resolves references, reads the org's current state, and reports what it would do. It never inserts, updates, deletes, upserts, runs anonymous Apex, or sends Composite or Tooling write requests. It plans only, and there is nothing to roll back.
+
+A live run can also write a ledger and reconciliation records when the warden-base objects exist. See [Connected org writes](connected-org-writes.md).
+
+#### License headroom
+
+A dry run reports the user licenses needed by valid new users. Users matched for update and plans with errors are left out. Profiles are grouped by `UserLicenseId`, so profiles that share a license count against one total. Available headroom is `TotalLicenses - UsedLicenses`. A license that isn't active has zero available, and a negative `TotalLicenses` means unlimited. Rows for non-active licenses include the status in the note.
+
+The result's `licenses` array appears in human and JSON dry-run output. Unlimited capacity is shown as `available: null`, `unlimited: true`, and `shortfall: 0`. Dry runs also report `permissionSetLicenses: { evaluated: false, note: "not evaluated" }`, because provisioning doesn't assign permission set licenses yet. Live results include neither field.
+
+`--fail-on-insufficient-license` checks the license rows after the summary is printed and exits non-zero if any `shortfall` is above zero. Without it, each shortfall is a warning in human output and is counted in `summary.warnings`. JSON output shows the same count without repeating the text. With global `--json`, the error envelope keeps the full preflight result, including `result.licenses`. The flag has no effect on live provisioning in this release.
+
+#### Passwords
+
+Setting or resetting passwords is out of scope.
+
+#### Example `users.json`
+
+```json
+{
+  "users": [
+    {
+      "personas": ["admin"],
+      "FederationIdentifier": "ABCD1234",
+      "FirstName": "John",
+      "LastName": "Doe",
+      "Email": "jdoe@email.com",
+      "LocaleSidKey": "en_US",
+      "EmailEncodingKey": "UTF-8",
+      "LanguageLocaleKey": "en_US",
+      "TimeZoneSidKey": "America/Los_Angeles"
+    }
+  ]
+}
+```
+
+`Username` and `Alias` are left out, so an insert defaults them to `jdoe@email.com.<myDomain>` and `johdoe`.
+
+#### Example `users.csv`
+
+You can keep the same flat user definition as CSV. See the [CSV example](examples/users.csv). Headers match `User` API fields case-insensitively. `personas`, `match`, and `fuzzyUsername` are metadata columns. Persona lists are separated by semicolons unless you set `--csv-list-delimiter`. If the file extension doesn't reveal the format, pass `--input-format json|csv`.
+
+CSV is stricter than JSON, so a typo in a spreadsheet can't silently drop data:
+
+1. Values are never type-guessed. Only `fuzzyUsername` and boolean `User` fields (per describe) become booleans.
+2. An empty cell omits the key, like a missing JSON key. You can't express an explicit blank.
+3. Booleans are case-insensitive and accept `true`/`false`, `1`/`0`, and `yes`/`no`. Anything else fails and names the row's line.
+4. A UTF-8 BOM is accepted and removed from the first header.
+5. LF and CRLF line endings are accepted. CSV output uses LF.
+6. `personas` is a list of trimmed values separated by semicolons, or by `--csv-list-delimiter`.
+7. Duplicate headers, including case variants, are errors.
+8. Unknown headers are errors, with a close field-name suggestion when there is one.
+9. Errors include the file path and the physical line number, even after embedded newlines in quoted cells.
+10. A row with the wrong number of cells is an error. A final empty line is ignored.
+
+#### Example `personas.json`
+
+```json
+{
+  "personas": {
+    "admin": {
+      "profile": "Admin",
+      "role": "CEO",
+      "permissionSetMode": "additive",
+      "permissionSets": ["Admin_Permissions"],
+      "permissionSetGroupMode": "additive",
+      "permissionSetGroups": ["Admin_Group"],
+      "publicGroupMode": "sync",
+      "publicGroups": ["Admin_Public_Group"],
+      "queueMode": "additive",
+      "queues": ["Case_Queue"],
+      "userAttributes": {
+        "Title": "Salesforce Administrator",
+        "Department": "Sales"
+      }
+    }
+  }
+}
+```
+
+Larger samples: [users.json](examples/users.json), [personas.json](examples/personas.json), and [users-profile-only.json](examples/users-profile-only.json).
+
+#### Related records (`--related-def`)
+
+See [Related-record provisioning](related-records.md) for JSON catalog and user
+selection, before/after phases, matching and modes, context lookups, Contact and
+Person Account linking, warning confirmation, and partial-failure behavior.
+
+`--cleanup-on-failure` opts in to best-effort deletion of related records created
+in this run for users whose final provisioning status is failed. Cleanup deletes
+after records before before records. It never deletes matched or updated records,
+before records linked to a successfully saved User, or the User itself. Without
+the flag, created records survive failures and may be orphaned. With `--dry-run`,
+the flag has no effect and prints a warning; the preview performs no writes.
+Deletion outcomes appear as `deleted` or `deleteFailed` related-record results;
+records retained because of a saved User link are reported as `skipped` with a reason.

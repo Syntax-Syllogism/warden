@@ -5,7 +5,7 @@ description: Audit effective Salesforce user access and trace each grant to its 
 
 # Access audits
 
-`sf warden access` is read-only. It answers two questions:
+This page is for admins who need to know who can reach a field, object, or other setup target, and which profile or permission set grants it. `sf warden access` is read-only. It answers two questions:
 
 - **Who can access this?** `--type <type> --target <name>` lists the active users who can access one target.
 - **What can this user access?** `--user field:value --type <type>` lists what one user can access, and where each grant comes from.
@@ -24,7 +24,7 @@ Target types are `field`, `object`, `apex-class`, `vf-page`, `custom-permission`
 
 ## Scoping a user audit
 
-A user audit needs exactly one scope: a `--target`, or an `--sobject`, not both and not neither.
+A user audit needs exactly one scope: a `--target`, or an `--sobject`, not both and not neither. In the table, `u:x` stands for any `field:value` user match, such as `Username:alice@example.com`.
 
 | Invocation                                                                   | Scope                              |
 | ---------------------------------------------------------------------------- | ---------------------------------- |

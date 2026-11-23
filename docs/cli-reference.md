@@ -42,13 +42,13 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -156,7 +156,7 @@ Reverse record type access for one user:
 sf warden access --user 'Username:alice@example.com' --type record-type --target Account.Business_Account --target-org myOrg
 ```
 
-_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/access.ts)_
+_See code: [src/commands/warden/access.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/access.ts)_
 
 ## `sf warden diff`
 
@@ -184,7 +184,7 @@ Reference user to compare against using `field:value`.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -208,7 +208,7 @@ Options: `json` · `csv`
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -264,7 +264,7 @@ Compare one user against another:
 sf warden diff --user username:new@example.com --against username:template@example.com --target-org myOrg --output csv
 ```
 
-_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/diff.ts)_
+_See code: [src/commands/warden/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/diff.ts)_
 
 ## `sf warden freeze`
 
@@ -288,7 +288,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -316,7 +316,7 @@ Skip confirmation prompts before write operations.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -360,7 +360,7 @@ Freeze users from a definition file without prompts:
 sf warden freeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/freeze.ts)_
+_See code: [src/commands/warden/freeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/freeze.ts)_
 
 ## `sf warden persona diff`
 
@@ -380,7 +380,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -402,7 +402,7 @@ Format output as json.
 
 Reports added, removed, and changed personas without writing to the org.
 
-_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/persona/diff.ts)_
+_See code: [src/commands/warden/persona/diff.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/persona/diff.ts)_
 
 ## `sf warden persona export`
 
@@ -422,7 +422,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -444,7 +444,7 @@ Format output as json.
 
 Reads active `wdn_Persona__c` records and their components and writes the canonical personas.json format.
 
-_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/persona/export.ts)_
+_See code: [src/commands/warden/persona/export.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/persona/export.ts)_
 
 ## `sf warden persona import`
 
@@ -464,7 +464,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -492,9 +492,9 @@ Format output as json.
 
 ### Description
 
-Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file.
+Upserts personas by `wdn_Api_Name__c` and adds missing components. Use --prune to remove components absent from the input file, and --dry-run to see the changes without writing them.
 
-_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/persona/import.ts)_
+_See code: [src/commands/warden/persona/import.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/persona/import.ts)_
 
 ## `sf warden provision`
 
@@ -518,7 +518,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -570,7 +570,7 @@ Skip warning confirmation prompts.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -580,7 +580,7 @@ Write the machine-readable output payload to this path.
 
 #### `--persona-source` `<option>`
 
-Persona definition source: file or org. Defaults to file when --personas-def is supplied, otherwise org when the Warden package is detected.
+Persona definition source: file or org. Defaults to file when --personas-def is supplied, otherwise org when warden-base is installed in the org.
 
 Options: `file` · `org`
 
@@ -638,7 +638,7 @@ Match production usernames to sandbox-suffixed users:
 sf warden provision --users-def config/user-def.json --personas-def config/persona-def.json --fuzzy-username --target-org mySandbox --dry-run
 ```
 
-_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/provision.ts)_
+_See code: [src/commands/warden/provision.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/provision.ts)_
 
 ## `sf warden restore`
 
@@ -662,7 +662,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -676,7 +676,7 @@ Skip confirmation prompts before write operations.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -716,7 +716,7 @@ Restore without prompts:
 sf warden restore --snapshot snapshots/user.json --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/restore.ts)_
+_See code: [src/commands/warden/restore.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/restore.ts)_
 
 ## `sf warden snapshot`
 
@@ -740,7 +740,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -764,7 +764,7 @@ Path to write the snapshot JSON or CSV file. The extension selects the format.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -808,7 +808,7 @@ Snapshot users from a definition file:
 sf warden snapshot --users-def config/user-def.json --external-id FederationIdentifier --out snapshots/users.json --target-org myOrg
 ```
 
-_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/snapshot.ts)_
+_See code: [src/commands/warden/snapshot.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/snapshot.ts)_
 
 ## `sf warden strip`
 
@@ -836,7 +836,7 @@ Remove access granted by every active persona held by each user.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -900,7 +900,7 @@ Skip confirmation prompts before write operations.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -914,7 +914,7 @@ Persona API name to remove. Repeat for multiple personas.
 
 #### `--persona-source` `<option>`
 
-Read persona definitions and held personas from a file or the Warden package.
+Read persona definitions and held personas from a file or from warden-base in the org.
 
 Options: `file` · `org`
 
@@ -988,7 +988,7 @@ Remove every active persona and then freeze the user:
 sf warden strip --user username:someone@example.com --all-personas --persona-source org --freeze --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/strip.ts)_
+_See code: [src/commands/warden/strip.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/strip.ts)_
 
 ## `sf warden unfreeze`
 
@@ -1012,7 +1012,7 @@ Target org username or alias.
 
 #### `--api-version` `<value>`
 
-Override the api version used for the org connection.
+Salesforce API version to use, for example 62.0.
 
 Override the api version used for api requests made by this command
 
@@ -1040,7 +1040,7 @@ Skip confirmation prompts before write operations.
 
 #### `--output` `<option>`
 
-Output format: human, csv, or json. Defaults to human.
+Output format: human, csv, or json.
 
 Options: `human` · `csv` · `json` · Default: `human`
 
@@ -1084,4 +1084,4 @@ Unfreeze users from a definition file without prompts:
 sf warden unfreeze --users-def config/user-def.json --external-id FederationIdentifier --target-org myOrg --no-prompt
 ```
 
-_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.1/src/commands/warden/unfreeze.ts)_
+_See code: [src/commands/warden/unfreeze.ts](https://github.com/Syntax-Syllogism/warden/blob/v0.11.2/src/commands/warden/unfreeze.ts)_

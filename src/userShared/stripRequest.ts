@@ -11,13 +11,13 @@ import {
   stripOptionsSchema,
   writeSnapshotFile,
   type InputFormat,
+  type LedgerTargetProvenance,
   type LifecycleResult,
   type UseCaseContext,
 } from '@syntax-syllogism/warden-core';
 import { readHeldPersonas, readOrgPersonas, personaPackageDetected, type HeldPersonaAssignment } from './personas.js';
 import {
   describeObjectFields,
-  detectConnectedPackage,
   readLedgerProvenance,
   saveRun,
   updateBatch,
@@ -146,6 +146,7 @@ export const planStripRequest = async (
   };
   let ledgerProvenance: LedgerProvenance[] | undefined;
   let heldAssignments: HeldPersonaAssignment[] = [];
+  let ledgerTargets: LedgerTargetProvenance[] | undefined;
   let selectedStates: StripPlan['states'] | undefined;
   let options: Record<string, unknown> = {
     ...baseOptions,
@@ -195,7 +196,7 @@ export const planStripRequest = async (
     };
   }
   if (personaMode) {
-    const connected = await detectConnectedPackage(conn);
+    const ledgerFields = await describeObjectFields(conn, WARDEN_LEDGER_OBJECT);
     if (!selectedStates)
       selectedStates = (await strip.plan(conn, stripOptionsSchema.parse(baseOptions), hooks.ctx)).states;
     const targetIds = selectedStates.map((state) => state.target.Id);
@@ -208,13 +209,20 @@ export const planStripRequest = async (
         );
       }
     }
-    if (connected.ledgerAvailable) {
+    if (ledgerFields) {
       try {
         ledgerProvenance = await readLedgerProvenance(
           conn,
-          input.personaSource === 'org' ? heldAssignments.map((assignment) => assignment.userId) : targetIds
+          input.personaSource === 'org'
+            ? [...new Set(heldAssignments.map((assignment) => assignment.userId))]
+            : targetIds,
+          ledgerFields
         );
-        options.ledgerTargets = ledgerProvenance;
+        if (ledgerFields.has('wdn_Persona__c')) {
+          ledgerTargets = ledgerProvenance.flatMap(({ userId, targetId, persona }) =>
+            persona === undefined ? [] : [{ userId, targetId, persona }]
+          );
+        }
       } catch (error) {
         hooks.warn(
           `Could not read Warden ledger provenance: ${error instanceof Error ? error.message : String(error)}`
@@ -222,11 +230,7 @@ export const planStripRequest = async (
       }
     }
   }
-  const core = await strip.plan(
-    conn,
-    { ...stripOptionsSchema.parse(options), ...(ledgerProvenance ? { ledgerTargets: ledgerProvenance } : {}) },
-    hooks.ctx
-  );
+  const core = await strip.plan(conn, { ...stripOptionsSchema.parse(options), ledgerTargets }, hooks.ctx);
   const removed = !personaMode
     ? new Map<string, Set<string>>()
     : input.personaSource === 'org'
@@ -274,9 +278,10 @@ const writePersonaRevocations = async (
     );
   }
   const now = new Date().toISOString();
+  // Report a failed Revoke run once, with the consequence for the ledger.
   const runId =
     runFields?.has('wdn_Mode__c') && runFields.has('wdn_Source_System__c')
-      ? await saveRun(conn, { wdn_Mode__c: 'Revoke', wdn_Source_System__c: 'Warden CLI' }, warn)
+      ? await saveRun(conn, { wdn_Mode__c: 'Revoke', wdn_Source_System__c: 'Warden CLI' }, () => {})
       : undefined;
   if (assignmentsAvailable) {
     await updateBatch(
@@ -291,6 +296,17 @@ const writePersonaRevocations = async (
       warn,
       'persona assignment revocation'
     );
+  }
+  if (!runId) {
+    warn(
+      'Revoke run could not be saved; skipped ledger revocation bookkeeping (the ledger guard requires wdn_Revoked_By_Run__c).'
+    );
+    return;
+  }
+  const unscopedCount = ledger.filter((row) => row.persona === undefined).length;
+  if (unscopedCount > 0) {
+    const reason = ledgerFields && !ledgerFields.has('wdn_Persona__c') ? ' (package lacks Grant.wdn_Persona__c)' : '';
+    warn(`${unscopedCount} ledger row(s) have no persona${reason}; not revoked.`);
   }
   const successfulTargets = new Map<string, Set<string>>();
   for (const user of output.users) {
@@ -315,10 +331,11 @@ const writePersonaRevocations = async (
     ledger
       .filter(
         (row) =>
+          row.persona !== undefined &&
           successfulTargets.get(row.userId)?.has(row.targetId) &&
           removedPersonasByUser[row.userId]?.includes(row.persona)
       )
-      .map((row) => ({ Id: row.id, wdn_Revoked_On__c: now, ...(runId ? { wdn_Revoked_By_Run__c: runId } : {}) })),
+      .map((row) => ({ Id: row.id, wdn_Revoked_On__c: now, wdn_Revoked_By_Run__c: runId })),
     warn,
     'ledger revocation'
   );

@@ -1,0 +1,224 @@
+{
+  "package": "warden-base",
+  "version": "0.0.0-draft",
+  "objects": {
+    "wdn_Persona__c": {
+      "fields": {
+        "wdn_Api_Name__c": {
+          "type": "Text"
+        },
+        "wdn_Active__c": {
+          "type": "Checkbox"
+        }
+      },
+      "childRelationships": {
+        "wdn_PersonaComponents__r": "wdn_Persona_Component__c",
+        "wdn_PersonaAssignments__r": "wdn_Persona_Assignment__c",
+        "Provisioned_Grants__r": "wdn_Provisioned_Grant__c"
+      }
+    },
+    "wdn_Persona_Component__c": {
+      "fields": {
+        "wdn_Persona__c": {
+          "type": "MasterDetail",
+          "referenceTo": "wdn_Persona__c",
+          "relationshipName": "wdn_PersonaComponents"
+        },
+        "wdn_Type__c": {
+          "type": "Picklist",
+          "values": ["Permission Set", "Permission Set Group", "Public Group", "Queue", "Persona"]
+        },
+        "wdn_Reference__c": {
+          "type": "Text"
+        }
+      },
+      "childRelationships": {}
+    },
+    "wdn_Persona_Assignment__c": {
+      "fields": {
+        "wdn_User__c": {
+          "type": "Lookup",
+          "referenceTo": "User",
+          "relationshipName": "wdn_PersonaAssignments"
+        },
+        "wdn_Persona__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Persona__c",
+          "relationshipName": "wdn_PersonaAssignments"
+        },
+        "wdn_Status__c": {
+          "type": "Picklist",
+          "values": ["Active", "Inactive", "Revoked"]
+        },
+        "wdn_Revoked_On__c": {
+          "type": "DateTime"
+        },
+        "wdn_Revoked_By__c": {
+          "type": "Lookup",
+          "referenceTo": "User",
+          "relationshipName": "wdn_RevokedAssignments"
+        },
+        "wdn_Revoked_By_Run__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Reconciliation_Run__c",
+          "relationshipName": "wdn_RevokedAssignments"
+        }
+      },
+      "childRelationships": {
+        "wdn_AssignmentProvisionedGrants__r": "wdn_Provisioned_Grant__c"
+      }
+    },
+    "wdn_Provisioned_Grant__c": {
+      "fields": {
+        "wdn_User__c": {
+          "type": "Lookup",
+          "referenceTo": "User",
+          "relationshipName": "wdn_UserProvisionedGrants"
+        },
+        "wdn_Type__c": {
+          "type": "Picklist",
+          "values": ["Permission Set", "Permission Set Group", "Public Group", "Queue", "Persona"]
+        },
+        "wdn_Target_Id__c": {
+          "type": "Text"
+        },
+        "wdn_Target_Label__c": {
+          "type": "Text"
+        },
+        "wdn_Granted_On__c": {
+          "type": "DateTime"
+        },
+        "wdn_Granted_By_Run__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Reconciliation_Run__c",
+          "relationshipName": "wdn_RunProvisionedGrants"
+        },
+        "wdn_Revoked_On__c": {
+          "type": "DateTime"
+        },
+        "wdn_Revoked_By_Run__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Reconciliation_Run__c",
+          "relationshipName": "wdn_RevokedGrants"
+        },
+        "wdn_Persona_Assignment__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Persona_Assignment__c",
+          "relationshipName": "wdn_AssignmentProvisionedGrants"
+        },
+        "wdn_Persona__c": {
+          "type": "Lookup",
+          "referenceTo": "wdn_Persona__c",
+          "relationshipName": "Provisioned_Grants"
+        }
+      },
+      "childRelationships": {}
+    },
+    "wdn_Reconciliation_Run__c": {
+      "fields": {
+        "wdn_Mode__c": {
+          "type": "Picklist",
+          "values": ["Preview", "Apply", "Drift", "Revoke Preview", "Revoke"]
+        },
+        "wdn_Scope__c": {
+          "type": "LongTextArea"
+        },
+        "wdn_Planned_Count__c": {
+          "type": "Number"
+        },
+        "wdn_Applied_Count__c": {
+          "type": "Number"
+        },
+        "wdn_Error_Count__c": {
+          "type": "Number"
+        },
+        "wdn_Unmanaged_Count__c": {
+          "type": "Number"
+        },
+        "wdn_Source_System__c": {
+          "type": "Text"
+        },
+        "wdn_Cli_Version__c": {
+          "type": "Text"
+        },
+        "wdn_Invoking_User__c": {
+          "type": "Text"
+        },
+        "wdn_Ci_Job__c": {
+          "type": "Text"
+        },
+        "wdn_Definition_Path__c": {
+          "type": "Text"
+        },
+        "wdn_Definition_Sha__c": {
+          "type": "Text"
+        }
+      },
+      "childRelationships": {
+        "wdn_RevokedAssignments__r": "wdn_Persona_Assignment__c",
+        "wdn_RunProvisionedGrants__r": "wdn_Provisioned_Grant__c",
+        "wdn_RevokedGrants__r": "wdn_Provisioned_Grant__c",
+        "wdn_ReconciliationItems__r": "wdn_Reconciliation_Item__c"
+      }
+    },
+    "wdn_Reconciliation_Item__c": {
+      "fields": {
+        "wdn_Reconciliation_Run__c": {
+          "type": "MasterDetail",
+          "referenceTo": "wdn_Reconciliation_Run__c",
+          "relationshipName": "wdn_ReconciliationItems"
+        },
+        "wdn_User_Key__c": {
+          "type": "Text"
+        },
+        "wdn_User_Id__c": {
+          "type": "Text"
+        },
+        "wdn_Category__c": {
+          "type": "Text"
+        },
+        "wdn_Action__c": {
+          "type": "Text"
+        },
+        "wdn_Status__c": {
+          "type": "Picklist",
+          "values": ["Planned", "Applied", "Failed", "Unmanaged", "Kept", "Skipped"]
+        },
+        "wdn_Detail__c": {
+          "type": "LongTextArea"
+        },
+        "wdn_Error__c": {
+          "type": "LongTextArea"
+        }
+      },
+      "childRelationships": {}
+    }
+  },
+  "permissionSets": {
+    "wdn_Integration": {
+      "wdn_Reconciliation_Run__c": "CRE",
+      "wdn_Reconciliation_Item__c": "CRE",
+      "wdn_Provisioned_Grant__c": "CRE",
+      "wdn_Persona_Assignment__c": "RE",
+      "wdn_Persona__c": "R",
+      "wdn_Persona_Component__c": "R"
+    },
+    "wdn_Persona_Publisher": {
+      "wdn_Persona__c": "CRE",
+      "wdn_Persona_Component__c": "CRED"
+    },
+    "wdn_Ledger_Maintenance": {
+      "wdn_Provisioned_Grant__c": "CRED",
+      "wdn_Reconciliation_Run__c": "CRED",
+      "wdn_Reconciliation_Item__c": "CRED"
+    },
+    "wdn_Base_Viewer": {
+      "wdn_Persona__c": "R",
+      "wdn_Persona_Component__c": "R",
+      "wdn_Persona_Assignment__c": "R",
+      "wdn_Provisioned_Grant__c": "R",
+      "wdn_Reconciliation_Run__c": "R",
+      "wdn_Reconciliation_Item__c": "R"
+    }
+  }
+}

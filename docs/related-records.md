@@ -5,6 +5,8 @@ description: Provision related Salesforce records before or after users, with co
 
 # Related-record provisioning
 
+This page is for admins who need `provision` to create or update other records alongside each user, such as a Contact for an external user or a custom employee record. It assumes you already know how to [provision users](provisioning.md#warden-provision).
+
 `--related-def` takes a JSON catalog of reusable relationships. A JSON user picks catalog entries by name in a `related` array. Both `related` and `relatedContext` are per-user metadata, never sent to the User API or inferred from personas. Malformed values fail JSON users-file parsing for the whole file. CSV user definitions can't select relationships, so CSV input with `--related-def` is an error.
 
 Only `provision` applies related records; `diff`, `snapshot`, `restore`, and `strip` do not synchronize them.

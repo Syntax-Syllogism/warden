@@ -19,6 +19,8 @@ lib
 # generated docs assets
 docs/*
 !docs/*.md
+!docs/contributing/
+!docs/contributing/*.md
 !docs/examples/
 !docs/examples/**
 
